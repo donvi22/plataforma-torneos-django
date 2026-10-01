@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Crear cuenta · Arena provisional{% endblock %}
+{% block content %}
+<section class="form-panel">
+    <p class="eyebrow">Nueva cuenta</p>
+    <h1>Entra a la arena.</h1>
+    <p class="muted">Usa un nickname público y un correo privado.</p>
+    <form method="post" class="stack-form" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+            {% if field.help_text %}<p class="help-text">{{ field.help_text }}</p>{% endif %}
+        {% endfor %}
+        <button class="button" type="submit">Crear cuenta</button>
+    </form>
+</section>
+{% endblock %}

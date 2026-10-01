@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block title %}Mis torneos · Arena provisional{% endblock %}
+{% block content %}
+<section class="catalogue-header"><p class="eyebrow">Organización</p><h1>Mis torneos.</h1><p class="lead">Consulta y prepara los torneos que has creado.</p></section>
+{% if torneos %}<div class="tournament-grid">{% for torneo in torneos %}<article class="tournament-card"><div class="tournament-card-body"><div class="card-meta"><span>{{ torneo.get_tipo_display }}</span><span>{{ torneo.get_estado_display }}</span></div><h2>{{ torneo.nombre }}</h2><p class="muted">{{ torneo.videojuego.nombre }} · Creado {{ torneo.fecha_creacion|date:'j/m/Y H:i' }}</p><a class="text-link" href="{% url 'ficha-torneo' torneo.pk %}">Ver ficha</a>{% if torneo.estado == 'BORRADOR' %}<div class="action-row"><a class="button button-small" href="{% url 'editar-borrador-torneo' torneo.pk %}">Editar</a><form method="post" action="{% url 'publicar-torneo' torneo.pk %}" class="inline-form">{% csrf_token %}<button class="button button-small button-quiet" type="submit">Publicar</button></form></div>{% endif %}</div></article>{% endfor %}</div>{% else %}<section class="empty-panel"><h2>Todavía no tienes torneos</h2><p class="muted">Puedes preparar el primero desde Crear torneo.</p></section>{% endif %}
+{% endblock %}

@@ -1,0 +1,53 @@
+# Entorno virtual
+.venv/
+venv/
+
+__pycache__/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django
+*.log
+db.sqlite3
+media/
+
+# Configuracion local y secretos
+.env
+.env.*
+!.env.example
+config/local_settings.py
+secrets/
+.secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+credentials.json
+service-account*.json
+docs/completar_torneo_12.md
+
+# Cachés, cobertura y resultados de pruebas
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+test-results/
+coverage/
+.ipynb_checkpoints/
+
+# IDE y sistema operativo
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Herramientas de desarrollo
+.vscode/
+.idea/

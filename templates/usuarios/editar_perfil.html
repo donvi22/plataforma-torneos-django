@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Editar perfil · Arena provisional{% endblock %}
+{% block content %}
+<section class="form-panel">
+    <p class="eyebrow">Preferencias de perfil</p>
+    <h1>Cuida cómo apareces.</h1>
+    <p class="muted">Solo puedes cambiar tus preferencias públicas y tu avatar.</p>
+    <form method="post" enctype="multipart/form-data" class="stack-form">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+            <label {% if field.field.widget.input_type == 'checkbox' %}class="check-label"{% endif %} for="{{ field.id_for_label }}">{{ field }} {{ field.label }}</label>
+            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        {% endfor %}
+        <button class="button" type="submit">Guardar cambios</button>
+    </form>
+</section>
+{% endblock %}

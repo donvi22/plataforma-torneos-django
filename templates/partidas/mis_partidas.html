@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Mis partidas · Arena provisional{% endblock %}
+{% block content %}
+<section class="catalogue-header"><p class="eyebrow">Competición</p><h1>Mis partidas.</h1><p class="lead">Consulta tus enfrentamientos confirmados en todos tus torneos.</p></section>
+{% if partidas %}
+<div class="tournament-grid">
+{% for detalle in partidas %}
+<article class="tournament-card"><div class="tournament-card-body"><div class="card-meta"><span>{{ detalle.partida.get_estado_display }}</span><span>Ronda {{ detalle.partida.numero_ronda }}</span></div><h2>{{ detalle.partida.torneo.nombre }}</h2><p class="muted">{{ detalle.partida.torneo.videojuego.nombre }}</p><p>Partida {{ detalle.partida.numero_orden }}</p>{% if detalle.partida.fecha_hora_programada %}<p>{{ detalle.partida.fecha_hora_programada|date:'j/m/Y H:i' }}</p>{% endif %}<a class="text-link" href="{% url 'detalle-partida' detalle.partida.pk %}">Ver partida</a></div></article>
+{% endfor %}
+</div>
+{% else %}<section class="empty-panel"><h2>Aún no tienes partidas</h2><p class="muted">Cuando avances a un enfrentamiento, aparecerá aquí.</p><a class="text-link" href="{% url 'mis-participaciones' %}">Ver mis participaciones</a></section>{% endif %}
+{% endblock %}

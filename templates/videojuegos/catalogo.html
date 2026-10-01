@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Videojuegos · Arena provisional{% endblock %}
+{% block content %}
+<section class="catalogue-header"><p class="eyebrow">Catálogo competitivo</p><h1>Elige tu arena.</h1><p class="lead">Explora los videojuegos activos y prepara tu identidad de jugador.</p></section>
+<form method="get" class="filter-bar" aria-label="Buscar videojuegos">
+    <label for="id_q">Buscar por nombre</label><input id="id_q" name="q" value="{{ busqueda }}" type="search" placeholder="Ej. Arena Battle">
+    <label for="id_plataforma">Plataforma</label><select id="id_plataforma" name="plataforma"><option value="">Todas</option>{% for plataforma in plataformas %}<option value="{{ plataforma.pk }}" {% if plataforma_id == plataforma.pk|stringformat:'s' %}selected{% endif %}>{{ plataforma.nombre }}</option>{% endfor %}</select>
+    <button class="button" type="submit">Buscar</button>
+</form>
+{% if videojuegos %}<div class="catalogue-grid">{% for videojuego in videojuegos %}<article class="game-card">{% if videojuego.imagen %}<img src="{{ videojuego.imagen.url }}" alt="Imagen de {{ videojuego.nombre }}">{% else %}<div class="game-thumb game-thumb-fallback" aria-hidden="true">{{ videojuego.nombre|first|upper }}</div>{% endif %}<div class="game-card-body"><p class="eyebrow">{{ videojuego.genero }}</p><h2>{{ videojuego.nombre }}</h2><p class="muted">{% for plataforma in videojuego.plataformas.all %}{{ plataforma.nombre }}{% if not forloop.last %} · {% endif %}{% empty %}Plataforma por definir{% endfor %}</p><a class="text-link" href="{% url 'ficha-videojuego' videojuego.pk %}">Ver ficha</a></div></article>{% endfor %}</div>{% else %}<section class="empty-panel"><h2>No encontramos videojuegos</h2><p class="muted">Prueba otra búsqueda o vuelve a consultar el catálogo más tarde.</p></section>{% endif %}
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Inicio · Arena provisional{% endblock %}
+{% block content %}
+<section class="hero-panel">
+    <p class="eyebrow">Plataforma de competición</p>
+    {% if user.is_authenticated %}
+        <h1>Hola, {{ user.username }}.</h1>
+        <p class="lead">Tu espacio de jugador está listo para la siguiente fase del proyecto.</p>
+        <a class="button" href="{% url 'perfil-propio' %}">Ver mi perfil</a>
+    {% else %}
+        <h1>Tu próxima partida empieza aquí.</h1>
+        <p class="lead">Una base sencilla para reunir jugadores, torneos y competición.</p>
+        <div class="action-row">
+            <a class="button" href="{% url 'registro' %}">Crear cuenta</a>
+            <a class="button button-quiet" href="{% url 'login' %}">Iniciar sesión</a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

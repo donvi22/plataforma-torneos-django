@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}{% if modo == 'crear' %}Crear torneo{% else %}Editar borrador{% endif %} · Arena provisional{% endblock %}
+{% block content %}
+<section class="form-panel tournament-form-panel">
+    <p class="eyebrow">Gestión de torneos</p>
+    <h1>{% if modo == 'crear' %}Prepara tu torneo.{% else %}Edita tu borrador.{% endif %}</h1>
+    <p class="muted">Los datos de organización y publicación se controlan en el servidor.</p>
+        <form method="post" enctype="multipart/form-data" class="stack-form tournament-form" novalidate
+            data-rangos-url="{% url 'rangos-por-videojuego' 0 %}">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<p class="help-text">{{ field.help_text }}</p>{% endif %}
+            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        {% endfor %}
+        <button class="button" type="submit">Guardar borrador</button>
+    </form>
+    {{ formato_tamanos|json_script:'formato-tamanos-data' }}
+    <p id="rangos-status" class="help-text" role="status" aria-live="polite"></p>
+</section>
+{% load static %}<script src="{% static 'js/torneo-form.js' %}"></script>
+{% endblock %}

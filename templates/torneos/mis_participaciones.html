@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block title %}Mis participaciones · Arena provisional{% endblock %}
+{% block content %}
+<section class="catalogue-header"><p class="eyebrow">Competición</p><h1>Mis participaciones.</h1><p class="lead">Aquí conservas el historial de tus inscripciones.</p></section>
+{% if inscripciones %}<div class="tournament-grid">{% for inscripcion in inscripciones %}<article class="tournament-card"><div class="tournament-card-body"><div class="card-meta"><span>{{ inscripcion.get_estado_display }}</span><span>{{ inscripcion.torneo.get_tipo_display }}</span></div><h2>{{ inscripcion.torneo.nombre }}</h2><p class="muted">{{ inscripcion.torneo.videojuego.nombre }}</p><p>Nickname histórico: <strong>{{ inscripcion.nick_historico }}</strong></p><a class="text-link" href="{% url 'ficha-torneo' inscripcion.torneo.pk %}">Ver ficha</a></div></article>{% endfor %}</div>{% else %}<section class="empty-panel"><h2>Aún no tienes participaciones</h2><p class="muted">Tus inscripciones aparecerán aquí.</p></section>{% endif %}
+{% endblock %}

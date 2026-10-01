@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+{% block title %}Historial de XP · Arena provisional{% endblock %}
+{% block content %}
+<section class="profile-panel"><p class="eyebrow">Progresión privada</p><h1>Historial de XP</h1>{% if movimientos %}<ul class="participant-list">{% for movimiento in movimientos %}<li><strong>+{{ movimiento.xp_concedida }} XP</strong> · {{ movimiento.torneo.nombre }} · Posición {{ movimiento.posicion_final }} · Nivel {{ movimiento.nivel_anterior }} a {{ movimiento.nivel_posterior }} · {{ movimiento.fecha|date:'j/m/Y H:i' }}</li>{% endfor %}</ul>{% else %}<p class="muted">Todavía no tienes recompensas de XP.</p>{% endif %}</section>
+{% endblock %}
