@@ -89,15 +89,15 @@
 </section>
 
 <section class="profile-panel referee-section">
-    <div class="section-heading"><p class="eyebrow">Prioridad de trabajo</p><h2>Partidas asignadas</h2></div>
-    {% if partidas_asignadas %}
+    <div class="section-heading"><p class="eyebrow">Requieren acción</p><h2>Revisión arbitral</h2></div>
+    {% if partidas_requieren_accion %}
         <ul class="referee-list">
-            {% for partida in partidas_asignadas %}
-                <li class="referee-entry{% if partida.estado == 'PENDIENTE_VALIDACION' %} needs-review{% endif %}">
+            {% for partida in partidas_requieren_accion %}
+                <li class="referee-entry needs-review">
                     <div class="referee-copy">
                         <div class="card-meta"><span>{{ partida.get_estado_display }}</span><span>Ronda {{ partida.numero_ronda }}</span></div>
                         <h3>{{ partida.torneo.nombre }}</h3>
-                        <p>{{ partida.torneo.videojuego.nombre }} · {{ partida.nicks_participantes|join:' vs ' }}</p>
+                        <p>{{ partida.torneo.videojuego.nombre }} · {% if partida.nicks_participantes %}{{ partida.nicks_participantes|join:' vs ' }}{% else %}Rivales por determinar{% endif %}</p>
                         <p>Programada: {{ partida.fecha_hora_programada|date:'j/m/Y H:i'|default:'Sin horario fijado' }}</p>
                         <p>Check-in confirmado: {{ partida.checkins_confirmados }} de {{ partida.checkins_totales }}</p>
                     </div>
@@ -108,12 +108,39 @@
                 </li>
             {% endfor %}
         </ul>
-    {% else %}<p class="muted">No tienes partidas activas asignadas.</p>{% endif %}
-    {% if partidas_page.has_other_pages %}<nav class="pagination" aria-label="Páginas de partidas asignadas">{% if partidas_page.has_previous %}<a href="?partidas_page={{ partidas_page.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ partidas_page.number }} de {{ partidas_page.paginator.num_pages }}</span>{% if partidas_page.has_next %}<a href="?partidas_page={{ partidas_page.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
+    {% else %}<p class="muted">No tienes partidas que requieran acción.</p>{% endif %}
+    {% if partidas_requieren_accion.has_other_pages %}<nav class="pagination" aria-label="Páginas de partidas que requieren acción">{% if partidas_requieren_accion.has_previous %}<a href="?accion_page={{ partidas_requieren_accion.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ partidas_requieren_accion.number }} de {{ partidas_requieren_accion.paginator.num_pages }}</span>{% if partidas_requieren_accion.has_next %}<a href="?accion_page={{ partidas_requieren_accion.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
 </section>
 
 <section class="profile-panel referee-section">
-    <div class="section-heading"><p class="eyebrow">Actividad reciente</p><h2>Historial de arbitraje</h2></div>
+    <div class="section-heading"><p class="eyebrow">En curso</p><h2>Partidas activas</h2></div>
+    {% if partidas_en_curso %}
+        <ul class="referee-list">
+            {% for partida in partidas_en_curso %}
+                <li class="referee-entry">
+                    <div class="referee-copy"><div class="card-meta"><span>{{ partida.get_estado_display }}</span><span>Ronda {{ partida.numero_ronda }}</span></div><h3>{{ partida.torneo.nombre }}</h3><p>{{ partida.torneo.videojuego.nombre }} · {% if partida.nicks_participantes %}{{ partida.nicks_participantes|join:' vs ' }}{% else %}Rivales por determinar{% endif %}</p><p>Horario: {{ partida.fecha_hora_programada|date:'j/m/Y H:i'|default:'En curso o check-in abierto' }}</p><p>Check-in confirmado: {{ partida.checkins_confirmados }} de {{ partida.checkins_totales }}</p></div>
+                    <div class="referee-actions"><a class="button button-small" href="{% url 'detalle-partida' partida.pk %}">Ver partida</a><a class="text-link" href="{% url 'ficha-torneo' partida.torneo_id %}">Ver torneo</a></div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}<p class="muted">No tienes partidas en curso.</p>{% endif %}
+    {% if partidas_en_curso.has_other_pages %}<nav class="pagination" aria-label="Páginas de partidas en curso">{% if partidas_en_curso.has_previous %}<a href="?curso_page={{ partidas_en_curso.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ partidas_en_curso.number }} de {{ partidas_en_curso.paginator.num_pages }}</span>{% if partidas_en_curso.has_next %}<a href="?curso_page={{ partidas_en_curso.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
+</section>
+
+<section class="profile-panel referee-section">
+    <div class="section-heading"><p class="eyebrow">Próximas</p><h2>Partidas pendientes</h2></div>
+    {% if partidas_proximas %}
+        <ul class="referee-list">
+            {% for partida in partidas_proximas %}
+                <li class="referee-entry"><div class="referee-copy"><div class="card-meta"><span>{{ partida.get_estado_display }}</span><span>Ronda {{ partida.numero_ronda }}</span></div><h3>{{ partida.torneo.nombre }}</h3><p>{{ partida.torneo.videojuego.nombre }} · {% if partida.nicks_participantes %}{{ partida.nicks_participantes|join:' vs ' }}{% else %}Rivales por determinar{% endif %}</p><p>Programada: {{ partida.fecha_hora_programada|date:'j/m/Y H:i'|default:'Sin horario fijado' }}</p></div><div class="referee-actions"><a class="button button-small" href="{% url 'detalle-partida' partida.pk %}">Ver partida</a><a class="text-link" href="{% url 'ficha-torneo' partida.torneo_id %}">Ver torneo</a></div></li>
+            {% endfor %}
+        </ul>
+    {% else %}<p class="muted">No tienes próximas partidas asignadas.</p>{% endif %}
+    {% if partidas_proximas.has_other_pages %}<nav class="pagination" aria-label="Páginas de próximas partidas">{% if partidas_proximas.has_previous %}<a href="?proximas_page={{ partidas_proximas.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ partidas_proximas.number }} de {{ partidas_proximas.paginator.num_pages }}</span>{% if partidas_proximas.has_next %}<a href="?proximas_page={{ partidas_proximas.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
+</section>
+
+<section class="profile-panel referee-section">
+    <div class="section-heading"><p class="eyebrow">Finalizadas recientemente</p><h2>Historial de arbitraje</h2></div>
     {% if historial_reciente %}
         <ul class="referee-list referee-history">
             {% for entrada in historial_reciente %}

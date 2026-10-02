@@ -30,6 +30,19 @@ ESTADOS_PARTIDA_ACTIVOS = (
 	Partida.Estado.PENDIENTE_VALIDACION,
 	Partida.Estado.INCIDENCIA,
 )
+ESTADOS_REQUIEREN_ACCION = (
+	Partida.Estado.PENDIENTE_VALIDACION,
+	Partida.Estado.INCIDENCIA,
+)
+ESTADOS_EN_CURSO = (
+	Partida.Estado.EN_CURSO,
+	Partida.Estado.CHECK_IN,
+	Partida.Estado.LISTA_PARA_COMENZAR,
+)
+ESTADOS_PROXIMAS = (
+	Partida.Estado.PENDIENTE,
+	Partida.Estado.PROGRAMADA,
+)
 ELEMENTOS_POR_PAGINA = 20
 
 
@@ -41,6 +54,25 @@ def _arbitraje_en_validacion(partida):
 		if cambio.fecha > resultado.fecha_validacion:
 			arbitraje = cambio.arbitro_anterior
 	return arbitraje, historial
+
+
+def _partidas_asignadas_paginadas(usuario, estados, pagina):
+	page_obj = Paginator(Partida.objects.filter(
+		arbitro_asignado__usuario=usuario,
+		estado__in=estados,
+	).select_related(
+		'torneo__videojuego', 'torneo__organizador', 'arbitro_asignado',
+	).prefetch_related(
+		'participantes__inscripcion', 'checkins',
+	).order_by('fecha_hora_programada', 'pk'), ELEMENTOS_POR_PAGINA).get_page(pagina)
+	for partida in page_obj:
+		partida.nicks_participantes = [
+			participante.inscripcion.nick_historico
+			for participante in partida.participantes.all()
+		]
+		partida.checkins_confirmados = sum(checkin.confirmado for checkin in partida.checkins.all())
+		partida.checkins_totales = len(partida.nicks_participantes) + 1
+	return page_obj
 
 
 @login_required
@@ -66,37 +98,15 @@ def centro(request):
 			activo_en_torneo=False,
 		),
 	), ELEMENTOS_POR_PAGINA).get_page(request.GET.get('historial_page'))
-	partidas_page = Paginator(Partida.objects.filter(
-		arbitro_asignado__usuario=usuario,
-		estado__in=ESTADOS_PARTIDA_ACTIVOS,
-	).select_related(
-		'torneo__videojuego', 'torneo__organizador', 'arbitro_asignado',
-	).prefetch_related(
-		'participantes__inscripcion', 'checkins',
-	).annotate(
-		prioridad_arbitraje=Case(
-			When(estado=Partida.Estado.PENDIENTE_VALIDACION, then=0),
-			When(estado=Partida.Estado.EN_CURSO, then=1),
-			When(estado__in=(
-				Partida.Estado.PENDIENTE,
-				Partida.Estado.PROGRAMADA,
-				Partida.Estado.CHECK_IN,
-				Partida.Estado.LISTA_PARA_COMENZAR,
-			), then=2),
-			default=3,
-			output_field=IntegerField(),
-		),
-	).order_by('prioridad_arbitraje', 'fecha_hora_programada', 'pk'), ELEMENTOS_POR_PAGINA).get_page(
-		request.GET.get('partidas_page'),
+	partidas_requieren_accion = _partidas_asignadas_paginadas(
+		usuario, ESTADOS_REQUIEREN_ACCION, request.GET.get('accion_page'),
 	)
-	partidas = partidas_page.object_list
-	for partida in partidas:
-		partida.nicks_participantes = [
-			participante.inscripcion.nick_historico
-			for participante in partida.participantes.all()
-		]
-		partida.checkins_confirmados = sum(checkin.confirmado for checkin in partida.checkins.all())
-		partida.checkins_totales = len(partida.nicks_participantes) + 1
+	partidas_en_curso = _partidas_asignadas_paginadas(
+		usuario, ESTADOS_EN_CURSO, request.GET.get('curso_page'),
+	)
+	partidas_proximas = _partidas_asignadas_paginadas(
+		usuario, ESTADOS_PROXIMAS, request.GET.get('proximas_page'),
+	)
 
 	historial_candidatos = Partida.objects.filter(
 		estado=Partida.Estado.FINALIZADA,
@@ -138,8 +148,9 @@ def centro(request):
 		'invitaciones_pendientes': invitaciones_pendientes,
 		'invitaciones_resueltas': invitaciones_resueltas[:10],
 		'torneos_aceptados': torneos_aceptados,
-		'partidas_asignadas': partidas,
-		'partidas_page': partidas_page,
+		'partidas_requieren_accion': partidas_requieren_accion,
+		'partidas_en_curso': partidas_en_curso,
+		'partidas_proximas': partidas_proximas,
 		'historial_reciente': historial_reciente,
 		'torneos_gestionables': torneos_gestionables,
 		'puede_arbitrar_publico': usuario.is_active and usuario.karma_total >= 150,

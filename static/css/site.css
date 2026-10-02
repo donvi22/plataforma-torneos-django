@@ -15,9 +15,24 @@ a { color: inherit; }
 .brand { color: var(--teal); font-size: 1.1rem; font-weight: 700; letter-spacing: .02em; text-decoration: none; }
 nav { align-items: center; display: flex; gap: 18px; font-family: Arial, sans-serif; font-size: .9rem; }
 nav a { text-decoration: none; }
-.notification-bell { align-items: center; display: inline-flex; gap: 6px; white-space: nowrap; }
+.notification-menu { position: relative; }
+.notification-bell { align-items: center; background: none; border: 0; color: inherit; cursor: pointer; display: inline-flex; font: inherit; gap: 6px; padding: 0; white-space: nowrap; }
+.notification-bell:focus-visible { outline: 2px solid var(--teal); outline-offset: 4px; }
 .notification-bell-icon { font-family: Arial, sans-serif; font-size: 1.05rem; }
 .notification-count { align-items: center; background: var(--accent); border-radius: 999px; color: white; display: inline-flex; font: 700 .72rem Arial, sans-serif; justify-content: center; min-height: 20px; min-width: 20px; padding: 0 5px; }
+.notification-popover { background: var(--panel); border: 1px solid var(--line); box-shadow: 0 14px 36px rgba(23, 37, 45, .18); max-height: min(70vh, 440px); overflow-y: auto; position: absolute; right: 0; top: calc(100% + 14px); width: min(360px, calc(100vw - 32px)); z-index: 20; }
+.notification-popover[hidden] { display: none; }
+.notification-quick-list { list-style: none; margin: 0; padding: 6px 14px; }
+.notification-quick-item { border-bottom: 1px solid var(--line); border-left: 3px solid transparent; min-width: 0; }
+.notification-quick-item.is-unread { border-left-color: var(--teal); }
+.notification-quick-open { background: transparent; border: 0; color: var(--ink); cursor: pointer; display: grid; gap: 4px; min-width: 0; padding: 12px 10px; text-align: left; width: 100%; }
+.notification-quick-open:hover { background: #edf3ee; }
+.notification-quick-open:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
+.notification-quick-title { font: 700 .86rem Arial, sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notification-quick-open time { color: var(--muted); font: .74rem Arial, sans-serif; }
+.notification-quick-empty { color: var(--muted); font: .86rem Arial, sans-serif; margin: 0; padding: 20px 18px; }
+.notification-view-all { border-top: 1px solid var(--line); color: var(--teal); display: block; font: 700 .82rem Arial, sans-serif; padding: 14px 18px; text-decoration: none; }
+.notification-view-all:hover { background: #edf3ee; }
 .notification-center { margin: 0 auto; max-width: 900px; }
 .notification-heading { align-items: center; display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; margin-bottom: 30px; }
 .notification-heading h1 { max-width: none; }

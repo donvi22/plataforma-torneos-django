@@ -181,7 +181,62 @@ class CentroNotificacionesTests(TestCase):
 		request = RequestFactory().get('/')
 		request.user = AnonymousUser()
 		with self.assertNumQueries(0):
-			self.assertEqual(contador_notificaciones(request), {'notificaciones_no_leidas': 0})
+			self.assertEqual(contador_notificaciones(request), {
+				'notificaciones_no_leidas': 0,
+				'ultimas_notificaciones': (),
+			})
+
+	def test_context_processor_entrega_solo_las_cinco_mas_recientes_del_usuario(self):
+		creadas = [self.notificacion(clave=f'campana-{indice}') for indice in range(7)]
+		for indice, notificacion in enumerate(creadas):
+			Notificacion.objects.filter(pk=notificacion.pk).update(
+				fecha_creacion=timezone.now() - timedelta(minutes=indice),
+			)
+		self.notificacion(self.otro, clave='campana-ajena')
+		request = RequestFactory().get('/')
+		request.user = self.usuario
+
+		contexto = contador_notificaciones(request)
+
+		self.assertEqual(
+			list(contexto['ultimas_notificaciones'].values_list('pk', flat=True)),
+			[notificacion.pk for notificacion in creadas[:5]],
+		)
+		self.assertEqual(contexto['ultimas_notificaciones'].count(), 5)
+
+	def test_context_processor_devuelve_lista_vacia_para_usuario_sin_avisos(self):
+		request = RequestFactory().get('/')
+		request.user = self.usuario
+		contexto = contador_notificaciones(request)
+		self.assertEqual(list(contexto['ultimas_notificaciones']), [])
+		self.assertEqual(contexto['notificaciones_no_leidas'], 0)
+
+	def test_campana_muestra_cinco_ultimas_propieas_y_enlace_al_centro(self):
+		creadas = [self.notificacion(clave=f'popover-{indice}') for indice in range(6)]
+		self.notificacion(self.otro, clave='popover-ajena')
+		for indice, notificacion in enumerate(creadas):
+			Notificacion.objects.filter(pk=notificacion.pk).update(
+				fecha_creacion=timezone.now() - timedelta(minutes=indice),
+			)
+		self.client.force_login(self.usuario)
+
+		respuesta = self.client.get(reverse('inicio'))
+
+		self.assertContains(respuesta, 'aria-expanded="false"')
+		self.assertContains(respuesta, 'aria-controls="notification-popover"')
+		self.assertContains(respuesta, reverse('centro-notificaciones'))
+		self.assertContains(respuesta, reverse('abrir-notificacion', args=(creadas[0].pk,)))
+		for notificacion in creadas[:5]:
+			self.assertContains(respuesta, notificacion.titulo)
+		self.assertNotContains(respuesta, creadas[5].titulo)
+		self.assertNotContains(respuesta, 'popover-ajena')
+
+	def test_campana_sin_notificaciones_es_accesible_y_no_muestra_contador(self):
+		self.client.force_login(self.otro)
+		respuesta = self.client.get(reverse('inicio'))
+		self.assertContains(respuesta, 'notification-toggle')
+		self.assertContains(respuesta, 'No tienes notificaciones.')
+		self.assertNotContains(respuesta, 'notification-count')
 
 	def test_listado_aislado_ordenado_y_paginado_de_20(self):
 		notificaciones = [self.notificacion(clave=f'listado-{indice}') for indice in range(21)]

@@ -343,9 +343,14 @@ class ArbitrajeWebTests(TestCase):
 			torneo=self.torneo, numero_ronda=1, numero_orden=2,
 			estado=Partida.Estado.EN_CURSO,
 		)
+		proxima = Partida.objects.create(
+			torneo=self.torneo, numero_ronda=1, numero_orden=4,
+			estado=Partida.Estado.PROGRAMADA,
+		)
 		asignar_arbitro(pendiente, arbitro=primera)
 		asignar_arbitro(revision_abierta, arbitro=primera)
 		asignar_arbitro(en_curso, arbitro=primera)
+		asignar_arbitro(proxima, arbitro=primera)
 		participantes = []
 		for indice in range(2):
 			usuario = self.crear_usuario(f'hist_jugador_{indice}')
@@ -362,10 +367,19 @@ class ArbitrajeWebTests(TestCase):
 		reasignar_arbitro(pendiente, segunda, self.organizador, 'Cobertura histórica de la prueba')
 		self.client.force_login(self.arbitro)
 		respuesta = self.client.get(reverse('centro-arbitraje'))
-		partidas = list(respuesta.context['partidas_asignadas'])
-		self.assertEqual(partidas[0].pk, revision_abierta.pk)
-		self.assertEqual(partidas[1].pk, en_curso.pk)
-		self.assertIn('needs-review', respuesta.content.decode())
+		self.assertEqual(
+			[partida.pk for partida in respuesta.context['partidas_requieren_accion']],
+			[revision_abierta.pk],
+		)
+		self.assertEqual(
+			[partida.pk for partida in respuesta.context['partidas_en_curso']],
+			[en_curso.pk],
+		)
+		self.assertEqual(
+			[partida.pk for partida in respuesta.context['partidas_proximas']],
+			[proxima.pk],
+		)
+		self.assertContains(respuesta, 'Requiere validación')
 		historial = respuesta.context['historial_reciente']
 		self.assertEqual(historial[0]['partida'].pk, pendiente.pk)
 		self.assertTrue(historial[0]['reasignada'])

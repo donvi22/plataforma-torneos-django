@@ -21,11 +21,36 @@
                 <a href="{% url 'mis-partidas' %}">Mis partidas</a>
                 <a href="{% url 'centro-arbitraje' %}">Arbitraje</a>
                 <a href="{% url 'editar-perfil' %}">Editar perfil</a>
-                    <a class="notification-bell" href="{% url 'centro-notificaciones' %}" aria-label="Notificaciones{% if notificaciones_no_leidas %}, {{ notificaciones_no_leidas }} sin leer{% endif %}">
-                        <span class="notification-bell-icon" aria-hidden="true">&#128276;</span>
-                        <span>Notificaciones</span>
-                        {% if notificaciones_no_leidas %}<span class="notification-count" aria-hidden="true">{{ notificaciones_no_leidas }}</span>{% endif %}
-                    </a>
+                    <div class="notification-menu" data-notification-menu>
+                        <button class="notification-bell" type="button" id="notification-toggle"
+                            aria-expanded="false" aria-controls="notification-popover"
+                            aria-label="Notificaciones{% if notificaciones_no_leidas %}, {{ notificaciones_no_leidas }} sin leer{% endif %}">
+                            <span class="notification-bell-icon" aria-hidden="true">&#128276;</span>
+                            <span>Notificaciones</span>
+                            {% if notificaciones_no_leidas %}<span class="notification-count" aria-hidden="true">{{ notificaciones_no_leidas }}</span>{% endif %}
+                        </button>
+                        <div class="notification-popover" id="notification-popover" role="region"
+                            aria-labelledby="notification-toggle" hidden>
+                            {% if ultimas_notificaciones %}
+                                <ul class="notification-quick-list">
+                                    {% for notificacion in ultimas_notificaciones %}
+                                        <li class="notification-quick-item{% if notificacion.leida %} is-read{% else %} is-unread{% endif %}">
+                                            <form method="post" action="{% url 'abrir-notificacion' notificacion.pk %}">
+                                                {% csrf_token %}
+                                                <button class="notification-quick-open" type="submit">
+                                                    <span class="notification-quick-title">{{ notificacion.titulo }}</span>
+                                                    <time datetime="{{ notificacion.fecha_creacion|date:'c' }}">{{ notificacion.fecha_creacion|date:'j M, H:i' }}</time>
+                                                </button>
+                                            </form>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="notification-quick-empty">No tienes notificaciones.</p>
+                            {% endif %}
+                            <a class="notification-view-all" href="{% url 'centro-notificaciones' %}">Ver todas las notificaciones</a>
+                        </div>
+                    </div>
                 <form method="post" action="{% url 'logout' %}" class="inline-form">
                     {% csrf_token %}
                     <button type="submit" class="link-button">Cerrar sesión</button>
@@ -47,5 +72,6 @@
         {% block content %}{% endblock %}
     </main>
     <footer class="site-footer">Proyecto de torneo · primera interfaz</footer>
+    <script src="{% static 'js/notifications.js' %}" defer></script>
 </body>
 </html>
