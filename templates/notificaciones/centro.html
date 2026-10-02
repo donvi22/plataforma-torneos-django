@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}Notificaciones · Arena provisional{% endblock %}
+{% block content %}
+<section class="notification-center">
+    <header class="notification-heading">
+        <div>
+            <p class="eyebrow">Actividad de la plataforma</p>
+            <h1>Notificaciones</h1>
+            <p class="muted">Avisos de tus torneos, partidas y arbitrajes.</p>
+        </div>
+        {% if notificaciones_no_leidas %}
+            <form method="post" action="{% url 'marcar-todas-notificaciones-leidas' %}">
+                {% csrf_token %}
+                <button class="button button-quiet" type="submit">Marcar todas como leídas</button>
+            </form>
+        {% endif %}
+    </header>
+
+    {% if page_obj.object_list %}
+        <ol class="notification-list">
+            {% for notificacion in page_obj %}
+                <li class="notification-item{% if notificacion.leida %} is-read{% else %} is-unread{% endif %}">
+                    <div class="notification-copy">
+                        <div class="notification-title-row">
+                            <h2>{{ notificacion.titulo }}</h2>
+                            {% if notificacion.leida %}
+                                <span class="notification-state">Leída</span>
+                            {% else %}
+                                <span class="notification-state">No leída</span>
+                            {% endif %}
+                        </div>
+                        <p>{{ notificacion.mensaje }}</p>
+                        <p class="notification-meta">
+                            {{ notificacion.get_tipo_display }}
+                            <span aria-hidden="true">·</span>
+                            <time datetime="{{ notificacion.fecha_creacion|date:'c' }}">{{ notificacion.fecha_creacion|date:'j M Y, H:i' }}</time>
+                            {% if notificacion.partida %}<span aria-hidden="true">·</span>Partida {{ notificacion.partida_id }}{% endif %}
+                            {% if notificacion.torneo %}<span aria-hidden="true">·</span>{{ notificacion.torneo.nombre }}{% endif %}
+                        </p>
+                    </div>
+                    <div class="notification-actions">
+                        <form method="post" action="{% url 'abrir-notificacion' notificacion.pk %}">
+                            {% csrf_token %}
+                            <button class="button button-small" type="submit">Abrir</button>
+                        </form>
+                        {% if notificacion.leida == False %}
+                            <form method="post" action="{% url 'marcar-notificacion-leida' notificacion.pk %}">
+                                {% csrf_token %}
+                                <button class="link-button" type="submit">Marcar como leída</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </li>
+            {% endfor %}
+        </ol>
+    {% else %}
+        <div class="empty-panel notification-empty">
+            <p class="eyebrow">Todo al día</p>
+            <h2>No tienes notificaciones</h2>
+            <p class="muted">Los avisos importantes aparecerán aquí.</p>
+        </div>
+    {% endif %}
+
+    {% if page_obj.paginator.num_pages > 1 %}
+        <nav class="pagination" aria-label="Paginación de notificaciones">
+            {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Anterior</a>{% endif %}
+            <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Siguiente</a>{% endif %}
+        </nav>
+    {% endif %}
+</section>
+{% endblock %}

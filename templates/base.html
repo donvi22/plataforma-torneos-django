@@ -20,6 +20,11 @@
                 <a href="{% url 'mis-participaciones' %}">Mis participaciones</a>
                 <a href="{% url 'mis-partidas' %}">Mis partidas</a>
                 <a href="{% url 'editar-perfil' %}">Editar perfil</a>
+                    <a class="notification-bell" href="{% url 'centro-notificaciones' %}" aria-label="Notificaciones{% if notificaciones_no_leidas %}, {{ notificaciones_no_leidas }} sin leer{% endif %}">
+                        <span class="notification-bell-icon" aria-hidden="true">&#128276;</span>
+                        <span>Notificaciones</span>
+                        {% if notificaciones_no_leidas %}<span class="notification-count" aria-hidden="true">{{ notificaciones_no_leidas }}</span>{% endif %}
+                    </a>
                 <form method="post" action="{% url 'logout' %}" class="inline-form">
                     {% csrf_token %}
                     <button type="submit" class="link-button">Cerrar sesión</button>
