@@ -69,6 +69,9 @@ class KarmaEventTests(TestCase):
         self.organizador = self.crear_usuario('karma_org')
         self.jugadores = [self.crear_usuario(f'karma_player_{indice}') for indice in range(4)]
         self.arbitro = self.crear_usuario('karma_ref')
+        self.arbitro.disponible_para_arbitrar = True
+        self.arbitro.karma_total = 150
+        self.arbitro.save(update_fields=('disponible_para_arbitrar', 'karma_total'))
         self.videojuego = Videojuego.objects.create(nombre='Karma Game', genero='Competitivo')
         self.formato = FormatoCompetitivo.objects.create(
             nombre='Karma Format', min_participantes=2, max_participantes=128,
@@ -191,7 +194,7 @@ class KarmaEventTests(TestCase):
 
         self.arbitro.refresh_from_db()
         movimiento = HistorialKarma.objects.get(tipo=HistorialKarma.Tipo.ARBITRAJE_COMPLETADO)
-        self.assertEqual(self.arbitro.karma_total, 105)
+        self.assertEqual(self.arbitro.karma_total, 155)
         self.assertEqual(movimiento.arbitraje_id, asignacion.pk)
         self.assertEqual(movimiento.historial_asignacion_arbitral.arbitro_nuevo_id, asignacion.pk)
 

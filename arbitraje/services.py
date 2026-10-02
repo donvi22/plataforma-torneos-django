@@ -60,6 +60,10 @@ def _autorizado_torneo(torneo, usuario):
     )
 
 
+def _torneo_admite_arbitraje(torneo):
+	return torneo.estado not in (Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO)
+
+
 def _requisitos_publicos(torneo, usuario):
     if not usuario.is_active:
         raise ArbitrajeError('La cuenta del árbitro no está activa.')
@@ -68,6 +72,19 @@ def _requisitos_publicos(torneo, usuario):
             raise ArbitrajeError('El usuario no está disponible para arbitrar.')
         if usuario.karma_total < 150:
             raise ArbitrajeError('El árbitro necesita al menos 150 puntos de Karma.')
+
+
+def cambiar_disponibilidad(usuario, disponible):
+    """Cambia la disponibilidad futura sin cancelar invitaciones ni asignaciones."""
+    if not usuario or not usuario.is_active:
+        raise ArbitrajeError('La cuenta debe estar activa para cambiar la disponibilidad arbitral.')
+    if not isinstance(disponible, bool):
+        raise ArbitrajeError('La disponibilidad debe ser un valor booleano.')
+    if disponible and usuario.karma_total < 150:
+        raise ArbitrajeError('Necesitas al menos 150 puntos de Karma para arbitrar torneos públicos.')
+    usuario.disponible_para_arbitrar = disponible
+    usuario.save(update_fields=('disponible_para_arbitrar',))
+    return usuario
 
 
 def _invitacion_existente(torneo, usuario):
@@ -93,6 +110,8 @@ def _tiene_participacion_pendiente(torneo, usuario):
 def invitar_arbitro(torneo, usuario, actor):
     if torneo.tipo == Torneo.Tipo.PRIVADO:
         raise ArbitrajeError('Los torneos privados no utilizan arbitraje formal.')
+    if not _torneo_admite_arbitraje(torneo):
+        raise ArbitrajeError('El torneo ya no admite invitaciones arbitrales.')
     if torneo.tipo == Torneo.Tipo.OFICIAL and not _es_administrador_autorizado(actor):
         raise ArbitrajeError('Solo un administrador puede invitar árbitros oficiales.')
     if not _autorizado_torneo(torneo, actor):
@@ -156,6 +175,8 @@ def aceptar_invitacion(invitacion, usuario):
             raise ArbitrajeError('Solo el usuario invitado puede aceptar la invitación.')
         if invitacion.estado_invitacion != ArbitroTorneo.EstadoInvitacion.PENDIENTE:
             raise ArbitrajeError('La invitación ya no está pendiente.')
+        if not _torneo_admite_arbitraje(invitacion.torneo):
+            raise ArbitrajeError('El torneo ya no admite aceptar invitaciones arbitrales.')
         _requisitos_publicos(invitacion.torneo, usuario)
         if InscripcionTorneo.objects.filter(
             torneo=invitacion.torneo,
@@ -234,20 +255,41 @@ def asignar_arbitro(partida, actor=None, arbitro=None):
 
     with _bloqueo_arbitraje():
         partida = Partida.objects.select_related('torneo', 'arbitro_asignado').get(pk=partida.pk)
+        if not _torneo_admite_arbitraje(partida.torneo):
+            raise ArbitrajeError('El torneo ya no admite nuevas asignaciones arbitrales.')
         if partida.arbitro_asignado and _arbitro_valido(partida, partida.arbitro_asignado):
             return partida.arbitro_asignado
         if arbitro and actor and arbitro.usuario_id == actor.pk:
             raise ArbitrajeError('Un árbitro no puede autoasignarse la partida.')
         if arbitro:
             arbitro = ArbitroTorneo.objects.get(pk=arbitro.pk)
-        disponibles = list(ArbitroTorneo.objects.filter(
+            if InscripcionTorneo.objects.filter(
+                torneo=partida.torneo,
+                usuario=arbitro.usuario,
+                estado=InscripcionTorneo.Estado.CONFIRMADA,
+            ).exists():
+                raise ArbitrajeError('Un participante confirmado no puede arbitrar su torneo.')
+        consulta_disponibles = ArbitroTorneo.objects.filter(
             torneo=partida.torneo,
             estado_invitacion=ArbitroTorneo.EstadoInvitacion.ACEPTADA,
             activo_en_torneo=True,
-        ))
+        ).exclude(
+            usuario_id__in=InscripcionTorneo.objects.filter(
+                torneo=partida.torneo,
+                estado=InscripcionTorneo.Estado.CONFIRMADA,
+            ).values('usuario_id'),
+        )
+        if partida.torneo.tipo == Torneo.Tipo.PUBLICO:
+            consulta_disponibles = consulta_disponibles.filter(
+                usuario__disponible_para_arbitrar=True,
+                usuario__karma_total__gte=150,
+            )
+        disponibles = list(consulta_disponibles)
         if arbitro:
             if arbitro not in disponibles:
                 raise ArbitrajeError('El árbitro seleccionado no está activo en este torneo.')
+            if partida.torneo.tipo == Torneo.Tipo.PUBLICO:
+                _requisitos_publicos(partida.torneo, arbitro.usuario)
             candidatos = [arbitro]
         else:
             if not disponibles:
@@ -291,6 +333,41 @@ def asignar_arbitro(partida, actor=None, arbitro=None):
         except Exception:
             pass
         return arbitro
+
+
+def asignar_arbitros_pendientes(torneo=None):
+    """Asigna partidos aún arbitrables y conserva la asignación balanceada existente."""
+    from partidas.models import Partida
+
+    partidas = Partida.objects.filter(
+        torneo__tipo__in=(Torneo.Tipo.PUBLICO, Torneo.Tipo.OFICIAL),
+        torneo__estado__in=(
+            Torneo.Estado.PREPARADO,
+            Torneo.Estado.EN_CURSO,
+        ),
+        estado__in=(
+            Partida.Estado.PENDIENTE,
+            Partida.Estado.PROGRAMADA,
+            Partida.Estado.CHECK_IN,
+            Partida.Estado.LISTA_PARA_COMENZAR,
+        ),
+    ).select_related('torneo', 'arbitro_asignado').order_by(
+        'torneo_id', 'numero_ronda', 'numero_orden',
+    )
+    if torneo is not None:
+        if torneo.tipo == Torneo.Tipo.PRIVADO or torneo.estado in (
+            Torneo.Estado.FINALIZADO,
+            Torneo.Estado.CANCELADO,
+        ):
+            return []
+        partidas = partidas.filter(torneo=torneo)
+    resultados = []
+    for partida in partidas:
+        asignacion_anterior = partida.arbitro_asignado_id
+        arbitro = asignar_arbitro(partida)
+        if arbitro and arbitro.pk != asignacion_anterior:
+            resultados.append((partida.pk, arbitro.pk))
+    return resultados
 
 
 def solicitar_reasignacion(partida, arbitro, motivo):

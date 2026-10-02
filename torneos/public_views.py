@@ -143,6 +143,11 @@ def ficha(request, pk):
     perfil_videojuego = None
     puede_inscribirse = False
     es_organizador = request.user.is_authenticated and torneo.organizador_id == request.user.pk
+    puede_gestionar_arbitraje = bool(
+        request.user.is_authenticated
+        and torneo.tipo in (Torneo.Tipo.PUBLICO, Torneo.Tipo.OFICIAL)
+        and (es_organizador or _es_administrador_autorizado(request.user))
+    )
     puede_cerrar = bool(
         request.user.is_authenticated
         and torneo.estado == Torneo.Estado.EN_CURSO
@@ -171,6 +176,7 @@ def ficha(request, pk):
         'perfil_videojuego': perfil_videojuego,
         'puede_inscribirse': puede_inscribirse,
         'es_organizador': es_organizador,
+        'puede_gestionar_arbitraje': puede_gestionar_arbitraje,
         'puede_cancelar_inscripcion': bool(
             inscripcion_usuario
             and inscripcion_usuario.estado == InscripcionTorneo.Estado.CONFIRMADA

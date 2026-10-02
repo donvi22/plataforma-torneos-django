@@ -33,6 +33,27 @@ nav a { text-decoration: none; }
 .notification-actions { align-items: end; display: flex; flex: 0 0 auto; flex-direction: column; gap: 10px; }
 .notification-actions .link-button { color: var(--teal); font-size: .82rem; font-weight: 700; }
 .notification-empty { margin-top: 20px; }
+.referee-section { margin: 24px auto; }
+.referee-availability { align-items: center; display: flex; flex-wrap: wrap; gap: 22px; justify-content: space-between; }
+.referee-availability h2, .referee-section h2 { font-size: 1.45rem; margin: 0 0 10px; }
+.referee-list { display: grid; gap: 10px; list-style: none; margin: 0; padding: 0; }
+.referee-entry { align-items: center; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid transparent; display: flex; flex-wrap: wrap; gap: 18px; justify-content: space-between; min-width: 0; padding: 17px; }
+.referee-copy { flex: 1 1 280px; min-width: 0; overflow-wrap: anywhere; }
+.referee-copy h3 { font-size: 1.1rem; margin: 0 0 7px; overflow-wrap: anywhere; }
+.referee-copy p { color: var(--muted); font: .84rem/1.55 Arial, sans-serif; margin: 5px 0; }
+.referee-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; }
+.referee-status { background: #eef0ed; color: var(--muted); font: 700 .75rem Arial, sans-serif; padding: 7px 9px; white-space: nowrap; }
+.status-aceptada, .is-accepted { background: #e8f0e9; color: var(--teal); }
+.status-pendiente { background: #f4efe2; color: #80652d; }
+.status-rechazada, .status-cancelada { background: #f2ece8; color: #75655b; }
+.referee-archive { margin-top: 22px; }
+.referee-archive summary { color: var(--teal); cursor: pointer; font-family: Arial, sans-serif; font-weight: 700; }
+.needs-review { background: #f8eee8; border-left-color: var(--accent); }
+.needs-review-label { background: #f3e5dc; color: var(--accent-dark); }
+.referee-invite-form { align-items: end; display: grid; gap: 12px; grid-template-columns: minmax(180px, 1fr) auto; }
+.referee-invite-form label { font: 700 .85rem Arial, sans-serif; grid-column: 1 / -1; }
+.referee-invite-form input { background: white; border: 1px solid var(--line); font: inherit; min-height: 44px; min-width: 0; padding: 10px 12px; }
+@media (max-width: 620px) { .referee-invite-form { grid-template-columns: 1fr; } .referee-invite-form label { grid-column: 1; } }
 .page-shell { margin: auto; max-width: 1120px; min-height: calc(100vh - 120px); padding: 58px 28px; }
 .hero-panel, .form-panel, .profile-panel, .empty-panel { background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line); box-shadow: 0 18px 50px rgba(46, 57, 47, .08); }
 .hero-panel { max-width: 760px; padding: clamp(42px, 8vw, 90px); }

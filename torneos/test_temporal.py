@@ -1,13 +1,18 @@
 from datetime import timedelta
 
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
+from arbitraje.models import ArbitroTorneo, HistorialAsignacionArbitro
+from arbitraje.services import aceptar_invitacion, invitar_arbitro
+from partidas.models import CheckInPartida, Partida
+from partidas.scheduling import preparar_partida
+from partidas.services import generar_bracket
 from usuarios.models import Usuario
-from videojuegos.models import Videojuego
+from videojuegos.models import PerfilVideojuegoUsuario, Videojuego
 
-from .models import FormatoCompetitivo, Torneo
+from .models import FormatoCompetitivo, InscripcionTorneo, Torneo
 from .services import EstadoInscripciones, estado_inscripciones, procesar_calendario
 
 
@@ -89,3 +94,86 @@ class TemporalInscripcionesTests(TestCase):
         salida = StringIO()
         call_command('procesar_calendario', stdout=salida)
         self.assertIn('Torneos actualizados: 0', salida.getvalue())
+
+
+@override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])
+class ArbitrajeCalendarioTests(TestCase):
+    def setUp(self):
+        self.organizador = Usuario.objects.create_user(
+            username='arb_calendar_org', email='arb_calendar_org@example.com', password='test',
+        )
+        self.arbitro = Usuario.objects.create_user(
+            username='arb_calendar_ref', email='arb_calendar_ref@example.com', password='test',
+            karma_total=150, disponible_para_arbitrar=True,
+        )
+        self.videojuego = Videojuego.objects.create(nombre='Arbitraje calendario', genero='Competitivo')
+        self.formato = FormatoCompetitivo.objects.create(
+            nombre='Formato arbitraje calendario', min_participantes=2, max_participantes=128,
+        )
+        self.torneo = Torneo.objects.create(
+            nombre='Torneo arbitraje calendario', videojuego=self.videojuego,
+            organizador=self.organizador, tipo=Torneo.Tipo.PUBLICO,
+            formato_competitivo=self.formato, max_participantes=8,
+            estado=Torneo.Estado.INSCRIPCIONES_CERRADAS, fecha_publicacion=timezone.now(),
+        )
+        self.inscripciones = []
+        for indice in range(8):
+            usuario = Usuario.objects.create_user(
+                username=f'arb_calendar_player_{indice}',
+                email=f'arb_calendar_player_{indice}@example.com',
+                password='test',
+            )
+            perfil = PerfilVideojuegoUsuario.objects.create(
+                usuario=usuario, videojuego=self.videojuego, nick_en_juego=usuario.username,
+            )
+            self.inscripciones.append(InscripcionTorneo.objects.create(
+                torneo=self.torneo, usuario=usuario, perfil_videojuego=perfil,
+                nick_historico=usuario.username,
+            ))
+        invitacion = invitar_arbitro(self.torneo, self.arbitro, self.organizador)
+        aceptar_invitacion(invitacion, self.arbitro)
+        self.invitacion = invitacion
+
+    def test_procesador_genera_bracket_y_asigna_automaticamente_idempotente(self):
+        ahora = timezone.now()
+
+        self.assertEqual(procesar_calendario(ahora=ahora), 1)
+        self.torneo.refresh_from_db()
+        self.assertEqual(self.torneo.estado, Torneo.Estado.PREPARADO)
+        self.assertEqual(self.torneo.partidas.count(), 7)
+        self.assertEqual(self.torneo.partidas.filter(numero_ronda=1).count(), 4)
+        self.assertEqual(
+            self.torneo.partidas.exclude(arbitro_asignado=self.invitacion).count(), 0,
+        )
+        self.assertEqual(HistorialAsignacionArbitro.objects.filter(partida__torneo=self.torneo).count(), 7)
+        self.assertEqual(self.torneo.partidas.filter(numero_ronda=1, estado=Partida.Estado.CHECK_IN).count(), 4)
+
+        fechas_checkin = list(self.torneo.partidas.filter(numero_ronda=1).values_list('pk', 'fecha_hora_apertura_checkin'))
+        procesar_calendario(ahora=ahora + timedelta(minutes=1))
+        self.assertEqual(HistorialAsignacionArbitro.objects.filter(partida__torneo=self.torneo).count(), 7)
+        self.assertEqual(
+            list(self.torneo.partidas.filter(numero_ronda=1).values_list('pk', 'fecha_hora_apertura_checkin')),
+            fechas_checkin,
+        )
+
+    def test_torneo_ya_preparado_y_checkin_abierto_recibe_asignaciones_sin_tocarlo(self):
+        generar_bracket(self.torneo)
+        self.torneo.refresh_from_db()
+        primeras = list(self.torneo.partidas.filter(numero_ronda=1).order_by('numero_orden'))
+        for partida in primeras:
+            preparar_partida(partida, ahora=timezone.now())
+        fechas_checkin = list(self.torneo.partidas.filter(numero_ronda=1).values_list('pk', 'fecha_hora_apertura_checkin'))
+        count_checkins = CheckInPartida.objects.filter(partida__torneo=self.torneo).count()
+
+        procesar_calendario()
+
+        self.assertEqual(self.torneo.partidas.filter(arbitro_asignado=self.invitacion).count(), 7)
+        self.assertEqual(HistorialAsignacionArbitro.objects.filter(partida__torneo=self.torneo).count(), 7)
+        self.assertEqual(
+            list(self.torneo.partidas.filter(numero_ronda=1).values_list('pk', 'fecha_hora_apertura_checkin')),
+            fechas_checkin,
+        )
+        self.assertEqual(CheckInPartida.objects.filter(partida__torneo=self.torneo).count(), count_checkins)
+        self.assertEqual(
+            self.torneo.partidas.filter(numero_ronda=1, estado=Partida.Estado.CHECK_IN).count(), 4,
+        )

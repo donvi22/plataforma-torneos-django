@@ -13,6 +13,8 @@ NOTIFICACIONES_POR_PAGINA = 20
 
 def destino_notificacion(notificacion):
 	try:
+		if notificacion.tipo == Notificacion.Tipo.INVITACION_ARBITRAL:
+			return reverse('centro-arbitraje')
 		if notificacion.partida_id:
 			return reverse('detalle-partida', args=(notificacion.partida_id,))
 		if notificacion.invitacion_arbitral_id:

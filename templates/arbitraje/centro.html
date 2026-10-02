@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block title %}Centro de arbitraje · Arena provisional{% endblock %}
+{% block content %}
+<section class="catalogue-header">
+    <p class="eyebrow">Responsabilidad competitiva</p>
+    <h1>Centro de arbitraje</h1>
+    <p class="lead">Gestiona invitaciones, partidas asignadas y revisiones pendientes.</p>
+</section>
+
+<section class="profile-panel referee-availability">
+    <div>
+        <p class="eyebrow">Disponibilidad</p>
+        <h2>{% if user.disponible_para_arbitrar %}Disponible para futuras asignaciones{% else %}No disponible para nuevas invitaciones públicas{% endif %}</h2>
+        {% if puede_arbitrar_publico %}
+            <p class="muted">Las asignaciones ya aceptadas se mantienen al cambiar esta opción.</p>
+        {% else %}
+            <p class="muted">Para habilitar arbitraje público necesitas una cuenta activa y al menos 150 puntos de Karma. Las invitaciones oficiales siguen sus requisitos propios.</p>
+        {% endif %}
+    </div>
+    <form method="post" action="{% url 'cambiar-disponibilidad-arbitraje' %}">
+        {% csrf_token %}
+        {% if user.disponible_para_arbitrar %}
+            <input type="hidden" name="disponible" value="0">
+            <button class="button button-quiet" type="submit">Desactivar disponibilidad</button>
+        {% else %}
+            <input type="hidden" name="disponible" value="1">
+            <button class="button" type="submit" {% if not puede_arbitrar_publico %}disabled{% endif %}>Activar disponibilidad</button>
+        {% endif %}
+    </form>
+</section>
+
+<section class="profile-panel referee-section">
+    <div class="section-heading"><p class="eyebrow">Requieren respuesta</p><h2>Invitaciones pendientes</h2></div>
+    {% if invitaciones_pendientes %}
+        <ul class="referee-list">
+            {% for invitacion in invitaciones_pendientes %}
+                <li class="referee-entry">
+                    <div class="referee-copy">
+                        <h3>{{ invitacion.torneo.nombre }}</h3>
+                        <p>{{ invitacion.torneo.videojuego.nombre }} · {{ invitacion.torneo.max_participantes }} plazas</p>
+                        <p>Organiza {{ invitacion.torneo.organizador.username }} · Invitación {{ invitacion.fecha_invitacion|date:'j/m/Y H:i' }}</p>
+                        <a class="text-link" href="{% url 'ficha-torneo' invitacion.torneo_id %}">Ver torneo</a>
+                    </div>
+                    <div class="action-row referee-actions">
+                        <form method="post" action="{% url 'responder-invitacion-arbitral' invitacion.pk 'aceptar' %}">
+                            {% csrf_token %}<button class="button button-small" type="submit">Aceptar</button>
+                        </form>
+                        <form method="post" action="{% url 'responder-invitacion-arbitral' invitacion.pk 'rechazar' %}">
+                            {% csrf_token %}<button class="button button-small button-quiet" type="submit">Rechazar</button>
+                        </form>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}<p class="muted">No tienes invitaciones pendientes.</p>{% endif %}
+    {% if invitaciones_pendientes.has_other_pages %}<nav class="pagination" aria-label="Páginas de invitaciones">{% if invitaciones_pendientes.has_previous %}<a href="?invitaciones_page={{ invitaciones_pendientes.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ invitaciones_pendientes.number }} de {{ invitaciones_pendientes.paginator.num_pages }}</span>{% if invitaciones_pendientes.has_next %}<a href="?invitaciones_page={{ invitaciones_pendientes.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
+</section>
+
+<section class="profile-panel referee-section">
+    <div class="section-heading"><p class="eyebrow">Compromisos vigentes</p><h2>Torneos arbitrados</h2></div>
+    {% if torneos_aceptados %}
+        <ul class="referee-list">
+            {% for invitacion in torneos_aceptados %}
+                <li class="referee-entry">
+                    <div class="referee-copy">
+                        <h3>{{ invitacion.torneo.nombre }}</h3>
+                        <p>{{ invitacion.torneo.videojuego.nombre }} · {{ invitacion.torneo.max_participantes }} plazas · {{ invitacion.torneo.get_estado_display }}</p>
+                        <a class="text-link" href="{% url 'ficha-torneo' invitacion.torneo_id %}">Ver torneo</a>
+                    </div>
+                    <span class="referee-status is-accepted">Aceptado</span>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}<p class="muted">Todavía no has aceptado torneos.</p>{% endif %}
+    {% if torneos_aceptados.has_other_pages %}<nav class="pagination" aria-label="Páginas de torneos arbitrados">{% if torneos_aceptados.has_previous %}<a href="?torneos_page={{ torneos_aceptados.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ torneos_aceptados.number }} de {{ torneos_aceptados.paginator.num_pages }}</span>{% if torneos_aceptados.has_next %}<a href="?torneos_page={{ torneos_aceptados.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
+    {% if invitaciones_resueltas %}
+        <details class="referee-archive"><summary>Invitaciones anteriores</summary>
+            <ul class="referee-list">
+                {% for invitacion in invitaciones_resueltas %}
+                    <li class="referee-entry">
+                        <div class="referee-copy"><strong>{{ invitacion.torneo.nombre }}</strong><p>{{ invitacion.torneo.videojuego.nombre }}</p></div>
+                        <span class="referee-status">{{ invitacion.get_estado_invitacion_display }}{% if not invitacion.activo_en_torneo and invitacion.estado_invitacion == 'ACEPTADA' %} · Inactivo{% endif %}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+            {% if invitaciones_resueltas.has_other_pages %}<nav class="pagination" aria-label="Páginas de invitaciones anteriores">{% if invitaciones_resueltas.has_previous %}<a href="?historial_page={{ invitaciones_resueltas.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ invitaciones_resueltas.number }} de {{ invitaciones_resueltas.paginator.num_pages }}</span>{% if invitaciones_resueltas.has_next %}<a href="?historial_page={{ invitaciones_resueltas.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
+        </details>
+    {% endif %}
+</section>
+
+<section class="profile-panel referee-section">
+    <div class="section-heading"><p class="eyebrow">Prioridad de trabajo</p><h2>Partidas asignadas</h2></div>
+    {% if partidas_asignadas %}
+        <ul class="referee-list">
+            {% for partida in partidas_asignadas %}
+                <li class="referee-entry{% if partida.estado == 'PENDIENTE_VALIDACION' %} needs-review{% endif %}">
+                    <div class="referee-copy">
+                        <div class="card-meta"><span>{{ partida.get_estado_display }}</span><span>Ronda {{ partida.numero_ronda }}</span></div>
+                        <h3>{{ partida.torneo.nombre }}</h3>
+                        <p>{{ partida.torneo.videojuego.nombre }} · {{ partida.nicks_participantes|join:' vs ' }}</p>
+                        <p>Programada: {{ partida.fecha_hora_programada|date:'j/m/Y H:i'|default:'Sin horario fijado' }}</p>
+                        <p>Check-in confirmado: {{ partida.checkins_confirmados }} de {{ partida.checkins_totales }}</p>
+                    </div>
+                    <div class="referee-actions">
+                        {% if partida.estado == 'PENDIENTE_VALIDACION' %}<span class="referee-status needs-review-label">Requiere validación</span>{% endif %}
+                        <a class="button button-small" href="{% url 'detalle-partida' partida.pk %}">Ver partida</a>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}<p class="muted">No tienes partidas activas asignadas.</p>{% endif %}
+    {% if partidas_page.has_other_pages %}<nav class="pagination" aria-label="Páginas de partidas asignadas">{% if partidas_page.has_previous %}<a href="?partidas_page={{ partidas_page.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ partidas_page.number }} de {{ partidas_page.paginator.num_pages }}</span>{% if partidas_page.has_next %}<a href="?partidas_page={{ partidas_page.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
+</section>
+
+<section class="profile-panel referee-section">
+    <div class="section-heading"><p class="eyebrow">Actividad reciente</p><h2>Historial de arbitraje</h2></div>
+    {% if historial_reciente %}
+        <ul class="referee-list referee-history">
+            {% for entrada in historial_reciente %}
+                <li class="referee-entry">
+                    <div class="referee-copy">
+                        <h3>{{ entrada.partida.torneo.nombre }} · Ronda {{ entrada.partida.numero_ronda }}</h3>
+                        <p>{{ entrada.participantes|join:' vs ' }} · {{ entrada.partida.resultado_oficial.resultado|default:'Resultado validado' }}</p>
+                        <p>{{ entrada.partida.resultado_oficial.fecha_validacion|date:'j/m/Y H:i' }} · Responsable{% if entrada.reasignada %} · Hubo reasignación{% endif %}</p>
+                    </div>
+                    <a class="text-link" href="{% url 'detalle-partida' entrada.partida.pk %}">Ver ficha</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}<p class="muted">Todavía no hay partidas arbitradas en tu historial.</p>{% endif %}
+</section>
+
+{% if torneos_gestionables %}
+<section class="profile-panel referee-section">
+    <div class="section-heading"><p class="eyebrow">Organización</p><h2>Gestionar árbitros de tus torneos</h2></div>
+    <ul class="referee-list">
+        {% for torneo in torneos_gestionables %}
+            <li class="referee-entry"><strong>{{ torneo.nombre }}</strong><a class="text-link" href="{% url 'gestionar-arbitros-torneo' torneo.pk %}">Ver invitaciones y carga</a></li>
+        {% endfor %}
+    </ul>
+    {% if torneos_gestionables.has_other_pages %}<nav class="pagination" aria-label="Páginas de torneos gestionables">{% if torneos_gestionables.has_previous %}<a href="?gestion_page={{ torneos_gestionables.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ torneos_gestionables.number }} de {{ torneos_gestionables.paginator.num_pages }}</span>{% if torneos_gestionables.has_next %}<a href="?gestion_page={{ torneos_gestionables.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

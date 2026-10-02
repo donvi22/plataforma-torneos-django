@@ -3,9 +3,11 @@ from datetime import timedelta
 from django.contrib.auth.models import AnonymousUser
 from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
+from django.urls import reverse
 from django.utils import timezone
 
 from arbitraje.models import ArbitroTorneo
+from arbitraje.services import invitar_arbitro
 from partidas.models import Partida
 from torneos.models import FormatoCompetitivo, Torneo
 from torneos.services import procesar_calendario
@@ -100,6 +102,35 @@ class NotificacionesTests(TestCase):
 		self.assertEqual(procesar_calendario(timezone.now()), 1)
 		self.assertEqual(procesar_calendario(timezone.now()), 0)
 		self.assertEqual(Notificacion.objects.filter(tipo=Notificacion.Tipo.CANCELACION_TORNEO).count(), 2)
+
+	def test_notificacion_de_invitacion_arbitral_abre_el_panel(self):
+		from arbitraje.services import invitar_arbitro
+		self.otro.disponible_para_arbitrar = True
+		self.otro.karma_total = 150
+		self.otro.save(update_fields=('disponible_para_arbitrar', 'karma_total'))
+		invitacion = invitar_arbitro(self.torneo, self.otro, self.usuario)
+		notificacion = Notificacion.objects.get(invitacion_arbitral=invitacion)
+		self.client.force_login(self.otro)
+
+		respuesta = self.client.post(reverse('abrir-notificacion', args=(notificacion.pk,)))
+
+		self.assertRedirects(respuesta, reverse('centro-arbitraje'), fetch_redirect_response=False)
+		notificacion.refresh_from_db()
+		self.assertTrue(notificacion.leida)
+
+	def test_notificacion_de_invitacion_abre_el_centro_de_arbitraje(self):
+		self.otro.disponible_para_arbitrar = True
+		self.otro.karma_total = 150
+		self.otro.save(update_fields=('disponible_para_arbitrar', 'karma_total'))
+		invitacion = invitar_arbitro(self.torneo, self.otro, self.usuario)
+		notificacion = Notificacion.objects.get(invitacion_arbitral=invitacion)
+		self.client.force_login(self.otro)
+
+		respuesta = self.client.post(reverse('abrir-notificacion', args=(notificacion.pk,)))
+
+		self.assertRedirects(respuesta, reverse('centro-arbitraje'), fetch_redirect_response=False)
+		notificacion.refresh_from_db()
+		self.assertTrue(notificacion.leida)
 
 
 @override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])

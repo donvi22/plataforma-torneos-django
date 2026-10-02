@@ -448,6 +448,8 @@ def procesar_calendario(ahora=None):
 								)
 						except Exception:
 							pass
+	from arbitraje.services import asignar_arbitros_pendientes
+	asignar_arbitros_pendientes()
 	from partidas.scheduling import procesar_checkins
 	procesar_checkins(ahora=ahora)
 	return transiciones

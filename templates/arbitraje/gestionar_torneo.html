@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Árbitros de {{ torneo.nombre }} · Arena provisional{% endblock %}
+{% block content %}
+<section class="catalogue-header">
+    <p class="eyebrow">Gestión autorizada · {{ torneo.get_tipo_display }}</p>
+    <h1>Árbitros de {{ torneo.nombre }}</h1>
+    <p class="lead">Las invitaciones y requisitos se validan mediante el servicio de arbitraje.</p>
+</section>
+
+{% if puede_invitar %}
+<section class="profile-panel referee-section">
+    <div class="section-heading"><p class="eyebrow">Invitar</p><h2>Buscar por nombre de usuario</h2></div>
+    <form class="referee-invite-form" method="post">
+        {% csrf_token %}
+        <label for="referee-username">Nombre de usuario</label>
+        <input id="referee-username" name="username" type="text" autocomplete="off" required maxlength="150">
+        <button class="button" type="submit">Enviar invitación</button>
+    </form>
+</section>
+{% elif torneo.tipo == 'OFICIAL' %}
+<section class="profile-panel"><p class="muted">Solo un administrador autorizado puede invitar árbitros a torneos oficiales.</p></section>
+{% endif %}
+
+<section class="profile-panel referee-section">
+    <div class="section-heading"><p class="eyebrow">Asignación</p><h2>Invitaciones y carga</h2></div>
+    {% if arbitros_page %}
+        <ul class="referee-list">
+            {% for arbitro in arbitros_page %}
+                <li class="referee-entry">
+                    <div class="referee-copy">
+                        <h3>{{ arbitro.usuario.username }}</h3>
+                        <p>Invitación {{ arbitro.fecha_invitacion|date:'j/m/Y H:i' }}{% if arbitro.fecha_respuesta %} · Respuesta {{ arbitro.fecha_respuesta|date:'j/m/Y H:i' }}{% endif %}</p>
+                        <p>Partidas activas asignadas: {{ arbitro.partidas_activas }}</p>
+                    </div>
+                    <span class="referee-status status-{{ arbitro.estado_invitacion|lower }}">{{ arbitro.get_estado_invitacion_display }}{% if arbitro.estado_invitacion == 'ACEPTADA' and not arbitro.activo_en_torneo %} · Inactivo{% endif %}</span>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}<p class="muted">Todavía no hay invitaciones arbitrales.</p>{% endif %}
+    {% if arbitros_page.has_other_pages %}<nav class="pagination" aria-label="Páginas de árbitros">{% if arbitros_page.has_previous %}<a href="?page={{ arbitros_page.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ arbitros_page.number }} de {{ arbitros_page.paginator.num_pages }}</span>{% if arbitros_page.has_next %}<a href="?page={{ arbitros_page.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
+    <p class="muted">No se pueden cancelar invitaciones pendientes desde la web porque el servicio actual no ofrece esa operación.</p>
+</section>
+<p><a class="text-link" href="{% url 'ficha-torneo' torneo.pk %}">Volver al torneo</a></p>
+{% endblock %}
