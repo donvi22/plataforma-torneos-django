@@ -17,6 +17,7 @@ Aplicacion web para organizar torneos competitivos, desde las inscripciones y el
 - Brackets, check-in de partidas y validacion de resultados.
 - Asignacion de arbitros y notificaciones.
 - Recompensas de XP, niveles e historial de progresion.
+- Karma de fiabilidad, con movimientos historicos y sanciones administrativas confirmadas; consulta [docs/desarrollo_karma.md](docs/desarrollo_karma.md).
 
 ## Instalacion en Windows
 

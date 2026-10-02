@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Historial de Karma · Arena provisional{% endblock %}
+{% block content %}
+<section class="profile-panel">
+    <p class="eyebrow">Reputación privada</p>
+    <h1>Historial de Karma</h1>
+    {% if movimientos %}
+        <ul class="participant-list">
+            {% for movimiento in movimientos %}
+                <li>
+                    <strong>{% if movimiento.cantidad > 0 %}+{% endif %}{{ movimiento.cantidad }} Karma</strong>
+                    · {{ movimiento.get_tipo_display }}
+                    · {{ movimiento.motivo }}
+                    {% if movimiento.torneo %}· {{ movimiento.torneo.nombre }}{% endif %}
+                    {% if movimiento.partida %}· {{ movimiento.partida }}{% endif %}
+                    · Saldo: {{ movimiento.karma_despues }}
+                    · {{ movimiento.fecha|date:'j/m/Y H:i' }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="muted">Todavía no tienes movimientos de Karma.</p>
+    {% endif %}
+</section>
+{% endblock %}

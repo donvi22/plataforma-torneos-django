@@ -341,6 +341,11 @@ def validar_resultado(
             elif partida.siguiente_partida_id:
                 _resolver_rama(Partida.objects.get(pk=partida.siguiente_partida_id))
             _crear_historial(resultado_oficial, actor or partida.torneo.organizador, motivo or 'Resultado validado.')
+            from usuarios.karma import premiar_resultado_validado
+            transaction.on_commit(
+                lambda resultado_id=resultado_oficial.pk: premiar_resultado_validado(resultado_id),
+                robust=True,
+            )
             try:
                 from notificaciones.models import Notificacion
                 from notificaciones.services import crear_notificacion

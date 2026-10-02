@@ -6,7 +6,7 @@ from django.http import HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import EditarPerfilForm, InicioSesionForm, RegistroUsuarioForm
-from .models import HistorialXP, Usuario
+from .models import HistorialKarma, HistorialXP, Usuario
 from .services import progreso_nivel
 
 
@@ -78,3 +78,11 @@ def historial_xp(request):
         'torneo', 'inscripcion',
     ).order_by('-fecha', '-pk')
     return render(request, 'usuarios/historial_xp.html', {'movimientos': movimientos})
+
+
+@login_required
+def historial_karma(request):
+    movimientos = HistorialKarma.objects.filter(usuario=request.user).select_related(
+        'torneo', 'partida',
+    ).order_by('-fecha', '-pk')
+    return render(request, 'usuarios/historial_karma.html', {'movimientos': movimientos})

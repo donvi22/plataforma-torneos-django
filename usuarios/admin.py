@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 
-from .models import HistorialXP, Usuario
+from .models import HistorialKarma, HistorialXP, Usuario
 
 
 class UsuarioCreationForm(forms.ModelForm):
@@ -46,7 +46,7 @@ class UsuarioAdmin(UserAdmin):
 	list_filter = ('rol_global', 'estado_cuenta', 'is_staff', 'is_active')
 	search_fields = ('username', 'email')
 	ordering = ('username',)
-	readonly_fields = ('xp_total', 'nivel')
+	readonly_fields = ('xp_total', 'nivel', 'karma_total')
 	fieldsets = (
 		(None, {'fields': ('username', 'password')}),
 		('Datos de contacto', {'fields': ('email', 'avatar')}),
@@ -98,7 +98,16 @@ class HistorialXPAdmin(admin.ModelAdmin):
 	def has_add_permission(self, request):
 		return False
 
-	def has_change_permission(self, request, obj=None):
+
+@admin.register(HistorialKarma)
+class HistorialKarmaAdmin(admin.ModelAdmin):
+	list_display = ('usuario', 'tipo', 'cantidad', 'karma_antes', 'karma_despues', 'fecha')
+	list_filter = ('tipo', 'fecha')
+	search_fields = ('usuario__username', 'motivo', 'torneo__nombre', 'partida__id')
+	date_hierarchy = 'fecha'
+	readonly_fields = [field.name for field in HistorialKarma._meta.fields]
+
+	def has_add_permission(self, request):
 		return False
 
 	def has_delete_permission(self, request, obj=None):

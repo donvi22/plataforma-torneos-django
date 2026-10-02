@@ -257,6 +257,10 @@ def cerrar_torneo(torneo, actor=None, automatico=False):
 			if torneo.tipo in (Torneo.Tipo.PUBLICO, Torneo.Tipo.OFICIAL):
 				from usuarios.services import conceder_xp_torneo
 				conceder_xp_torneo(torneo)
+				from usuarios.karma import premiar_cierre_torneo
+				transaction.on_commit(
+					lambda torneo_id=torneo.pk: premiar_cierre_torneo(torneo_id), robust=True,
+				)
 			return clasificacion
 		if torneo.estado != Torneo.Estado.EN_CURSO:
 			raise CierreTorneoError('El torneo debe estar en curso para cerrarse.')
@@ -266,6 +270,10 @@ def cerrar_torneo(torneo, actor=None, automatico=False):
 		if torneo.tipo in (Torneo.Tipo.PUBLICO, Torneo.Tipo.OFICIAL):
 			from usuarios.services import conceder_xp_torneo
 			conceder_xp_torneo(torneo)
+			from usuarios.karma import premiar_cierre_torneo
+			transaction.on_commit(
+				lambda torneo_id=torneo.pk: premiar_cierre_torneo(torneo_id), robust=True,
+			)
 		return clasificacion
 
 
