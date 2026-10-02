@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'partidas',
     'arbitraje',
     'notificaciones',
+    'moderacion',
 ]
 
 MIDDLEWARE = [

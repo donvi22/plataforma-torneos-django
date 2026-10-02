@@ -69,6 +69,41 @@ nav a { text-decoration: none; }
 .referee-invite-form label { font: 700 .85rem Arial, sans-serif; grid-column: 1 / -1; }
 .referee-invite-form input { background: white; border: 1px solid var(--line); font: inherit; min-height: 44px; min-width: 0; padding: 10px 12px; }
 @media (max-width: 620px) { .referee-invite-form { grid-template-columns: 1fr; } .referee-invite-form label { grid-column: 1; } }
+.moderation-filters { align-items: end; background: var(--panel); border: 1px solid var(--line); display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(120px, 1fr)) auto; margin: 0 0 24px; padding: 16px; }
+.moderation-filters label { display: grid; font: 700 .8rem Arial, sans-serif; gap: 6px; }
+.moderation-filters select, .moderation-filters input { background: white; border: 1px solid var(--line); font: inherit; min-height: 40px; min-width: 0; padding: 8px; }
+.moderation-list { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
+.moderation-entry { align-items: center; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line); display: flex; flex-wrap: wrap; gap: 18px; justify-content: space-between; overflow-wrap: anywhere; padding: 18px; }
+.moderation-entry h2 { font-size: 1.15rem; margin: 10px 0 6px; }
+.moderation-entry p, .moderation-detail p { font: .88rem/1.55 Arial, sans-serif; }
+.moderation-entry.status-abierta { border-left-color: #b58a42; }
+.moderation-entry.status-en_revision { border-left-color: var(--accent); }
+.moderation-entry.status-resuelta { border-left-color: var(--teal); }
+.moderation-entry.status-desestimada { border-left-color: #8b9490; }
+.moderation-state { background: #eef0ed; color: var(--ink); display: inline-block; font: 700 .72rem Arial, sans-serif; padding: 6px 8px; }
+.moderation-resolution-form, .moderation-evidence, .moderation-internal, .moderation-history { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 20px; }
+.moderation-internal { background: #f5f1e8; padding: 18px; }
+.moderation-history li { margin-bottom: 14px; overflow-wrap: anywhere; }
+.moderation-history p { margin: 5px 0; }
+.moderation-report-link { margin: 18px auto; max-width: 1000px; padding: 16px 20px; }
+.moderation-report-link .text-link { font-size: .82rem; }
+.moderation-form-panel { max-width: 700px; }
+.moderation-detail { max-width: 920px; overflow-wrap: anywhere; }
+.moderation-detail h1 { max-width: none; }
+.moderation-detail h2 { font-size: 1.25rem; }
+.moderation-detail .detail-list { grid-template-columns: minmax(120px, max-content) minmax(0, 1fr); }
+.moderation-evidence { background: #f7f4ed; border: 1px solid var(--line); margin-top: 24px; overflow-wrap: anywhere; padding: 18px; }
+.moderation-evidence h2, .moderation-evidence h3 { margin-top: 0; }
+.moderation-resolution-form { background: #f7f4ed; padding: 20px; }
+.moderation-resolution-form .stack-form { margin-top: 12px; }
+.moderation-resolution-form textarea { background: white; border: 1px solid var(--line); font: inherit; min-height: 100px; padding: 11px; resize: vertical; width: 100%; }
+.moderation-internal { background: #f5f1e8; border-left: 4px solid #8b7a5d; overflow-wrap: anywhere; padding: 18px; }
+.moderation-history ol { padding-left: 22px; }
+.moderation-history li { border-bottom: 1px solid var(--line); overflow-wrap: anywhere; padding: 12px 0; }
+@media (max-width: 760px) { .moderation-filters { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .moderation-filters { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .moderation-report-link { margin: 12px 0; } .moderation-entry { align-items: flex-start; flex-direction: column; } .moderation-detail .detail-list { grid-template-columns: 1fr; } .moderation-detail .detail-list dd { margin-bottom: 8px; } }
+@media (max-width: 620px) { .referee-invite-form { grid-template-columns: 1fr; } .referee-invite-form label { grid-column: 1; } }
 .page-shell { margin: auto; max-width: 1120px; min-height: calc(100vh - 120px); padding: 58px 28px; }
 .hero-panel, .form-panel, .profile-panel, .empty-panel { background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid var(--line); box-shadow: 0 18px 50px rgba(46, 57, 47, .08); }
 .hero-panel { max-width: 760px; padding: clamp(42px, 8vw, 90px); }

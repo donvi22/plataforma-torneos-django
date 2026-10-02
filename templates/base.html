@@ -13,6 +13,7 @@
         <nav aria-label="Navegación principal">
             {% if user.is_authenticated %}
                 <a href="{% url 'perfil-propio' %}">{{ user.username }}</a>
+                <a href="{% url 'mis-denuncias' %}">Mis denuncias</a>
                 <a href="{% url 'catalogo-videojuegos' %}">Videojuegos</a>
                 <a href="{% url 'catalogo-torneos' %}">Torneos</a>
                 <a href="{% url 'crear-torneo' %}">Crear torneo</a>
@@ -20,6 +21,7 @@
                 <a href="{% url 'mis-participaciones' %}">Mis participaciones</a>
                 <a href="{% url 'mis-partidas' %}">Mis partidas</a>
                 <a href="{% url 'centro-arbitraje' %}">Arbitraje</a>
+                {% if perms.torneos.add_torneo %}<a href="{% url 'centro-moderacion' %}">Moderación</a>{% endif %}
                 <a href="{% url 'editar-perfil' %}">Editar perfil</a>
                     <div class="notification-menu" data-notification-menu>
                         <button class="notification-bell" type="button" id="notification-toggle"

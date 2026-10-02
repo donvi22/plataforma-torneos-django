@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Seguimiento de denuncia · Arena provisional{% endblock %}
+{% block content %}
+<section class="profile-panel moderation-detail">
+    <p class="eyebrow">Seguimiento privado</p>
+    <h1>{{ denuncia.get_categoria_display }}</h1>
+    <p><span class="moderation-state">{{ denuncia.get_estado_display }}</span> · {{ denuncia.fecha_creacion|date:'j/m/Y H:i' }}</p>
+    {% if denuncia.partida %}<p>Partida {{ denuncia.partida.pk }} · {{ denuncia.torneo.nombre }}</p>{% elif denuncia.torneo %}<p>{{ denuncia.torneo.nombre }}</p>{% endif %}
+    <h2>Descripción enviada</h2><p>{{ denuncia.descripcion|linebreaksbr }}</p>
+    {% if denuncia.estado == 'RESUELTA' or denuncia.estado == 'DESESTIMADA' %}
+        <section class="notice"><h2>Resolución</h2><p>{{ denuncia.resolucion|linebreaksbr }}</p>{% if denuncia.hubo_sancion and denuncia.tipo_sancion %}<p>Medida: {{ denuncia.get_tipo_sancion_display }}{% if denuncia.historial_karma %} · {{ denuncia.historial_karma.cantidad }} Karma{% endif %}</p>{% endif %}</section>
+    {% endif %}
+    <p><a class="text-link" href="{% url 'mis-denuncias' %}">Volver a mis denuncias</a></p>
+</section>
+{% endblock %}

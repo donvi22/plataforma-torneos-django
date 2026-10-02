@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Mis denuncias · Arena provisional{% endblock %}
+{% block content %}
+<section class="catalogue-header"><p class="eyebrow">Seguimiento</p><h1>Mis denuncias</h1><p class="lead">Consulta el estado y la resolución visible de los casos que has enviado.</p></section>
+{% if page_obj %}
+    <ul class="moderation-list">
+        {% for denuncia in page_obj %}
+            <li class="moderation-entry status-{{ denuncia.estado|lower }}">
+                <div><span class="moderation-state">{{ denuncia.get_estado_display }}</span><h2>{{ denuncia.get_categoria_display }}</h2><p>{% if denuncia.partida %}Partida {{ denuncia.partida.pk }} · {% endif %}{% if denuncia.torneo %}{{ denuncia.torneo.nombre }} · {% endif %}{{ denuncia.fecha_creacion|date:'j/m/Y H:i' }}</p>{% if denuncia.estado in 'RESUELTA DESESTIMADA' and denuncia.resolucion %}<p class="moderation-resolution">{{ denuncia.resolucion }}</p>{% endif %}</div>
+                <a class="text-link" href="{% url 'detalle-denuncia' denuncia.pk %}">Ver seguimiento</a>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}<section class="empty-panel"><h2>No tienes denuncias</h2><p class="muted">Los casos que envíes aparecerán aquí.</p></section>{% endif %}
+{% if page_obj.has_other_pages %}<nav class="pagination" aria-label="Páginas de mis denuncias">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
+{% endblock %}

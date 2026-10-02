@@ -24,6 +24,7 @@ class Notificacion(models.Model):
 	torneo = models.ForeignKey('torneos.Torneo', on_delete=models.CASCADE, blank=True, null=True, related_name='notificaciones')
 	partida = models.ForeignKey('partidas.Partida', on_delete=models.CASCADE, blank=True, null=True, related_name='notificaciones')
 	invitacion_arbitral = models.ForeignKey('arbitraje.ArbitroTorneo', on_delete=models.CASCADE, blank=True, null=True, related_name='notificaciones')
+	denuncia = models.ForeignKey('moderacion.Denuncia', on_delete=models.SET_NULL, blank=True, null=True, related_name='notificaciones')
 	es_critica = models.BooleanField(default=False)
 	leida = models.BooleanField(default=False)
 	fecha_creacion = models.DateTimeField(auto_now_add=True)

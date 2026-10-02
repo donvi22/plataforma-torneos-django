@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Centro de moderación · Arena provisional{% endblock %}
+{% block content %}
+<section class="catalogue-header"><p class="eyebrow">Administración</p><h1>Centro de moderación</h1><p class="lead">Revisa alegaciones pendientes. Una denuncia no confirma por sí misma una infracción.</p></section>
+<form class="moderation-filters" method="get">
+    <label>Estado<select name="estado"><option value="">Todos los estados</option>{% for value,label in estados.choices %}<option value="{{ value }}"{% if estado_seleccionado == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Categoría<select name="categoria"><option value="">Todas las categorías</option>{% for value,label in categorias.choices %}<option value="{{ value }}"{% if categoria_seleccionada == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>ID del torneo<input name="torneo" value="{{ torneo_seleccionado }}" inputmode="numeric"></label>
+    <button class="button button-small" type="submit">Filtrar</button>
+</form>
+{% if page_obj %}
+    <ul class="moderation-list">
+        {% for denuncia in page_obj %}
+            <li class="moderation-entry status-{{ denuncia.estado|lower }}">
+                <div><span class="moderation-state">{{ denuncia.get_estado_display }}</span><h2>{{ denuncia.get_categoria_display }}</h2><p>{{ denuncia.torneo.nombre|default:'Sin torneo' }}{% if denuncia.partida %} · Partida {{ denuncia.partida.pk }}{% endif %}</p><p>Denunciante {{ denuncia.denunciante.username }}{% if denuncia.usuario_denunciado %} · Usuario relacionado {{ denuncia.usuario_denunciado.username }}{% endif %} · {{ denuncia.fecha_creacion|date:'j/m/Y H:i' }}</p>{% if denuncia.asignada_a %}<p>En revisión por {{ denuncia.asignada_a.username }}</p>{% endif %}</div>
+                <a class="button button-small" href="{% url 'detalle-denuncia' denuncia.pk %}">Revisar</a>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}<section class="empty-panel"><h2>No hay denuncias</h2><p class="muted">No hay casos que coincidan con estos filtros.</p></section>{% endif %}
+{% if page_obj.has_other_pages %}<nav class="pagination" aria-label="Páginas de moderación">{% if page_obj.has_previous %}<a href="?estado={{ estado_seleccionado }}&categoria={{ categoria_seleccionada }}&torneo={{ torneo_seleccionado }}&page={{ page_obj.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?estado={{ estado_seleccionado }}&categoria={{ categoria_seleccionada }}&torneo={{ torneo_seleccionado }}&page={{ page_obj.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
+{% endblock %}
