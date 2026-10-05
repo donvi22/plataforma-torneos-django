@@ -20,7 +20,7 @@
 </section>
 <section class="profile-panel">
     <p class="eyebrow">Plazas</p><h2>Participantes inscritos</h2>
-    {% if inscritos %}<ul class="participant-list">{% for inscripcion in inscritos %}<li>{% enlace_usuario inscripcion.usuario inscripcion.nick_historico %}</li>{% endfor %}</ul>{% else %}<p class="muted">Todavía no hay participantes inscritos.</p>{% endif %}
+    {% if inscritos %}<ul class="participant-list">{% for inscripcion in inscritos %}<li>{% identidad_competitiva inscripcion.usuario inscripcion.nick_historico %}</li>{% endfor %}</ul>{% else %}<p class="muted">Todavía no hay participantes inscritos.</p>{% endif %}
 </section>
 <section class="profile-panel">
     <p class="eyebrow">Invitados</p><h2>Usuarios con acceso</h2>

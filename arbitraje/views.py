@@ -63,9 +63,10 @@ def _partidas_asignadas_paginadas(usuario, estados, pagina):
 	).select_related(
 		'torneo__videojuego', 'torneo__organizador', 'arbitro_asignado',
 	).prefetch_related(
-		'participantes__inscripcion', 'checkins',
+		'participantes__inscripcion__usuario', 'checkins',
 	).order_by('fecha_hora_programada', 'pk'), ELEMENTOS_POR_PAGINA).get_page(pagina)
 	for partida in page_obj:
+		partida.inscripciones_participantes = [p.inscripcion for p in partida.participantes.all()]
 		partida.nicks_participantes = [
 			participante.inscripcion.nick_historico
 			for participante in partida.participantes.all()
@@ -118,7 +119,7 @@ def centro(request):
 	).select_related(
 		'torneo__videojuego', 'resultado_oficial__ganador', 'arbitro_asignado',
 	).prefetch_related(
-		'participantes__inscripcion',
+		'participantes__inscripcion__usuario',
 		'historial_asignaciones_arbitro__arbitro_anterior',
 		'historial_asignaciones_arbitro__arbitro_nuevo',
 	).order_by('-resultado_oficial__fecha_validacion', '-pk').distinct()[:30]
@@ -130,6 +131,7 @@ def centro(request):
 				'partida': partida,
 				'arbitraje': arbitraje,
 				'reasignada': any(cambio.arbitro_anterior_id is not None for cambio in cambios),
+				'inscripciones': [participante.inscripcion for participante in partida.participantes.all()],
 				'participantes': [
 					participante.inscripcion.nick_historico
 					for participante in partida.participantes.all()

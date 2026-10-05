@@ -50,6 +50,11 @@ nav a { text-decoration: none; }
 .notification-empty { margin-top: 20px; }
 .user-search input { background: white; border: 1px solid var(--line); font: inherit; max-width: 100%; padding: 6px 10px; width: 140px; }
 .user-search-page { grid-template-columns: 1fr auto; }
+.player-identity { display: inline-block; line-height: 1.25; max-width: 100%; min-width: 0; overflow-wrap: anywhere; vertical-align: top; }
+.player-nick, .player-account { display: block; }
+.player-nick { font-weight: 700; }
+.player-account { color: #6b6f68; font-family: Arial, sans-serif; font-size: .78rem; font-weight: 400; }
+.player-account a { color: inherit; }
 .invite-link { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
 .invite-link input { background: white; border: 1px solid var(--line); flex: 1 1 260px; font: inherit; min-width: 0; padding: 10px 12px; }
 .access-row { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; overflow-wrap: anywhere; }

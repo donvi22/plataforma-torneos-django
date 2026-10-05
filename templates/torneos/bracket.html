@@ -7,8 +7,8 @@
     <h1>{{ torneo.nombre }}</h1>
     <p class="lead">Consulta las rondas y el estado de cada enfrentamiento.</p>
 </section>
-{% if campeon %}<section class="champion-panel"><span class="eyebrow">Campeón</span><strong>{% enlace_usuario campeon_usuario campeon %}</strong></section>{% endif %}
-{% if clasificacion %}<section class="profile-panel"><p class="eyebrow">Resultado final</p><h2>Clasificación final</h2><ol class="participant-list">{% for fila in clasificacion %}<li><strong>{{ fila.posicion }}.</strong> {% enlace_usuario fila.inscripcion.usuario fila.inscripcion.nick_historico %}{% if fila.es_campeon %} · Campeón{% endif %}</li>{% endfor %}</ol></section>{% endif %}
+{% if campeon %}<section class="champion-panel"><span class="eyebrow">Campeón</span><strong>{% identidad_competitiva campeon_usuario campeon %}</strong></section>{% endif %}
+{% if clasificacion %}<section class="profile-panel"><p class="eyebrow">Resultado final</p><h2>Clasificación final</h2><ol class="participant-list">{% for fila in clasificacion %}<li><strong>{{ fila.posicion }}.</strong> {% identidad_competitiva fila.inscripcion.usuario fila.inscripcion.nick_historico %}{% if fila.es_campeon %} · Campeón{% endif %}</li>{% endfor %}</ol></section>{% endif %}
 <div class="bracket-scroll"><div class="bracket-board">
 {% for ronda in rondas %}
 <section class="bracket-round">
@@ -17,8 +17,8 @@
     <article class="match-card">
         <header><a class="match-link" href="{% url 'detalle-partida' item.partida.pk %}">Partida {{ item.partida.numero_orden }}</a> · <span>{{ item.partida.get_estado_display }}</span></header>
         <div>
-            <p class="match-slot {% if item.slot_1.ganador %}winner{% endif %}">{% if item.slot_1.participante %}{% enlace_usuario item.slot_1.usuario item.slot_1.texto %}{% else %}{{ item.slot_1.texto }}{% endif %}{% if item.slot_1.ganador %}<b>Ganador</b>{% endif %}</p>
-            <p class="match-slot {% if item.slot_2.ganador %}winner{% endif %}">{% if item.slot_2.participante %}{% enlace_usuario item.slot_2.usuario item.slot_2.texto %}{% else %}{{ item.slot_2.texto }}{% endif %}{% if item.slot_2.ganador %}<b>Ganador</b>{% endif %}</p>
+            <p class="match-slot {% if item.slot_1.ganador %}winner{% endif %}">{% if item.slot_1.participante %}{% identidad_competitiva item.slot_1.usuario item.slot_1.texto %}{% else %}{{ item.slot_1.texto }}{% endif %}{% if item.slot_1.ganador %}<b>Ganador</b>{% endif %}</p>
+            <p class="match-slot {% if item.slot_2.ganador %}winner{% endif %}">{% if item.slot_2.participante %}{% identidad_competitiva item.slot_2.usuario item.slot_2.texto %}{% else %}{{ item.slot_2.texto }}{% endif %}{% if item.slot_2.ganador %}<b>Ganador</b>{% endif %}</p>
         </div>
         {% if item.resultado %}<p class="match-result">Marcador: {{ item.resultado.resultado|default:'Sin marcador' }}</p><p class="match-result">{{ item.tipo_resultado }}{% if item.ganador %} · {{ item.ganador }}{% endif %}</p>{% endif %}
         {% if item.partida.fecha_hora_programada %}<footer>{{ item.partida.fecha_hora_programada|date:'j/m/Y H:i' }}</footer>{% endif %}

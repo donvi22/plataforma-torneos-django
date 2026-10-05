@@ -88,6 +88,9 @@ def _preparar_partida(partida, usuario=None):
     )
     puede_revisar = bool(_usuario_puede_validar(partida, usuario))
     declaraciones = list(partida.declaraciones_resultado.select_related('usuario', 'ganador_declarado').order_by('fecha'))
+    nick_por_usuario = {p.inscripcion.usuario_id: p.inscripcion.nick_historico for p in partida.participantes.all()}
+    for declaracion in declaraciones:
+        declaracion.nick = nick_por_usuario.get(declaracion.usuario_id, '')
     declaracion_usuario = next((declaracion for declaracion in declaraciones if usuario and declaracion.usuario_id == usuario.pk), None)
     return {
         'partida': partida,
