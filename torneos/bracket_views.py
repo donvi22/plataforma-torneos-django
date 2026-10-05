@@ -18,11 +18,12 @@ def _nombre_ronda(numero_ronda, total_rondas):
 
 
 def _slot(partida, posicion):
-    participante = partida.participantes.filter(posicion=posicion).select_related('inscripcion').first()
+    participante = partida.participantes.filter(posicion=posicion).select_related('inscripcion__usuario').first()
     if participante:
         resultado = getattr(partida, 'resultado_oficial', None)
         return {
             'texto': participante.inscripcion.nick_historico,
+            'usuario': participante.inscripcion.usuario,
             'participante': True,
             'ganador': bool(resultado and resultado.ganador_id == participante.inscripcion_id),
         }
@@ -59,7 +60,7 @@ def bracket(request, pk):
     partidas = list(
         Partida.objects.filter(torneo=torneo)
         .select_related('siguiente_partida')
-        .prefetch_related('participantes__inscripcion', 'partidas_anteriores__resultado_oficial', 'resultado_oficial__ganador')
+        .prefetch_related('participantes__inscripcion__usuario', 'partidas_anteriores__resultado_oficial', 'resultado_oficial__ganador__usuario')
         .order_by('numero_ronda', 'numero_orden')
     )
     if not partidas:
@@ -76,5 +77,6 @@ def bracket(request, pk):
         'torneo': torneo,
         'rondas': rondas,
         'campeon': resultado_final.ganador.nick_historico if resultado_final and resultado_final.ganador_id else None,
-		'clasificacion': torneo.clasificaciones.select_related('inscripcion').all() if torneo.estado == Torneo.Estado.FINALIZADO else [],
+        'campeon_usuario': resultado_final.ganador.usuario if resultado_final and resultado_final.ganador_id else None,
+		'clasificacion': torneo.clasificaciones.select_related('inscripcion__usuario').all() if torneo.estado == Torneo.Estado.FINALIZADO else [],
     })

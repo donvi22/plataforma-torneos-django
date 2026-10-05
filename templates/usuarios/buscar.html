@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% load usuarios_extras %}
+{% block title %}Buscar usuarios · Arena provisional{% endblock %}
+{% block content %}
+<section class="catalogue-header"><p class="eyebrow">Comunidad</p><h1>Buscar usuarios</h1><p class="lead">Encuentra jugadores por su nickname.</p></section>
+<form class="filter-bar user-search-page" method="get" action="{% url 'buscar-usuarios' %}" role="search">
+    <label for="user-search-q">Nickname<input id="user-search-q" type="search" name="q" value="{{ consulta }}" maxlength="150" autocomplete="off"></label>
+    <button class="button button-small" type="submit">Buscar</button>
+</form>
+{% if page_obj is not None %}
+    {% if page_obj.object_list %}
+        <ul class="user-results">
+            {% for resultado in page_obj %}
+                <li class="user-result">
+                    {% if resultado.avatar %}<img class="avatar user-result-avatar" src="{{ resultado.avatar.url }}" alt="">{% else %}<div class="avatar avatar-fallback user-result-avatar" aria-hidden="true">{{ resultado.username|first|upper }}</div>{% endif %}
+                    <div class="user-result-copy">
+                        <h2>{% enlace_usuario resultado %}</h2>
+                        <p class="muted">Nivel {{ resultado.nivel }} · Karma {{ resultado.karma_total }}</p>
+                        {% if resultado.perfiles_videojuego.all %}<p class="muted">{% for perfil_juego in resultado.perfiles_videojuego.all %}{{ perfil_juego.videojuego.nombre }}{% if not forloop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+        {% if page_obj.has_other_pages %}<nav class="pagination" aria-label="Páginas de resultados">{% if page_obj.has_previous %}<a href="?q={{ consulta|urlencode }}&page={{ page_obj.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?q={{ consulta|urlencode }}&page={{ page_obj.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
+    {% else %}
+        <section class="empty-panel"><p>No se encontraron usuarios con ese nickname.</p></section>
+    {% endif %}
+{% endif %}
+{% endblock %}

@@ -112,7 +112,7 @@ def ficha(request, pk):
     torneo = get_object_or_404(
         Torneo.objects.select_related(
             'videojuego', 'formato_competitivo', 'organizador', 'rango_minimo', 'rango_maximo',
-        ).prefetch_related('premios', 'inscripciones', 'clasificaciones__inscripcion'),
+        ).prefetch_related('premios', 'inscripciones', 'clasificaciones__inscripcion__usuario'),
         pk=pk,
     )
     if torneo.tipo == Torneo.Tipo.PRIVADO or torneo.estado == Torneo.Estado.BORRADOR:

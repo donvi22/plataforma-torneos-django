@@ -11,6 +11,9 @@
     <header class="site-header">
         <a class="brand" href="{% url 'inicio' %}">Arena provisional</a>
         <nav aria-label="Navegación principal">
+            <form class="user-search" method="get" action="{% url 'buscar-usuarios' %}" role="search">
+                <input type="search" name="q" placeholder="Buscar usuarios" aria-label="Buscar usuarios por nickname" maxlength="150">
+            </form>
             {% if user.is_authenticated %}
                 <a href="{% url 'perfil-propio' %}">{{ user.username }}</a>
                 <a href="{% url 'mis-denuncias' %}">Mis denuncias</a>

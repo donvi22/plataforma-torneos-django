@@ -3,6 +3,8 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.contrib.auth.views import LoginView
+from django.core.paginator import Paginator
+from django.db.models import Prefetch
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -46,6 +48,25 @@ def cerrar_sesion(request):
     logout(request)
     messages.info(request, 'Has cerrado la sesión.')
     return redirect('inicio')
+
+
+def buscar_usuarios(request):
+    consulta = request.GET.get('q', '').strip()[:150]
+    page_obj = None
+    if consulta:
+        from videojuegos.models import PerfilVideojuegoUsuario
+        usuarios = Usuario.objects.filter(
+            username__icontains=consulta,
+            is_active=True,
+            estado_cuenta=Usuario.EstadoCuenta.ACTIVA,
+        ).prefetch_related(Prefetch(
+            'perfiles_videojuego',
+            queryset=PerfilVideojuegoUsuario.objects.filter(
+                videojuego__activo=True,
+            ).select_related('videojuego'),
+        )).order_by('username')
+        page_obj = Paginator(usuarios, 20).get_page(request.GET.get('page'))
+    return render(request, 'usuarios/buscar.html', {'consulta': consulta, 'page_obj': page_obj})
 
 
 def perfil(request, pk):

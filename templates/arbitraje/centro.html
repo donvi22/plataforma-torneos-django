@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load usuarios_extras %}
 {% block title %}Centro de arbitraje · Arena provisional{% endblock %}
 {% block content %}
 <section class="catalogue-header">
@@ -38,7 +39,7 @@
                     <div class="referee-copy">
                         <h3>{{ invitacion.torneo.nombre }}</h3>
                         <p>{{ invitacion.torneo.videojuego.nombre }} · {{ invitacion.torneo.max_participantes }} plazas</p>
-                        <p>Organiza {{ invitacion.torneo.organizador.username }} · Invitación {{ invitacion.fecha_invitacion|date:'j/m/Y H:i' }}</p>
+                        <p>Organiza {% enlace_usuario invitacion.torneo.organizador %} · Invitación {{ invitacion.fecha_invitacion|date:'j/m/Y H:i' }}</p>
                         <a class="text-link" href="{% url 'ficha-torneo' invitacion.torneo_id %}">Ver torneo</a>
                     </div>
                     <div class="action-row referee-actions">

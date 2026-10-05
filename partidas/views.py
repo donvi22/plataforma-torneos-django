@@ -92,6 +92,7 @@ def _preparar_partida(partida, usuario=None):
     return {
         'partida': partida,
         'participantes': participantes,
+        'inscripciones': {p.posicion: p.inscripcion for p in partida.participantes.all()},
         'resultado': resultado,
         'ganador': resultado.ganador.nick_historico if resultado and resultado.ganador_id else None,
         'es_participante': bool(es_participante),
@@ -115,7 +116,7 @@ def _queryset_partidas():
     return Partida.objects.select_related(
         'torneo__videojuego', 'torneo__organizador', 'arbitro_asignado__usuario',
     ).prefetch_related(
-        'participantes__inscripcion', 'checkins', 'resultado_oficial__ganador',
+        'participantes__inscripcion__usuario', 'checkins', 'resultado_oficial__ganador',
         'declaraciones_resultado__usuario', 'declaraciones_resultado__ganador_declarado',
     )
 

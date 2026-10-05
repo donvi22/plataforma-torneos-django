@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     InicioSesionView,
     cerrar_sesion,
+    buscar_usuarios,
     cambiar_nickname,
     editar_perfil,
     eliminar_cuenta_web,
@@ -19,6 +20,7 @@ urlpatterns = [
     path('registro/', registro, name='registro'),
     path('login/', InicioSesionView.as_view(), name='login'),
     path('logout/', cerrar_sesion, name='logout'),
+    path('buscar/', buscar_usuarios, name='buscar-usuarios'),
     path('perfil/', perfil_propio, name='perfil-propio'),
     path('perfil/cambiar-nickname/', cambiar_nickname, name='cambiar-nickname'),
     path('perfil/eliminar/', eliminar_cuenta_web, name='eliminar-cuenta'),

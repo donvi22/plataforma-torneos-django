@@ -48,6 +48,16 @@ nav a { text-decoration: none; }
 .notification-actions { align-items: end; display: flex; flex: 0 0 auto; flex-direction: column; gap: 10px; }
 .notification-actions .link-button { color: var(--teal); font-size: .82rem; font-weight: 700; }
 .notification-empty { margin-top: 20px; }
+.user-search input { background: white; border: 1px solid var(--line); font: inherit; max-width: 100%; padding: 6px 10px; width: 140px; }
+.user-search-page { grid-template-columns: 1fr auto; }
+.user-search-page label { display: grid; gap: 6px; }
+.user-results { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
+.user-result { align-items: center; background: var(--panel); border: 1px solid var(--line); display: flex; gap: 16px; padding: 16px; }
+.user-result-avatar { flex: 0 0 auto; font-size: 1.4rem; height: 56px; width: 56px; }
+.user-result-copy { min-width: 0; overflow-wrap: anywhere; }
+.user-result-copy h2 { font-size: 1.15rem; margin: 0 0 4px; }
+.user-result-copy p { margin: 2px 0; }
+@media (max-width: 620px) { .user-search { width: 100%; } .user-search input { width: 100%; } }
 .referee-section { margin: 24px auto; }
 .referee-availability { align-items: center; display: flex; flex-wrap: wrap; gap: 22px; justify-content: space-between; }
 .referee-availability h2, .referee-section h2 { font-size: 1.45rem; margin: 0 0 10px; }

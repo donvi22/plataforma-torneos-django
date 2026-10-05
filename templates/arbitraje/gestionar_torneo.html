@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load usuarios_extras %}
 {% block title %}Árbitros de {{ torneo.nombre }} · Arena provisional{% endblock %}
 {% block content %}
 <section class="catalogue-header">
@@ -28,7 +29,7 @@
             {% for arbitro in arbitros_page %}
                 <li class="referee-entry">
                     <div class="referee-copy">
-                        <h3>{{ arbitro.usuario.username }}</h3>
+                        <h3>{% enlace_usuario arbitro.usuario %}</h3>
                         <p>Invitación {{ arbitro.fecha_invitacion|date:'j/m/Y H:i' }}{% if arbitro.fecha_respuesta %} · Respuesta {{ arbitro.fecha_respuesta|date:'j/m/Y H:i' }}{% endif %}</p>
                         <p>Partidas activas asignadas: {{ arbitro.partidas_activas }}</p>
                     </div>
