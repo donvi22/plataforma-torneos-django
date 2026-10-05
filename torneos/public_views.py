@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 
 from .models import ClasificacionTorneo, InscripcionTorneo, Torneo
+from .privados import tiene_acceso_privado
 from .services import EstadoInscripciones, _es_administrador_autorizado, estado_inscripciones
 
 
@@ -116,7 +117,12 @@ def ficha(request, pk):
         pk=pk,
     )
     if torneo.tipo == Torneo.Tipo.PRIVADO or torneo.estado == Torneo.Estado.BORRADOR:
-        if not _puede_ver_privado(torneo, request.user):
+        con_acceso = (
+            torneo.tipo == Torneo.Tipo.PRIVADO
+            and torneo.estado != Torneo.Estado.BORRADOR
+            and tiene_acceso_privado(torneo, request.user)
+        )
+        if not (con_acceso or _puede_ver_privado(torneo, request.user)):
             raise Http404
     elif not (
         torneo.tipo in (Torneo.Tipo.PUBLICO, Torneo.Tipo.OFICIAL)
@@ -156,6 +162,18 @@ def ficha(request, pk):
             or (torneo.tipo == Torneo.Tipo.OFICIAL and _es_administrador_autorizado(request.user))
         )
     )
+    if request.user.is_authenticated and torneo.tipo == Torneo.Tipo.PRIVADO and not es_organizador:
+        inscripcion_usuario = torneo.inscripciones.filter(usuario=request.user).first()
+        perfil_videojuego = request.user.perfiles_videojuego.filter(
+            videojuego=torneo.videojuego,
+        ).select_related('rango_declarado').first()
+        puede_inscribirse = bool(
+            estado_inscripciones(torneo, timezone.now()) in (EstadoInscripciones.ABIERTAS, EstadoInscripciones.PRORROGA)
+            and (not inscripcion_usuario or inscripcion_usuario.estado == InscripcionTorneo.Estado.CANCELADA)
+            and torneo.confirmados < torneo.max_participantes
+            and perfil_videojuego
+            and tiene_acceso_privado(torneo, request.user)
+        )
     if request.user.is_authenticated and torneo.tipo in (Torneo.Tipo.PUBLICO, Torneo.Tipo.OFICIAL):
         inscripcion_usuario = torneo.inscripciones.filter(usuario=request.user).first()
         perfil_videojuego = request.user.perfiles_videojuego.filter(
@@ -169,6 +187,7 @@ def ficha(request, pk):
         )
     return render(request, 'torneos/ficha.html', {
         'torneo': torneo,
+        'plazas_disponibles': max(torneo.max_participantes - torneo.confirmados, 0),
         'participantes': participantes,
         'estado_presentacion': _estado_presentacion(torneo, timezone.now()),
         'ahora': timezone.now(),

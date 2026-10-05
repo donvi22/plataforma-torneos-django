@@ -14,5 +14,6 @@
         {% endfor %}
         <button class="button" type="submit">Iniciar sesión</button>
     </form>
+    {% if request.GET.next %}<p class="muted">¿No tienes cuenta? <a class="text-link" href="{% url 'registro' %}?next={{ request.GET.next|urlencode }}">Crea una</a>.</p>{% endif %}
 </section>
 {% endblock %}

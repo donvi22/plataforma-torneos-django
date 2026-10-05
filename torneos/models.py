@@ -1,4 +1,5 @@
 from datetime import timedelta
+import secrets
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -151,9 +152,27 @@ class Torneo(models.Model):
 
 	class Meta:
 		ordering = ('-fecha_creacion',)
+		constraints = [
+			models.UniqueConstraint(
+				fields=('codigo_acceso',),
+				condition=models.Q(tipo='PRIVADO') & ~models.Q(codigo_acceso=''),
+				name='unique_codigo_acceso_torneo_privado',
+			),
+		]
 
 	def __str__(self):
 		return self.nombre
+
+	@staticmethod
+	def generar_codigo_acceso():
+		return secrets.token_urlsafe(18)
+
+	def save(self, *args, **kwargs):
+		if self.tipo == self.Tipo.PRIVADO and not self.codigo_acceso:
+			self.codigo_acceso = self.generar_codigo_acceso()
+			if kwargs.get('update_fields') is not None:
+				kwargs['update_fields'] = {*kwargs['update_fields'], 'codigo_acceso'}
+		super().save(*args, **kwargs)
 
 	def clean(self):
 		super().clean()
@@ -341,6 +360,7 @@ class InscripcionTorneo(models.Model):
 	fecha_confirmacion = models.DateTimeField(default=timezone.now)
 	fecha_cancelacion = models.DateTimeField(blank=True, null=True)
 	motivo_cancelacion = models.TextField(blank=True)
+	reinscripciones = models.PositiveIntegerField(default=0)
 	fecha_descalificacion = models.DateTimeField(blank=True, null=True)
 	motivo_descalificacion = models.TextField(blank=True)
 
@@ -372,3 +392,33 @@ class InscripcionTorneo(models.Model):
 				)
 		if errores:
 			raise ValidationError(errores)
+
+
+class AccesoTorneoPrivado(models.Model):
+	class Estado(models.TextChoices):
+		ACTIVO = 'ACTIVO', 'Activo'
+		REVOCADO = 'REVOCADO', 'Revocado'
+
+	torneo = models.ForeignKey(Torneo, on_delete=models.CASCADE, related_name='accesos_privados')
+	usuario = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.PROTECT,
+		related_name='accesos_torneos_privados',
+	)
+	estado = models.CharField(max_length=10, choices=Estado.choices, default=Estado.ACTIVO)
+	fecha_acceso = models.DateTimeField(default=timezone.now)
+	fecha_revocacion = models.DateTimeField(blank=True, null=True)
+
+	class Meta:
+		ordering = ('fecha_acceso',)
+		constraints = [
+			models.UniqueConstraint(fields=('torneo', 'usuario'), name='unique_acceso_torneo_privado_usuario'),
+		]
+
+	def clean(self):
+		super().clean()
+		if self.torneo_id and self.torneo.tipo != Torneo.Tipo.PRIVADO:
+			raise ValidationError({'torneo': 'Solo los torneos privados admiten accesos por invitación.'})
+
+	def __str__(self):
+		return f'{self.usuario} -> {self.torneo}'

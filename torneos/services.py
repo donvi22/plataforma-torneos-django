@@ -319,6 +319,15 @@ def publicar_torneo(torneo, actor, ahora=None):
 	ahora = ahora or timezone.now()
 	if torneo.organizador_id != actor.pk and not _es_administrador_autorizado(actor):
 		raise InscripcionError('Solo el organizador o un administrador puede publicar este torneo.')
+	if torneo.tipo == Torneo.Tipo.PRIVADO:
+		if torneo.organizador_id != actor.pk:
+			raise InscripcionError('Solo el organizador puede abrir las inscripciones de este torneo privado.')
+		if torneo.estado != Torneo.Estado.BORRADOR:
+			raise InscripcionError('Solo se pueden abrir torneos privados en borrador.')
+		with transaction.atomic():
+			torneo.full_clean()
+			_registrar_transicion(torneo, Torneo.Estado.INSCRIPCIONES_ABIERTAS, actor=actor, motivo='Apertura de inscripciones privadas.')
+		return torneo
 	if torneo.tipo == Torneo.Tipo.OFICIAL:
 		if not _es_administrador_autorizado(actor):
 			raise InscripcionError('Solo un administrador puede publicar torneos oficiales.')
@@ -473,7 +482,12 @@ def inscribir_usuario(torneo, usuario):
 			raise InscripcionError('Las inscripciones no están abiertas en este momento.')
 		if torneo.participantes_confirmados >= torneo.max_participantes:
 			raise InscripcionError('El torneo ya no tiene plazas disponibles.')
-		if InscripcionTorneo.objects.filter(torneo=torneo, usuario=usuario).exists():
+		existente = InscripcionTorneo.objects.filter(torneo=torneo, usuario=usuario).first()
+		if existente and existente.estado == InscripcionTorneo.Estado.DESCALIFICADA and torneo.tipo == Torneo.Tipo.PRIVADO:
+			raise InscripcionError('Una inscripción descalificada no puede reactivarse.')
+		if existente and not (
+			torneo.tipo == Torneo.Tipo.PRIVADO and existente.estado == InscripcionTorneo.Estado.CANCELADA
+		):
 			raise InscripcionError('El usuario ya tiene una inscripción en este torneo.')
 
 		try:
@@ -491,15 +505,27 @@ def inscribir_usuario(torneo, usuario):
 				raise InscripcionError('El rango del usuario supera el máximo del torneo.')
 
 		try:
-			inscripcion = InscripcionTorneo.objects.create(
-				torneo=torneo,
-				usuario=usuario,
-				perfil_videojuego=perfil,
-				nick_historico=perfil.nick_en_juego,
-				rango_declarado_al_inscribirse=perfil.rango_declarado,
-				estado=InscripcionTorneo.Estado.CONFIRMADA,
-				fecha_confirmacion=ahora,
-			)
+			if existente:
+				# Reutiliza la fila cancelada conservando fecha y motivo de la última cancelación.
+				existente.perfil_videojuego = perfil
+				existente.nick_historico = perfil.nick_en_juego
+				existente.rango_declarado_al_inscribirse = perfil.rango_declarado
+				existente.estado = InscripcionTorneo.Estado.CONFIRMADA
+				existente.fecha_confirmacion = ahora
+				existente.reinscripciones += 1
+				existente.full_clean()
+				existente.save()
+				inscripcion = existente
+			else:
+				inscripcion = InscripcionTorneo.objects.create(
+					torneo=torneo,
+					usuario=usuario,
+					perfil_videojuego=perfil,
+					nick_historico=perfil.nick_en_juego,
+					rango_declarado_al_inscribirse=perfil.rango_declarado,
+					estado=InscripcionTorneo.Estado.CONFIRMADA,
+					fecha_confirmacion=ahora,
+				)
 		except (IntegrityError, ValidationError) as error:
 			raise InscripcionError('No se pudo crear la inscripción; quizá ya existe.') from error
 		if torneo.estado == Torneo.Estado.PRORROGA and torneo.participantes_confirmados >= torneo.max_participantes:

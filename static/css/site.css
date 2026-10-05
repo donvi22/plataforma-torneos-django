@@ -50,6 +50,9 @@ nav a { text-decoration: none; }
 .notification-empty { margin-top: 20px; }
 .user-search input { background: white; border: 1px solid var(--line); font: inherit; max-width: 100%; padding: 6px 10px; width: 140px; }
 .user-search-page { grid-template-columns: 1fr auto; }
+.invite-link { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.invite-link input { background: white; border: 1px solid var(--line); flex: 1 1 260px; font: inherit; min-width: 0; padding: 10px 12px; }
+.access-row { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; overflow-wrap: anywhere; }
 .user-search-page label { display: grid; gap: 6px; }
 .user-results { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
 .user-result { align-items: center; background: var(--panel); border: 1px solid var(--line); display: flex; gap: 16px; padding: 16px; }

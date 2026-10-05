@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block title %}Mis torneos privados · Arena provisional{% endblock %}
+{% block content %}
+<section class="catalogue-header"><p class="eyebrow">Competición</p><h1>Mis torneos privados.</h1><p class="lead">Torneos cerrados que organizas, en los que tienes acceso o participas.</p></section>
+{% if torneos %}<div class="tournament-grid">{% for torneo in torneos %}<article class="tournament-card"><div class="tournament-card-body"><div class="card-meta"><span>Torneo privado</span><span>{{ torneo.get_estado_display }}</span></div><h2>{{ torneo.nombre }}</h2><p class="muted">{{ torneo.videojuego.nombre }}</p><a class="text-link" href="{% url 'ficha-torneo' torneo.pk %}">Ver ficha</a></div></article>{% endfor %}</div>{% else %}<section class="empty-panel"><h2>Aún no tienes torneos privados</h2><p class="muted">Abre un enlace de invitación o crea tu propio torneo privado.</p></section>{% endif %}
+{% endblock %}

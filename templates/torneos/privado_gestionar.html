@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% load static usuarios_extras %}
+{% block title %}Invitación privada · {{ torneo.nombre }}{% endblock %}
+{% block content %}
+<section class="catalogue-header"><p class="eyebrow">Torneo privado</p><h1>{{ torneo.nombre }}</h1><p class="lead">Comparte el enlace solo con las personas que quieras invitar.</p></section>
+<section class="profile-panel invite-panel">
+    <p class="eyebrow">Enlace de invitación</p>
+    {% if invitaciones_abiertas %}
+        <div class="invite-link">
+            <input id="invite-link-input" type="text" readonly value="{{ enlace }}" aria-label="Enlace de invitación">
+            <button class="button" type="button" data-copy-target="invite-link-input">Copiar enlace</button>
+        </div>
+        <p class="muted" data-copy-feedback hidden>Enlace copiado.</p>
+        {% if torneo.estado == 'BORRADOR' %}<p class="notice">El enlace no concederá acceso hasta que abras las inscripciones desde Mis torneos.</p>{% endif %}
+        <form method="post" action="{% url 'regenerar-privado' torneo.pk %}" class="inline-form">{% csrf_token %}<button class="button button-quiet" type="submit">Regenerar enlace</button></form>
+        <p class="muted">Al regenerarlo, el enlace anterior deja de dar accesos nuevos. Quienes ya entraron conservan su acceso.</p>
+    {% else %}
+        <p class="muted">El torneo ha terminado; la invitación ya no está activa.</p>
+    {% endif %}
+</section>
+<section class="profile-panel">
+    <p class="eyebrow">Plazas</p><h2>Participantes inscritos</h2>
+    {% if inscritos %}<ul class="participant-list">{% for inscripcion in inscritos %}<li>{% enlace_usuario inscripcion.usuario inscripcion.nick_historico %}</li>{% endfor %}</ul>{% else %}<p class="muted">Todavía no hay participantes inscritos.</p>{% endif %}
+</section>
+<section class="profile-panel">
+    <p class="eyebrow">Invitados</p><h2>Usuarios con acceso</h2>
+    {% if accesos %}
+    <ul class="participant-list">
+        {% for acceso in accesos %}
+        <li class="access-row"><span>{% enlace_usuario acceso.usuario %} · {{ acceso.get_estado_display }} · {{ acceso.fecha_acceso|date:'j/m/Y H:i' }}</span>
+            {% if acceso.estado == 'ACTIVO' and acceso.usuario_id not in usuarios_inscritos %}<form method="post" action="{% url 'revocar-acceso-privado' torneo.pk acceso.pk %}" class="inline-form">{% csrf_token %}<button class="button button-small button-quiet" type="submit">Revocar acceso</button></form>{% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}<p class="muted">Nadie ha usado el enlace todavía.</p>{% endif %}
+</section>
+<div class="action-row"><a class="text-link" href="{% url 'ficha-torneo' torneo.pk %}">Volver a la ficha</a></div>
+<script src="{% static 'js/copiar-enlace.js' %}" defer></script>
+{% endblock %}

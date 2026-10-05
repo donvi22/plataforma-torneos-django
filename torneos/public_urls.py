@@ -2,6 +2,14 @@ from django.urls import path
 
 from .public_views import catalogo, ficha
 from .bracket_views import bracket
+from .private_views import (
+    acceso_privado,
+    gestionar_privado,
+    inscribir_privado,
+    mis_torneos_privados,
+    regenerar_privado,
+    revocar_acceso,
+)
 from .manage_views import (
     cancelar_inscripcion_web,
     crear,
@@ -20,6 +28,12 @@ urlpatterns = [
     path('crear/', crear, name='crear-torneo'),
     path('mios/', mis_torneos, name='mis-torneos'),
     path('participaciones/', mis_participaciones, name='mis-participaciones'),
+    path('privados/', mis_torneos_privados, name='mis-torneos-privados'),
+    path('privado/<str:codigo>/', acceso_privado, name='acceso-privado'),
+    path('<int:pk>/privado/inscribirse/', inscribir_privado, name='inscribirse-privado'),
+    path('<int:pk>/privado/gestionar/', gestionar_privado, name='gestionar-privado'),
+    path('<int:pk>/privado/regenerar/', regenerar_privado, name='regenerar-privado'),
+    path('<int:pk>/privado/acceso/<int:acceso_pk>/revocar/', revocar_acceso, name='revocar-acceso-privado'),
     path('rangos/<int:videojuego_pk>/', rangos_por_videojuego, name='rangos-por-videojuego'),
     path('<int:pk>/inscribirse/', inscribir, name='inscribirse-torneo'),
     path('<int:pk>/bracket/', bracket, name='bracket-torneo'),

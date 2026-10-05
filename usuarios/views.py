@@ -7,6 +7,7 @@ from django.core.paginator import Paginator
 from django.db.models import Prefetch
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .account_services import AccountLifecycleError, cambiar_nickname as cambiar_nickname_service, eliminar_cuenta
 from .forms import (
@@ -30,6 +31,9 @@ def registro(request):
         usuario = form.save()
         login(request, usuario)
         messages.success(request, 'Tu cuenta se ha creado correctamente.')
+        destino = request.GET.get('next', '')
+        if destino and url_has_allowed_host_and_scheme(destino, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+            return redirect(destino)
         return redirect('perfil', pk=usuario.pk)
     return render(request, 'usuarios/registro.html', {'form': form})
 
