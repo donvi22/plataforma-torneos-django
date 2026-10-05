@@ -51,6 +51,8 @@ class Partida(models.Model):
 	fecha_hora_fin_real = models.DateTimeField(blank=True, null=True)
 	codigo_lobby = models.CharField(max_length=150, blank=True)
 	contrasena_lobby = models.CharField(max_length=150, blank=True)
+	nombre_lobby = models.CharField(max_length=150, blank=True)
+	instrucciones_lobby = models.TextField(max_length=500, blank=True)
 
 	class Meta:
 		constraints = [
@@ -186,6 +188,7 @@ class HistorialProgramacionPartida(models.Model):
 		related_name='cambios_programacion_partida',
 	)
 	motivo = models.TextField(validators=[MinLengthValidator(1)])
+	checkins_invalidados = models.PositiveSmallIntegerField(default=0)
 	fecha = models.DateTimeField(auto_now_add=True)
 
 

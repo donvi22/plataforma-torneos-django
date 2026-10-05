@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% load usuarios_extras %}
+{% block title %}Calendario de partidas · {{ torneo.nombre }}{% endblock %}
+{% block content %}
+<section class="catalogue-header"><p class="eyebrow">Torneo oficial</p><h1>Calendario de partidas</h1><p class="lead">{{ torneo.nombre }} · Hora actual: {{ ahora|date:'j/m/Y H:i' }} ({{ ahora|date:'T' }}){% if sin_programar %} · {{ sin_programar }} sin programar{% endif %}</p></section>
+{% if filas %}
+<ul class="calendar-list">
+    {% for fila in filas %}
+    <li class="calendar-entry">
+        <div class="calendar-copy">
+            <div class="card-meta"><span>Ronda {{ fila.partida.numero_ronda }}</span><span>Partida {{ fila.partida.numero_orden }}</span><span>{{ fila.partida.get_estado_display }}</span></div>
+            <p class="calendar-players">{% if fila.inscripciones %}{% for ins in fila.inscripciones %}{% identidad_competitiva ins.usuario ins.nick_historico %}{% if not forloop.last %} vs {% endif %}{% endfor %}{% else %}Rivales por determinar{% endif %}</p>
+            <p>{% if fila.partida.fecha_hora_programada %}<strong>{{ fila.partida.fecha_hora_programada|date:'j/m/Y H:i' }}</strong>{% else %}<span class="muted">Sin programar</span>{% endif %}</p>
+            <p class="muted">Árbitro: {% if fila.partida.arbitro_asignado %}{% enlace_usuario fila.partida.arbitro_asignado.usuario %}{% else %}Sin asignar{% endif %}</p>
+            <a class="text-link" href="{% url 'detalle-partida' fila.partida.pk %}">Ver partida</a>
+        </div>
+        {% if fila.editable %}
+        <form method="post" action="{% url 'programar-partida' fila.partida.pk %}" class="calendar-form">
+            {% csrf_token %}
+            <label>{{ fila.form.fecha_hora.label }}{{ fila.form.fecha_hora }}</label>
+            {% if fila.partida.fecha_hora_programada %}<label>{{ fila.form.motivo.label }}{{ fila.form.motivo }}</label>{% endif %}
+            <button class="button button-small" type="submit">{% if fila.partida.fecha_hora_programada %}Reprogramar{% else %}Programar{% endif %}</button>
+        </form>
+        {% else %}<p class="muted">No se puede modificar la programación.</p>{% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% else %}<section class="empty-panel"><h2>Todavía no hay partidas</h2><p class="muted">Prepara el torneo para generar el bracket.</p></section>{% endif %}
+<div class="action-row"><a class="text-link" href="{% url 'ficha-torneo' torneo.pk %}">Volver al torneo</a></div>
+{% endblock %}

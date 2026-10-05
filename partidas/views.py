@@ -10,7 +10,9 @@ from torneos.models import InscripcionTorneo
 from torneos.public_views import PUBLIC_STATES, _puede_ver_privado
 
 from .models import CheckInPartida, Partida, ResultadoPartida
-from .scheduling import CheckInError, confirmar_checkin
+from .forms import LobbyPartidaForm, ProgramarPartidaForm
+from .lobby import lobby_configurado, puede_editar_lobby, puede_ver_lobby
+from .scheduling import CheckInError, confirmar_checkin, puede_programar_partidas
 from .services import ResultadoError, _usuario_puede_validar, declarar_resultado, validar_resultado
 
 
@@ -92,8 +94,24 @@ def _preparar_partida(partida, usuario=None):
     for declaracion in declaraciones:
         declaracion.nick = nick_por_usuario.get(declaracion.usuario_id, '')
     declaracion_usuario = next((declaracion for declaracion in declaraciones if usuario and declaracion.usuario_id == usuario.pk), None)
+    ver_lobby = puede_ver_lobby(partida, usuario)
+    editar_lobby = puede_editar_lobby(partida, usuario)
     return {
         'partida': partida,
+        'lobby': {
+            'nombre': partida.nombre_lobby,
+            'codigo': partida.codigo_lobby,
+            'contrasena': partida.contrasena_lobby,
+            'instrucciones': partida.instrucciones_lobby,
+            'configurado': lobby_configurado(partida),
+        } if ver_lobby else None,
+        'puede_editar_lobby': editar_lobby,
+        'lobby_form': LobbyPartidaForm(initial={
+            'nombre_lobby': partida.nombre_lobby,
+            'codigo_lobby': partida.codigo_lobby,
+            'instrucciones_lobby': partida.instrucciones_lobby,
+        }) if editar_lobby else None,
+        'puede_programar': puede_programar_partidas(partida.torneo, usuario),
         'participantes': participantes,
         'inscripciones': {p.posicion: p.inscripcion for p in partida.participantes.all()},
         'resultado': resultado,

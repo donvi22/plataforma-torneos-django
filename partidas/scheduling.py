@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from torneos.models import Torneo
 
-from .models import CheckInPartida, Partida
+from .models import CheckInPartida, HistorialProgramacionPartida, Partida
 
 
 class CheckInError(Exception):
@@ -78,6 +78,8 @@ def preparar_partida(partida, ahora=None):
         elif partida.torneo.tipo == Torneo.Tipo.OFICIAL:
             if not partida.fecha_hora_programada:
                 raise CheckInError('La partida oficial necesita una hora programada.')
+            if partida.participantes.count() != 2:
+                return partida
             if ahora < partida.fecha_hora_programada - timedelta(minutes=partida.torneo.duracion_checkin_min):
                 return partida
         partida.estado = Partida.Estado.CHECK_IN
@@ -187,39 +189,106 @@ def procesar_checkins(ahora=None):
         estado__in=(Partida.Estado.PENDIENTE, Partida.Estado.PROGRAMADA),
     ):
         anterior = partida.estado
-        preparar_partida(partida, ahora=ahora)
+        try:
+            preparar_partida(partida, ahora=ahora)
+        except CheckInError:
+            continue
         partida.refresh_from_db()
         if partida.estado != anterior:
             procesadas += 1
     return procesadas
 
 
-def reprogramar_partida(partida, nueva_fecha, actor, motivo):
+def puede_programar_partidas(torneo, usuario):
+    """Administración global autorizada u organizador operativo de un torneo oficial."""
     from torneos.services import _es_administrador_autorizado
 
-    if not motivo or not motivo.strip():
-        raise CheckInError('El motivo de reprogramación es obligatorio.')
-    if partida.torneo.tipo != Torneo.Tipo.OFICIAL or not _es_administrador_autorizado(actor):
-        raise CheckInError('Solo la administración puede reprogramar partidas oficiales.')
-    if partida.estado in (Partida.Estado.EN_CURSO, Partida.Estado.FINALIZADA):
-        raise CheckInError('No se puede reprogramar una partida iniciada o finalizada.')
-    from .models import HistorialProgramacionPartida
-    anterior = partida.fecha_hora_programada
-    partida.fecha_hora_programada = nueva_fecha
-    partida.save(update_fields=('fecha_hora_programada',))
-    HistorialProgramacionPartida.objects.create(
-        partida=partida,
-        fecha_anterior=anterior,
-        fecha_nueva=nueva_fecha,
-        actor=actor,
-        motivo=motivo,
+    return bool(
+        torneo.tipo == Torneo.Tipo.OFICIAL
+        and usuario
+        and getattr(usuario, 'is_authenticated', False)
+        and (_es_administrador_autorizado(usuario) or (usuario.puede_operar and torneo.organizador_id == usuario.pk))
     )
-    try:
+
+
+ESTADOS_NO_REPROGRAMABLES = (
+    Partida.Estado.EN_CURSO,
+    Partida.Estado.PENDIENTE_VALIDACION,
+    Partida.Estado.FINALIZADA,
+    Partida.Estado.CANCELADA,
+    Partida.Estado.INCIDENCIA,
+)
+MAX_ANTELACION_PROGRAMACION = timedelta(days=365)
+
+
+def _destinatarios_programacion(partida, actor):
+    destinatarios = {p.inscripcion.usuario for p in partida.participantes.select_related('inscripcion__usuario')}
+    arbitro = partida.arbitro_asignado
+    if arbitro and arbitro.estado_invitacion == 'ACEPTADA' and arbitro.activo_en_torneo:
+        destinatarios.add(arbitro.usuario)
+    if partida.torneo.organizador_id != actor.pk:
+        destinatarios.add(partida.torneo.organizador)
+    return destinatarios
+
+
+def reprogramar_partida(partida, nueva_fecha, actor, motivo='', ahora=None):
+    """Programa o reprograma una partida oficial; es el único punto de escritura de la hora."""
+    ahora = ahora or timezone.now()
+    motivo = (motivo or '').strip()
+    with _scheduling_lock, transaction.atomic():
+        partida = Partida.objects.select_related('torneo__organizador', 'arbitro_asignado__usuario').get(pk=partida.pk)
+        torneo = partida.torneo
+        if torneo.tipo != Torneo.Tipo.OFICIAL or not puede_programar_partidas(torneo, actor):
+            raise CheckInError('Solo la administración o el organizador oficial pueden programar partidas.')
+        if partida.estado in ESTADOS_NO_REPROGRAMABLES or hasattr(partida, 'resultado_oficial'):
+            raise CheckInError('Esta partida ya no puede reprogramarse.')
+        if torneo.estado in (Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO):
+            raise CheckInError('El torneo ya no admite cambios de programación.')
+        if not nueva_fecha or timezone.is_naive(nueva_fecha):
+            raise CheckInError('La fecha debe incluir zona horaria.')
+        if nueva_fecha < ahora:
+            raise CheckInError('La fecha debe ser futura.')
+        if nueva_fecha > ahora + MAX_ANTELACION_PROGRAMACION:
+            raise CheckInError('La fecha está demasiado lejos en el futuro.')
+        if torneo.fecha_inicio_prevista and nueva_fecha < torneo.fecha_inicio_prevista:
+            raise CheckInError('La partida no puede empezar antes del inicio previsto del torneo.')
+        if torneo.fecha_fin_prevista and nueva_fecha > torneo.fecha_fin_prevista:
+            raise CheckInError('La partida no puede programarse después del fin previsto del torneo.')
+        anterior = partida.fecha_hora_programada
+        if anterior == nueva_fecha:
+            return partida
+        if anterior and not motivo:
+            raise CheckInError('El motivo de reprogramación es obligatorio.')
+        # La confirmación de una ventana anterior no vale para la nueva hora.
+        invalidados = partida.checkins.filter(confirmado=True).update(confirmado=False, fecha_confirmacion=None)
+        partida.fecha_hora_programada = nueva_fecha
+        partida.fecha_hora_apertura_checkin = None
+        partida.estado = Partida.Estado.PROGRAMADA
+        partida.save(update_fields=('fecha_hora_programada', 'fecha_hora_apertura_checkin', 'estado'))
+        historial = HistorialProgramacionPartida.objects.create(
+            partida=partida,
+            fecha_anterior=anterior,
+            fecha_nueva=nueva_fecha,
+            actor=actor,
+            motivo=motivo or 'Programación inicial.',
+            checkins_invalidados=invalidados,
+        )
         from notificaciones.models import Notificacion
         from notificaciones.services import crear_notificacion
-        for usuario_id, _tipo in _checkins_requeridos(partida):
-            usuario = partida.torneo.organizador.__class__.objects.get(pk=usuario_id)
-            crear_notificacion(usuario, Notificacion.Tipo.CAMBIO_HORARIO, 'Partida reprogramada', f'La partida {partida} tiene un nuevo horario.', es_critica=True, clave_evento=f'horario:{partida.pk}:{nueva_fecha}', torneo=partida.torneo, partida=partida)
-    except Exception:
+        titulo = 'Partida reprogramada' if anterior else 'Partida programada'
+        cuando = timezone.localtime(nueva_fecha).strftime('%d/%m/%Y %H:%M')
+        for usuario in _destinatarios_programacion(partida, actor):
+            crear_notificacion(
+                usuario, Notificacion.Tipo.CAMBIO_HORARIO, titulo,
+                f'La partida {partida} está programada para el {cuando}.',
+                es_critica=True, clave_evento=f'horario:{historial.pk}', torneo=torneo, partida=partida,
+            )
+    try:
+        preparar_partida(partida, ahora=ahora)
+    except CheckInError:
         pass
+    partida.refresh_from_db()
     return partida
+
+
+programar_partida = reprogramar_partida
