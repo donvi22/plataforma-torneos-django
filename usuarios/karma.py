@@ -55,6 +55,8 @@ def _registrar_movimiento(
 ):
 	if not isinstance(cantidad, int) or isinstance(cantidad, bool) or cantidad == 0:
 		raise KarmaError('El cambio solicitado debe ser un entero distinto de cero.')
+	if cantidad > 0 and not usuario.puede_operar:
+		raise KarmaError('Una cuenta no activa no puede recibir Karma nuevo.')
 	if not motivo or not motivo.strip():
 		raise KarmaError('El motivo es obligatorio.')
 	if not clave_idempotencia or not clave_idempotencia.strip():
@@ -199,6 +201,7 @@ def _premiar_declaraciones_veraces(resultado):
 		inscripcion = inscripciones_por_usuario.get(declaracion.usuario_id)
 		if (
 			inscripcion is None
+			or not declaracion.usuario.puede_operar
 			or declaracion.resultado_declarado != resultado.resultado
 			or declaracion.ganador_declarado_id != resultado.ganador_id
 		):
@@ -257,6 +260,8 @@ def _premiar_arbitraje(resultado):
 	asignacion, historial = _asignacion_en_validacion(partida, resultado.fecha_validacion)
 	if not asignacion or asignacion.usuario_id != resultado.validado_por_id:
 		return None
+	if not asignacion.usuario.puede_operar:
+		return None
 	return _crear_recompensa(
 		asignacion.usuario,
 		KARMA_RECOMPENSAS[HistorialKarma.Tipo.ARBITRAJE_COMPLETADO],
@@ -285,7 +290,7 @@ def premiar_resultado_validado(resultado_id):
 
 
 def _inscripcion_elegible_para_participacion(inscripcion, torneo):
-	if inscripcion.estado != InscripcionTorneo.Estado.CONFIRMADA:
+	if inscripcion.estado != InscripcionTorneo.Estado.CONFIRMADA or not inscripcion.usuario.puede_operar:
 		return None
 	if HistorialKarma.objects.filter(
 		usuario=inscripcion.usuario,

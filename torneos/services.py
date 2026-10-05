@@ -102,7 +102,7 @@ def _inscripciones_abiertas(torneo, ahora):
 def _es_administrador_autorizado(usuario):
 	return bool(
 		usuario
-		and usuario.is_active
+		and usuario.puede_operar
 		and usuario.is_staff
 		and usuario.rol_global == 'ADMIN'
 		and (usuario.is_superuser or usuario.has_perm('torneos.add_torneo'))
@@ -279,7 +279,7 @@ def cerrar_torneo(torneo, actor=None, automatico=False):
 
 def crear_torneo(organizador, **datos):
 	"""Crea un torneo preparado, usando siempre al usuario autenticado."""
-	if not organizador or not organizador.is_active:
+	if not organizador or not organizador.puede_operar:
 		raise InscripcionError('La cuenta del organizador no está activa.')
 	tipo = datos.get('tipo')
 	if tipo == Torneo.Tipo.OFICIAL and not _es_administrador_autorizado(organizador):
@@ -459,7 +459,7 @@ def inscribir_usuario(torneo, usuario):
 	with _bloqueo_de_inscripcion():
 		torneo = _torneo_bloqueado(torneo.pk)
 		ahora = timezone.now()
-		if not usuario.is_active:
+		if not usuario.puede_operar:
 			raise InscripcionError('La cuenta del usuario no está activa.')
 		if torneo.organizador_id == usuario.pk:
 			raise InscripcionError('No puedes inscribirte como participante en un torneo que organizas.')

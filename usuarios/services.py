@@ -125,6 +125,8 @@ def conceder_xp_torneo(torneo):
                 movimientos.append(existente)
                 continue
             usuario = Usuario.objects.get(pk=clasificacion.inscripcion.usuario_id)
+            if not usuario.puede_operar:
+                continue
             xp_anterior = usuario.xp_total
             nivel_anterior = usuario.nivel
             xp_posterior = xp_anterior + xp

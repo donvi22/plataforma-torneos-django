@@ -94,7 +94,7 @@ def _registrar_historial(denuncia, accion, estado_anterior, responsable, comenta
 
 
 def crear_denuncia(denunciante, categoria, descripcion, *, torneo=None, partida=None, usuario_denunciado=None):
-	if not denunciante or not denunciante.is_active:
+	if not denunciante or not denunciante.puede_operar:
 		raise ModeracionError('La cuenta debe estar activa para enviar una denuncia.')
 	if categoria not in Denuncia.Categoria.values:
 		raise ModeracionError('Selecciona una categoría válida.')

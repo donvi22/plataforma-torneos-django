@@ -1,11 +1,19 @@
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout
 from django.contrib.auth.views import LoginView
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 
-from .forms import EditarPerfilForm, InicioSesionForm, RegistroUsuarioForm
+from .account_services import AccountLifecycleError, cambiar_nickname as cambiar_nickname_service, eliminar_cuenta
+from .forms import (
+    CambiarNicknameForm,
+    ConfirmarEliminacionForm,
+    EditarPerfilForm,
+    InicioSesionForm,
+    RegistroUsuarioForm,
+)
 from .models import HistorialKarma, HistorialXP, Usuario
 from .services import progreso_nivel
 
@@ -70,6 +78,47 @@ def editar_perfil(request):
         messages.success(request, 'Tu perfil se ha actualizado.')
         return redirect('perfil', pk=request.user.pk)
     return render(request, 'usuarios/editar_perfil.html', {'form': form})
+
+
+@login_required
+def cambiar_nickname(request):
+    if request.method not in ('GET', 'POST'):
+        return HttpResponseNotAllowed(['GET', 'POST'])
+    form = CambiarNicknameForm(
+        request.POST or None,
+        usuario=request.user,
+        initial={'username': request.user.username},
+    )
+    if request.method == 'POST' and form.is_valid():
+        try:
+            cambiar_nickname_service(request.user, form.cleaned_data['username'])
+        except AccountLifecycleError as error:
+            form.add_error('username', str(error))
+        else:
+            messages.success(request, 'Tu nickname se ha actualizado.')
+            return redirect('editar-perfil')
+    return render(request, 'usuarios/cambiar_nickname.html', {'form': form})
+
+
+@login_required
+def eliminar_cuenta_web(request):
+    if request.method not in ('GET', 'POST'):
+        return HttpResponseNotAllowed(['GET', 'POST'])
+    form = ConfirmarEliminacionForm(request.POST or None, usuario=request.user)
+    if request.method == 'POST' and form.is_valid():
+        try:
+            eliminar_cuenta(
+                request.user,
+                form.cleaned_data['password'],
+                form.cleaned_data['confirmacion'],
+            )
+        except AccountLifecycleError as error:
+            form.add_error(None, str(error))
+        else:
+            logout(request)
+            messages.success(request, 'La cuenta se cerró y tus datos personales se anonimizaron.')
+            return redirect('inicio')
+    return render(request, 'usuarios/eliminar_cuenta.html', {'form': form})
 
 
 @login_required

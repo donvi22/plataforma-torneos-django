@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Cambiar nickname · Arena provisional{% endblock %}
+{% block content %}
+<section class="form-panel">
+    <p class="eyebrow">Identidad pública</p>
+    <h1>Cambiar nickname</h1>
+    <p class="muted">Puedes cambiar tu nickname una vez cada 30 días. Las inscripciones y resultados anteriores conservan su nickname histórico.</p>
+    <form method="post" class="stack-form" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+        {{ form.username }}
+        {% for error in form.username.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        <button class="button" type="submit">Guardar nickname</button>
+        <a class="text-link" href="{% url 'editar-perfil' %}">Cancelar</a>
+    </form>
+</section>
+{% endblock %}

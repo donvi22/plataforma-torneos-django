@@ -98,6 +98,8 @@ def confirmar_checkin(partida, usuario, tipo, ahora=None):
     ahora = ahora or timezone.now()
     with _scheduling_lock, transaction.atomic():
         partida = Partida.objects.select_related('torneo', 'arbitro_asignado').get(pk=partida.pk)
+        if not usuario or not usuario.puede_operar:
+            raise CheckInError('La cuenta no está activa para confirmar el check-in.')
         if not _requiere_checkin(partida):
             raise CheckInError('Los torneos privados no requieren check-in.')
         if partida.estado != Partida.Estado.CHECK_IN:

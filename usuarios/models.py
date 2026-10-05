@@ -56,6 +56,10 @@ class Usuario(AbstractUser):
 
 	objects = UsuarioManager()
 
+	@property
+	def puede_operar(self):
+		return self.is_active and self.estado_cuenta == self.EstadoCuenta.ACTIVA
+
 	def __str__(self):
 		return self.username
 

@@ -71,9 +71,21 @@ class UsuarioAdmin(UserAdmin):
 	)
 
 	def save_model(self, request, obj, form, change):
+		previous = Usuario.objects.get(pk=obj.pk) if change else None
+		if previous and previous.estado_cuenta == Usuario.EstadoCuenta.ELIMINADA:
+			obj.username = previous.username
+			obj.email = previous.email
+			obj.avatar = previous.avatar
+			obj.estado_cuenta = Usuario.EstadoCuenta.ELIMINADA
+			obj.fecha_eliminacion = previous.fecha_eliminacion
+			obj.is_active = False
+			obj.is_staff = False
+			obj.is_superuser = False
+			obj.rol_global = Usuario.RolGlobal.PLAYER
+			obj.set_unusable_password()
 		if not request.user.is_superuser:
 			if change:
-				previous = Usuario.objects.get(pk=obj.pk)
+				previous = previous or Usuario.objects.get(pk=obj.pk)
 				obj.rol_global = previous.rol_global
 				obj.is_staff = previous.is_staff
 				obj.is_superuser = previous.is_superuser
@@ -86,6 +98,16 @@ class UsuarioAdmin(UserAdmin):
 		if request.user.is_superuser:
 			obj.is_staff = obj.rol_global == Usuario.RolGlobal.ADMIN
 		obj.save()
+
+	def get_readonly_fields(self, request, obj=None):
+		campos = list(super().get_readonly_fields(request, obj))
+		if obj and obj.estado_cuenta == Usuario.EstadoCuenta.ELIMINADA:
+			campos.extend(field.name for field in Usuario._meta.fields)
+			campos.extend(('groups', 'user_permissions'))
+		return tuple(dict.fromkeys(campos))
+
+	def has_delete_permission(self, request, obj=None):
+		return False
 
 
 @admin.register(HistorialXP)

@@ -3,6 +3,7 @@ from uuid import uuid4
 from PIL import Image, UnidentifiedImageError
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.validators import UnicodeUsernameValidator
 
 from .models import Usuario
 
@@ -45,6 +46,54 @@ class InicioSesionForm(AuthenticationForm):
         'invalid_login': 'Las credenciales no son correctas.',
         'inactive': 'Las credenciales no son correctas.',
     }
+
+    def confirm_login_allowed(self, user):
+        super().confirm_login_allowed(user)
+        if not user.puede_operar:
+            raise forms.ValidationError(
+                self.error_messages['inactive'], code='inactive',
+            )
+
+
+class CambiarNicknameForm(forms.Form):
+    username = forms.CharField(
+        max_length=150,
+        validators=[UnicodeUsernameValidator()],
+        label='Nuevo nickname',
+    )
+
+    def __init__(self, *args, usuario, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.usuario = usuario
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        if not username:
+            raise forms.ValidationError('El nickname no puede estar vacío.')
+        if Usuario.objects.filter(username__iexact=username).exclude(pk=self.usuario.pk).exists():
+            raise forms.ValidationError('Este nickname ya existe.')
+        return username
+
+
+class ConfirmarEliminacionForm(forms.Form):
+    password = forms.CharField(label='Contraseña actual', widget=forms.PasswordInput)
+    confirmacion = forms.CharField(label='Escribe ELIMINAR para confirmar', max_length=20)
+
+    def __init__(self, *args, usuario, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.usuario = usuario
+
+    def clean_password(self):
+        password = self.cleaned_data['password']
+        if not self.usuario.check_password(password):
+            raise forms.ValidationError('La contraseña actual no es correcta.')
+        return password
+
+    def clean_confirmacion(self):
+        confirmacion = self.cleaned_data['confirmacion'].strip()
+        if confirmacion != 'ELIMINAR':
+            raise forms.ValidationError('Escribe ELIMINAR exactamente para confirmar.')
+        return confirmacion
 
 
 class EditarPerfilForm(forms.ModelForm):

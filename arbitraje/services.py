@@ -55,7 +55,7 @@ def plazas_arbitrales_necesarias(max_participantes):
 def _autorizado_torneo(torneo, usuario):
     return bool(
         usuario
-        and usuario.is_active
+        and usuario.puede_operar
         and (torneo.organizador_id == usuario.pk or _es_administrador_autorizado(usuario))
     )
 
@@ -65,7 +65,7 @@ def _torneo_admite_arbitraje(torneo):
 
 
 def _requisitos_publicos(torneo, usuario):
-    if not usuario.is_active:
+    if not usuario.puede_operar:
         raise ArbitrajeError('La cuenta del árbitro no está activa.')
     if torneo.tipo == Torneo.Tipo.PUBLICO:
         if not usuario.disponible_para_arbitrar:
@@ -76,7 +76,7 @@ def _requisitos_publicos(torneo, usuario):
 
 def cambiar_disponibilidad(usuario, disponible):
     """Cambia la disponibilidad futura sin cancelar invitaciones ni asignaciones."""
-    if not usuario or not usuario.is_active:
+    if not usuario or not usuario.puede_operar:
         raise ArbitrajeError('La cuenta debe estar activa para cambiar la disponibilidad arbitral.')
     if not isinstance(disponible, bool):
         raise ArbitrajeError('La disponibilidad debe ser un valor booleano.')
@@ -225,6 +225,8 @@ def rechazar_invitacion(invitacion, usuario):
         invitacion = ArbitroTorneo.objects.get(pk=invitacion.pk)
         if invitacion.usuario_id != usuario.pk:
             raise ArbitrajeError('Solo el usuario invitado puede rechazar la invitación.')
+        if not usuario.puede_operar:
+            raise ArbitrajeError('La cuenta del árbitro no está activa.')
         if invitacion.estado_invitacion != ArbitroTorneo.EstadoInvitacion.PENDIENTE:
             raise ArbitrajeError('La invitación ya no está pendiente.')
         invitacion.estado_invitacion = ArbitroTorneo.EstadoInvitacion.RECHAZADA
@@ -243,6 +245,7 @@ def rechazar_invitacion(invitacion, usuario):
 def _arbitro_valido(partida, arbitro):
     return bool(
         arbitro
+        and arbitro.usuario.puede_operar
         and partida.torneo.tipo != Torneo.Tipo.PRIVADO
         and arbitro.torneo_id == partida.torneo_id
         and arbitro.estado_invitacion == ArbitroTorneo.EstadoInvitacion.ACEPTADA
@@ -273,6 +276,8 @@ def asignar_arbitro(partida, actor=None, arbitro=None):
             torneo=partida.torneo,
             estado_invitacion=ArbitroTorneo.EstadoInvitacion.ACEPTADA,
             activo_en_torneo=True,
+            usuario__is_active=True,
+            usuario__estado_cuenta='ACTIVA',
         ).exclude(
             usuario_id__in=InscripcionTorneo.objects.filter(
                 torneo=partida.torneo,

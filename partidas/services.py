@@ -174,6 +174,8 @@ def _partida_bloqueada(partida_id):
 
 def declarar_resultado(partida, usuario, resultado_declarado, ganador_declarado=None):
     """Registra una declaración sin tocar el resultado oficial ni el bracket."""
+    if not usuario or not usuario.puede_operar:
+        raise ResultadoError('La cuenta no está activa para declarar resultados.')
     partida = Partida.objects.get(pk=partida.pk)
     if partida.estado not in (Partida.Estado.EN_CURSO, Partida.Estado.PENDIENTE_VALIDACION):
         raise ResultadoError('La partida ya no admite declaraciones.')
@@ -205,7 +207,7 @@ def _usuario_puede_validar(partida, usuario):
     arbitro_asignado = getattr(partida, 'arbitro_asignado', None)
     return bool(
         usuario
-        and usuario.is_active
+        and usuario.puede_operar
         and (
             partida.torneo.organizador_id == usuario.pk
             or _es_administrador_autorizado(usuario)

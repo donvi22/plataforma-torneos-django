@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Eliminar cuenta · Arena provisional{% endblock %}
+{% block content %}
+<section class="form-panel account-close-panel">
+    <p class="eyebrow">Cierre irreversible</p>
+    <h1>Eliminar mi cuenta</h1>
+    <p class="muted">Tu cuenta se anonimizará y no podrás volver a iniciar sesión. Se conservarán inscripciones, resultados, clasificaciones e historiales necesarios para explicar competiciones pasadas.</p>
+    <form method="post" class="stack-form" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+        {% endfor %}
+        <button class="button" type="submit">Confirmar eliminación</button>
+        <a class="text-link" href="{% url 'editar-perfil' %}">Cancelar</a>
+    </form>
+</section>
+{% endblock %}

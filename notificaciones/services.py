@@ -15,6 +15,8 @@ _TIPOS_OPCIONALES = {
 
 
 def crear_notificacion(destinatario, tipo, titulo, mensaje, *, es_critica=False, clave_evento='', torneo=None, partida=None, invitacion_arbitral=None, denuncia=None):
+	if destinatario.estado_cuenta == destinatario.EstadoCuenta.ELIMINADA:
+		return None
 	if not es_critica and not getattr(PreferenciasNotificacion.para_usuario(destinatario), _TIPOS_OPCIONALES.get(tipo, 'avisar_novedades_torneos')):
 		return None
 	if clave_evento:

@@ -3,7 +3,9 @@ from django.urls import path
 from .views import (
     InicioSesionView,
     cerrar_sesion,
+    cambiar_nickname,
     editar_perfil,
+    eliminar_cuenta_web,
     historial_karma,
     inicio,
 	 historial_xp,
@@ -18,6 +20,8 @@ urlpatterns = [
     path('login/', InicioSesionView.as_view(), name='login'),
     path('logout/', cerrar_sesion, name='logout'),
     path('perfil/', perfil_propio, name='perfil-propio'),
+    path('perfil/cambiar-nickname/', cambiar_nickname, name='cambiar-nickname'),
+    path('perfil/eliminar/', eliminar_cuenta_web, name='eliminar-cuenta'),
 	path('perfil/xp/', historial_xp, name='historial-xp'),
     path('perfil/karma/', historial_karma, name='historial-karma'),
     path('perfil/<int:pk>/', perfil, name='perfil'),
