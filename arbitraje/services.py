@@ -91,20 +91,15 @@ def _invitacion_existente(torneo, usuario):
     return ArbitroTorneo.objects.filter(torneo=torneo, usuario=usuario).first()
 
 
-def _tiene_participacion_pendiente(torneo, usuario):
+def _inscripciones_incompatibles_con_arbitraje(torneo):
     return InscripcionTorneo.objects.filter(
         torneo=torneo,
-        usuario=usuario,
-        participaciones_partida__partida__estado__in=(
-            'PENDIENTE',
-            'PROGRAMADA',
-            'CHECK_IN',
-            'LISTA_PARA_COMENZAR',
-            'EN_CURSO',
-            'PENDIENTE_VALIDACION',
-            'INCIDENCIA',
-        ),
-    ).exists()
+        estado=InscripcionTorneo.Estado.CONFIRMADA,
+    )
+
+
+def _participa_activamente(torneo, usuario):
+    return _inscripciones_incompatibles_con_arbitraje(torneo).filter(usuario=usuario).exists()
 
 
 def invitar_arbitro(torneo, usuario, actor):
@@ -117,14 +112,8 @@ def invitar_arbitro(torneo, usuario, actor):
     if not _autorizado_torneo(torneo, actor):
         raise ArbitrajeError('Solo el organizador o un administrador puede invitar árbitros.')
     _requisitos_publicos(torneo, usuario)
-    if InscripcionTorneo.objects.filter(
-        torneo=torneo,
-        usuario=usuario,
-        estado=InscripcionTorneo.Estado.CONFIRMADA,
-    ).exists():
+    if _participa_activamente(torneo, usuario):
         raise ArbitrajeError('Un participante confirmado no puede ser invitado como árbitro.')
-    if _tiene_participacion_pendiente(torneo, usuario):
-        raise ArbitrajeError('El usuario tiene una participación competitiva pendiente.')
 
     with _bloqueo_arbitraje():
         existente = _invitacion_existente(torneo, usuario)
@@ -178,14 +167,8 @@ def aceptar_invitacion(invitacion, usuario):
         if not _torneo_admite_arbitraje(invitacion.torneo):
             raise ArbitrajeError('El torneo ya no admite aceptar invitaciones arbitrales.')
         _requisitos_publicos(invitacion.torneo, usuario)
-        if InscripcionTorneo.objects.filter(
-            torneo=invitacion.torneo,
-            usuario=usuario,
-            estado=InscripcionTorneo.Estado.CONFIRMADA,
-        ).exists():
+        if _participa_activamente(invitacion.torneo, usuario):
             raise ArbitrajeError('Un participante confirmado no puede aceptar ser árbitro.')
-        if _tiene_participacion_pendiente(invitacion.torneo, usuario):
-            raise ArbitrajeError('El usuario tiene una participación competitiva pendiente.')
         if invitacion.torneo.tipo == Torneo.Tipo.PUBLICO:
             limite = plazas_arbitrales_necesarias(invitacion.torneo.max_participantes)
             aceptados = ArbitroTorneo.objects.filter(
@@ -250,6 +233,7 @@ def _arbitro_valido(partida, arbitro):
         and arbitro.torneo_id == partida.torneo_id
         and arbitro.estado_invitacion == ArbitroTorneo.EstadoInvitacion.ACEPTADA
         and arbitro.activo_en_torneo
+        and not _participa_activamente(partida.torneo, arbitro.usuario)
     )
 
 
@@ -266,11 +250,7 @@ def asignar_arbitro(partida, actor=None, arbitro=None):
             raise ArbitrajeError('Un árbitro no puede autoasignarse la partida.')
         if arbitro:
             arbitro = ArbitroTorneo.objects.get(pk=arbitro.pk)
-            if InscripcionTorneo.objects.filter(
-                torneo=partida.torneo,
-                usuario=arbitro.usuario,
-                estado=InscripcionTorneo.Estado.CONFIRMADA,
-            ).exists():
+            if _participa_activamente(partida.torneo, arbitro.usuario):
                 raise ArbitrajeError('Un participante confirmado no puede arbitrar su torneo.')
         consulta_disponibles = ArbitroTorneo.objects.filter(
             torneo=partida.torneo,
@@ -279,10 +259,7 @@ def asignar_arbitro(partida, actor=None, arbitro=None):
             usuario__is_active=True,
             usuario__estado_cuenta='ACTIVA',
         ).exclude(
-            usuario_id__in=InscripcionTorneo.objects.filter(
-                torneo=partida.torneo,
-                estado=InscripcionTorneo.Estado.CONFIRMADA,
-            ).values('usuario_id'),
+            usuario_id__in=_inscripciones_incompatibles_con_arbitraje(partida.torneo).values('usuario_id'),
         )
         if partida.torneo.tipo == Torneo.Tipo.PUBLICO:
             consulta_disponibles = consulta_disponibles.filter(

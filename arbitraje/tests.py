@@ -156,6 +156,33 @@ class ArbitrajeTests(TestCase):
 		self.assertEqual(partida.arbitro_asignado_id, nuevo.pk)
 		self.assertEqual(HistorialAsignacionArbitro.objects.count(), 2)
 
+	def test_inscripcion_cancelada_con_partida_pendiente_permite_arbitrar(self):
+		admin = Usuario.objects.create_superuser(username='admin_cancelacion', email='admin_cancelacion@example.com', password='test')
+		for tipo in (Torneo.Tipo.PUBLICO, Torneo.Tipo.OFICIAL):
+			with self.subTest(tipo=tipo):
+				torneo = self.crear_torneo(tipo)
+				usuario = self.crear_usuario(f'cancelado_{tipo}')
+				perfil = PerfilVideojuegoUsuario.objects.create(usuario=usuario, videojuego=self.videojuego, nick_en_juego='Nick anterior')
+				fecha = timezone.now()
+				inscripcion = InscripcionTorneo.objects.create(
+					torneo=torneo, usuario=usuario, perfil_videojuego=perfil,
+					nick_historico='Nick anterior', estado=InscripcionTorneo.Estado.CANCELADA,
+					fecha_cancelacion=fecha, motivo_cancelacion='Cancelación voluntaria.',
+				)
+				partida = Partida.objects.create(torneo=torneo, numero_ronda=1, numero_orden=1)
+				ParticipantePartida.objects.create(partida=partida, inscripcion=inscripcion, posicion=1)
+				invitacion = invitar_arbitro(torneo, usuario, admin)
+				aceptar_invitacion(invitacion, usuario)
+				torneo.estado = Torneo.Estado.PREPARADO
+				torneo.save(update_fields=('estado',))
+				self.assertEqual(asignar_arbitros_pendientes(torneo), [(partida.pk, invitacion.pk)])
+				self.assertEqual(asignar_arbitros_pendientes(torneo), [])
+				inscripcion.refresh_from_db()
+				self.assertEqual(inscripcion.estado, InscripcionTorneo.Estado.CANCELADA)
+				self.assertEqual(inscripcion.fecha_cancelacion, fecha)
+				self.assertEqual(inscripcion.motivo_cancelacion, 'Cancelación voluntaria.')
+				self.assertEqual(inscripcion.nick_historico, 'Nick anterior')
+
 	def test_rechaza_arbitro_de_otro_torneo_y_autoasignacion(self):
 		partida, arbitro, _ = self.crear_partida_con_arbitros()
 		otro_torneo = self.crear_torneo(max_participantes=2)
@@ -166,6 +193,65 @@ class ArbitrajeTests(TestCase):
 			reasignar_arbitro(partida, invitacion, self.organizador, 'Cambio')
 		with self.assertRaises(ArbitrajeError):
 			asignar_arbitro(partida, actor=arbitro.usuario, arbitro=arbitro)
+
+	def test_aceptacion_rechaza_confirmada_y_permite_cancelada(self):
+		torneo = self.crear_torneo()
+		usuario = self.crear_usuario('cancelacion_aceptacion')
+		invitacion = invitar_arbitro(torneo, usuario, self.organizador)
+		perfil = PerfilVideojuegoUsuario.objects.create(usuario=usuario, videojuego=self.videojuego, nick_en_juego='Nick')
+		inscripcion = InscripcionTorneo.objects.create(torneo=torneo, usuario=usuario, perfil_videojuego=perfil, nick_historico='Nick')
+		partida = Partida.objects.create(torneo=torneo, numero_ronda=1, numero_orden=1)
+		ParticipantePartida.objects.create(partida=partida, inscripcion=inscripcion, posicion=1)
+		with self.assertRaises(ArbitrajeError):
+			aceptar_invitacion(invitacion, usuario)
+		invitacion.refresh_from_db()
+		self.assertEqual(invitacion.estado_invitacion, ArbitroTorneo.EstadoInvitacion.PENDIENTE)
+		inscripcion.estado = InscripcionTorneo.Estado.CANCELADA
+		inscripcion.save(update_fields=('estado',))
+		aceptada = aceptar_invitacion(invitacion, usuario)
+		self.assertTrue(aceptada.activo_en_torneo)
+		self.assertEqual(asignar_arbitro(partida), aceptada)
+		self.assertTrue(InscripcionTorneo.objects.filter(pk=inscripcion.pk, estado=InscripcionTorneo.Estado.CANCELADA).exists())
+
+	def test_confirmada_bloquea_asignacion_existente_explicita_y_reasignacion(self):
+		admin = Usuario.objects.create_superuser(username='admin_activa', email='admin_activa@example.com', password='test')
+		for tipo in (Torneo.Tipo.PUBLICO, Torneo.Tipo.OFICIAL):
+			with self.subTest(tipo=tipo):
+				torneo = self.crear_torneo(tipo, max_participantes=16)
+				usuario = self.crear_usuario(f'activo_{tipo}')
+				otro = self.crear_usuario(f'valido_{tipo}')
+				invitacion = aceptar_invitacion(invitar_arbitro(torneo, usuario, admin), usuario)
+				valido = aceptar_invitacion(invitar_arbitro(torneo, otro, admin), otro)
+				perfil = PerfilVideojuegoUsuario.objects.create(usuario=usuario, videojuego=self.videojuego, nick_en_juego='Nick')
+				InscripcionTorneo.objects.create(torneo=torneo, usuario=usuario, perfil_videojuego=perfil, nick_historico='Nick')
+				partida = Partida.objects.create(torneo=torneo, numero_ronda=1, numero_orden=1)
+				with self.assertRaises(ArbitrajeError):
+					asignar_arbitro(partida, arbitro=invitacion)
+				with self.assertRaises(ArbitrajeError):
+					reasignar_arbitro(partida, invitacion, admin, 'Cambio')
+				Partida.objects.filter(pk=partida.pk).update(arbitro_asignado=invitacion)
+				self.assertEqual(asignar_arbitro(partida), valido)
+				partida.refresh_from_db()
+				self.assertEqual(partida.arbitro_asignado_id, valido.pk)
+
+	def test_asignacion_equilibrada_con_historico_cancelado(self):
+		partida, arbitro1, arbitro2 = self.crear_partida_con_arbitros()
+		torneo = partida.torneo
+		perfil = PerfilVideojuegoUsuario.objects.create(usuario=arbitro1.usuario, videojuego=self.videojuego, nick_en_juego='Anterior')
+		inscripcion = InscripcionTorneo.objects.create(
+			torneo=torneo, usuario=arbitro1.usuario, perfil_videojuego=perfil,
+			nick_historico='Anterior', estado=InscripcionTorneo.Estado.CANCELADA,
+		)
+		torneo.estado = Torneo.Estado.PREPARADO
+		torneo.save(update_fields=('estado',))
+		for orden in range(2, 7):
+			Partida.objects.create(torneo=torneo, numero_ronda=1, numero_orden=orden)
+		self.assertEqual(len(asignar_arbitros_pendientes(torneo)), 6)
+		self.assertEqual(arbitro1.partidas_asignadas.count(), 3)
+		self.assertEqual(arbitro2.partidas_asignadas.count(), 3)
+		self.assertEqual(asignar_arbitros_pendientes(torneo), [])
+		self.assertEqual(HistorialAsignacionArbitro.objects.filter(partida__torneo=torneo).count(), 6)
+		self.assertTrue(InscripcionTorneo.objects.filter(pk=inscripcion.pk, estado=InscripcionTorneo.Estado.CANCELADA).exists())
 
 	def test_arbitro_asignado_puede_validar_y_otro_no(self):
 		partida, arbitro, otro = self.crear_partida_con_arbitros()
