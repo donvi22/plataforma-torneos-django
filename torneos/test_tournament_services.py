@@ -112,6 +112,23 @@ class TorneoLifecycleServiceTests(TestCase):
 		ofical = crear_torneo(admin, **self.datos_base(Torneo.Tipo.OFICIAL))
 		self.assertEqual(ofical.organizador, admin)
 
+	def test_publicacion_oficial_requiere_ventana_de_inscripcion(self):
+		admin = Usuario.objects.create_superuser(username='admin_fechas', email='admin_fechas@example.com', password='test')
+		torneo = crear_torneo(admin, **self.datos_base(Torneo.Tipo.OFICIAL))
+		with self.assertRaises(InscripcionError):
+			publicar_torneo(torneo, admin)
+		torneo.refresh_from_db()
+		self.assertEqual(torneo.estado, Torneo.Estado.BORRADOR)
+		self.assertIsNone(torneo.fecha_publicacion)
+
+	def test_calendario_tolera_oficial_antiguo_sin_fecha_de_apertura(self):
+		Torneo.objects.create(
+			nombre='Oficial incompleto', organizador=self.organizador,
+			videojuego=self.videojuego, formato_competitivo=self.formato,
+			max_participantes=2, tipo=Torneo.Tipo.OFICIAL, estado=Torneo.Estado.PROXIMAMENTE,
+		)
+		self.assertEqual(procesar_calendario(), 0)
+
 	def test_publicacion_inmediata_y_programada(self):
 		ahora = timezone.now()
 		inmediato = self.crear_publico(nombre='Inmediato')

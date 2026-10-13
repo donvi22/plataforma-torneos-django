@@ -16,16 +16,12 @@ class PartidaAdmin(admin.ModelAdmin):
 	list_display = ('torneo', 'numero_ronda', 'numero_orden', 'estado', 'siguiente_partida')
 	list_filter = ('torneo', 'numero_ronda', 'estado')
 	search_fields = ('torneo__nombre', 'codigo_lobby')
-	readonly_fields = (
-		'torneo',
-		'arbitro_asignado',
-		'numero_ronda',
-		'numero_orden',
-		'siguiente_partida',
-		'posicion_en_siguiente_partida',
-	)
+	readonly_fields = [field.name for field in Partida._meta.fields]
 
 	def has_add_permission(self, request):
+		return False
+
+	def has_change_permission(self, request, obj=None):
 		return False
 
 	def has_delete_permission(self, request, obj=None):

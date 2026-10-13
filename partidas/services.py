@@ -151,18 +151,24 @@ def preparar_bracket(torneo, actor):
     """Prepara manualmente brackets privados u oficiales autorizados."""
     from torneos.services import _es_administrador_autorizado, _registrar_transicion
 
-    if torneo.tipo == Torneo.Tipo.PUBLICO:
-        raise PreparacionBracketError('Los torneos públicos se preparan mediante el calendario.')
-    if torneo.tipo == Torneo.Tipo.OFICIAL and not _es_administrador_autorizado(actor):
-        raise PreparacionBracketError('Solo un administrador autorizado puede preparar torneos oficiales.')
-    if torneo.tipo == Torneo.Tipo.PRIVADO and torneo.organizador_id != actor.pk and not _es_administrador_autorizado(actor):
-        raise PreparacionBracketError('Solo el organizador puede preparar este torneo privado.')
-    if torneo.participantes_confirmados != torneo.max_participantes:
-        raise PreparacionBracketError('El torneo no tiene todas sus plazas confirmadas.')
     with transaction.atomic():
         torneo = Torneo.objects.get(pk=torneo.pk)
+        if not actor or not actor.puede_operar:
+            raise PreparacionBracketError('La cuenta debe estar activa para preparar el torneo.')
+        if torneo.tipo == Torneo.Tipo.PUBLICO:
+            raise PreparacionBracketError('Los torneos públicos se preparan mediante el calendario.')
+        if torneo.tipo == Torneo.Tipo.OFICIAL and not _es_administrador_autorizado(actor):
+            raise PreparacionBracketError('Solo un administrador autorizado puede preparar torneos oficiales.')
+        if torneo.tipo == Torneo.Tipo.PRIVADO and torneo.organizador_id != actor.pk and not _es_administrador_autorizado(actor):
+            raise PreparacionBracketError('Solo el organizador puede preparar este torneo privado.')
+        if torneo.estado in (Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO):
+            raise PreparacionBracketError('El torneo ya ha terminado.')
         if torneo.estado == Torneo.Estado.BORRADOR:
             raise PreparacionBracketError('El torneo todavía es un borrador.')
+        if torneo.partidas.exists():
+            return generar_bracket(torneo)
+        if torneo.participantes_confirmados != torneo.max_participantes:
+            raise PreparacionBracketError('El torneo no tiene todas sus plazas confirmadas.')
         if torneo.estado != Torneo.Estado.INSCRIPCIONES_CERRADAS:
             _registrar_transicion(torneo, Torneo.Estado.INSCRIPCIONES_CERRADAS, actor=actor, motivo='Cierre autorizado para preparar el bracket.')
         return generar_bracket(torneo)
@@ -172,11 +178,18 @@ def _partida_bloqueada(partida_id):
     return Partida.objects.select_related('torneo').get(pk=partida_id)
 
 
+@transaction.atomic
 def declarar_resultado(partida, usuario, resultado_declarado, ganador_declarado=None):
     """Registra una declaración sin tocar el resultado oficial ni el bracket."""
     if not usuario or not usuario.puede_operar:
         raise ResultadoError('La cuenta no está activa para declarar resultados.')
     partida = Partida.objects.get(pk=partida.pk)
+    if partida.torneo.estado in (Torneo.Estado.BORRADOR, Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO):
+        raise ResultadoError('El torneo ya no admite declaraciones de resultado.')
+    if not partida.participantes.filter(
+        inscripcion__usuario=usuario, inscripcion__estado=InscripcionTorneo.Estado.CONFIRMADA,
+    ).exists():
+        raise ResultadoError('El usuario no participa activamente en esta partida.')
     if partida.estado not in (Partida.Estado.EN_CURSO, Partida.Estado.PENDIENTE_VALIDACION):
         raise ResultadoError('La partida ya no admite declaraciones.')
     if hasattr(partida, 'resultado_oficial'):
@@ -297,6 +310,10 @@ def validar_resultado(
     with _bracket_lock:
         with transaction.atomic():
             partida = _partida_bloqueada(partida.pk)
+            if partida.torneo.estado in (Torneo.Estado.BORRADOR, Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO):
+                raise ResultadoError('El torneo ya no admite resultados competitivos.')
+            if partida.estado in (Partida.Estado.FINALIZADA, Partida.Estado.CANCELADA):
+                raise ResultadoError('La partida ya ha terminado.')
             if not _resolucion_automatica and not _usuario_puede_validar(partida, actor):
                 raise ResultadoError('El usuario no puede validar esta partida.')
             if hasattr(partida, 'resultado_oficial'):

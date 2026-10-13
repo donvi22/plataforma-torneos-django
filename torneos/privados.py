@@ -49,7 +49,7 @@ def inscribir_en_privado(torneo, usuario):
 
 
 def regenerar_codigo_privado(torneo, actor):
-    if torneo.tipo != Torneo.Tipo.PRIVADO or torneo.organizador_id != actor.pk:
+    if not actor or not actor.puede_operar or torneo.tipo != Torneo.Tipo.PRIVADO or torneo.organizador_id != actor.pk:
         raise InscripcionError('Solo el organizador puede regenerar la invitación.')
     with transaction.atomic():
         torneo = Torneo.objects.get(pk=torneo.pk)
@@ -63,7 +63,7 @@ def regenerar_codigo_privado(torneo, actor):
 def revocar_acceso_privado(acceso, actor):
     with transaction.atomic():
         acceso = AccesoTorneoPrivado.objects.select_related('torneo').get(pk=acceso.pk)
-        if acceso.torneo.organizador_id != actor.pk:
+        if not actor or not actor.puede_operar or acceso.torneo.organizador_id != actor.pk:
             raise InscripcionError('Solo el organizador puede revocar accesos.')
         if acceso.estado != AccesoTorneoPrivado.Estado.ACTIVO:
             raise InscripcionError('El acceso ya estaba revocado.')

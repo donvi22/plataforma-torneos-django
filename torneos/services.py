@@ -248,7 +248,7 @@ def cerrar_torneo(torneo, actor=None, automatico=False):
 			if not _es_administrador_autorizado(actor):
 				raise CierreTorneoError('Solo la administración puede cerrar un torneo oficial.')
 		elif torneo.tipo == Torneo.Tipo.PRIVADO:
-			if not actor or (torneo.organizador_id != actor.pk and not _es_administrador_autorizado(actor)):
+			if not actor or not actor.puede_operar or (torneo.organizador_id != actor.pk and not _es_administrador_autorizado(actor)):
 				raise CierreTorneoError('Solo el organizador puede cerrar este torneo privado.')
 		else:
 			raise CierreTorneoError('Los torneos públicos se cierran automáticamente al validar la final.')
@@ -317,6 +317,8 @@ def crear_torneo(organizador, **datos):
 def publicar_torneo(torneo, actor, ahora=None):
 	"""Publica un borrador y abre inmediatamente o programa sus inscripciones."""
 	ahora = ahora or timezone.now()
+	if not actor or not actor.puede_operar:
+		raise InscripcionError('La cuenta debe estar activa para publicar el torneo.')
 	if torneo.organizador_id != actor.pk and not _es_administrador_autorizado(actor):
 		raise InscripcionError('Solo el organizador o un administrador puede publicar este torneo.')
 	if torneo.tipo == Torneo.Tipo.PRIVADO:
@@ -333,6 +335,8 @@ def publicar_torneo(torneo, actor, ahora=None):
 			raise InscripcionError('Solo un administrador puede publicar torneos oficiales.')
 		if torneo.estado != Torneo.Estado.BORRADOR:
 			raise InscripcionError('Solo se pueden publicar torneos oficiales en borrador.')
+		if not torneo.fecha_apertura_inscripciones or not torneo.fecha_cierre_inscripciones:
+			raise InscripcionError('El torneo oficial necesita apertura y cierre de inscripciones.')
 		with transaction.atomic():
 			torneo.full_clean()
 			torneo.fecha_publicacion = ahora
@@ -389,7 +393,7 @@ def procesar_calendario(ahora=None):
 			):
 				_generar_bracket_si_completo(torneo)
 				transiciones += 1
-			elif torneo.estado == Torneo.Estado.PROXIMAMENTE and torneo.fecha_apertura_inscripciones <= ahora:
+			elif torneo.estado == Torneo.Estado.PROXIMAMENTE and torneo.fecha_apertura_inscripciones and torneo.fecha_apertura_inscripciones <= ahora:
 				fin_prorroga = (
 					torneo.fecha_cierre_inscripciones + timedelta(minutes=torneo.duracion_prorroga_min)
 					if torneo.fecha_cierre_inscripciones and torneo.duracion_prorroga_min else torneo.fecha_cierre_inscripciones
@@ -430,7 +434,7 @@ def procesar_calendario(ahora=None):
 						transiciones += cambio
 						if cambio:
 							_generar_bracket_si_completo(torneo)
-				elif torneo.fecha_cierre_inscripciones + timedelta(minutes=torneo.duracion_prorroga_min) <= ahora:
+				elif torneo.fecha_cierre_inscripciones and torneo.duracion_prorroga_min is not None and torneo.fecha_cierre_inscripciones + timedelta(minutes=torneo.duracion_prorroga_min) <= ahora:
 					cambio = _registrar_transicion(torneo, Torneo.Estado.CANCELADO, motivo='Prórroga finalizada sin completar las plazas.')
 					transiciones += cambio
 					if cambio:

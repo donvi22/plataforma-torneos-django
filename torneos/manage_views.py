@@ -14,7 +14,7 @@ from partidas.services import PreparacionBracketError, preparar_bracket
 
 
 def _puede_gestionar(torneo, usuario):
-    return torneo.organizador_id == usuario.pk or _es_administrador_autorizado(usuario)
+    return bool(usuario.puede_operar and (torneo.organizador_id == usuario.pk or _es_administrador_autorizado(usuario)))
 
 
 @login_required

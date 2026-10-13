@@ -179,3 +179,62 @@ class CheckInSchedulingTests(TestCase):
         _, partida, _ = self.crear_partida()
         self.assertEqual(procesar_checkins(), 1)
         self.assertEqual(procesar_checkins(), 0)
+
+    def test_repetir_apertura_no_reinicia_ventana_ni_notifica(self):
+        from notificaciones.models import Notificacion
+        _, partida, _ = self.crear_partida()
+        ahora = timezone.now()
+        preparar_partida(partida, ahora=ahora)
+        avisos = Notificacion.objects.filter(partida=partida).count()
+        preparar_partida(partida, ahora=ahora + timedelta(minutes=5))
+        partida.refresh_from_db()
+        self.assertEqual(partida.fecha_hora_apertura_checkin, ahora)
+        self.assertEqual(Notificacion.objects.filter(partida=partida).count(), avisos)
+
+    def test_procesador_inicia_oficial_lista_solo_a_su_hora(self):
+        _, partida, participantes = self.crear_partida(Torneo.Tipo.OFICIAL)
+        hora = timezone.now() + timedelta(hours=1)
+        partida.fecha_hora_programada = hora
+        partida.save(update_fields=('fecha_hora_programada',))
+        apertura = hora - timedelta(minutes=10)
+        preparar_partida(partida, ahora=apertura)
+        for inscripcion in participantes:
+            confirmar_checkin(partida, inscripcion.usuario, CheckInPartida.Tipo.PARTICIPANTE, ahora=apertura)
+        confirmar_checkin(partida, self.organizador, CheckInPartida.Tipo.ARBITRO, ahora=apertura)
+        self.assertEqual(procesar_checkins(ahora=hora - timedelta(seconds=1)), 0)
+        self.assertEqual(procesar_checkins(ahora=hora), 1)
+        self.assertEqual(procesar_checkins(ahora=hora), 0)
+        partida.refresh_from_db()
+        self.assertEqual(partida.estado, Partida.Estado.EN_CURSO)
+        self.assertEqual(partida.fecha_hora_inicio_real, hora)
+
+    def test_apertura_oficial_tardia_no_extiende_plazo(self):
+        _, partida, participantes = self.crear_partida(Torneo.Tipo.OFICIAL)
+        hora = timezone.now() + timedelta(hours=1)
+        partida.fecha_hora_programada = hora
+        partida.save(update_fields=('fecha_hora_programada',))
+        preparar_partida(partida, ahora=hora - timedelta(minutes=3))
+        partida.refresh_from_db()
+        self.assertEqual(partida.fecha_hora_apertura_checkin, hora - timedelta(minutes=10))
+        with self.assertRaises(CheckInError):
+            confirmar_checkin(partida, participantes[0].usuario, CheckInPartida.Tipo.PARTICIPANTE, ahora=hora + timedelta(seconds=1))
+
+    def test_torneo_cancelado_no_acepta_checkin_ni_inicio(self):
+        torneo, partida, participantes = self.crear_partida(Torneo.Tipo.OFICIAL)
+        hora = timezone.now() + timedelta(hours=1)
+        partida.fecha_hora_programada = hora
+        partida.save(update_fields=('fecha_hora_programada',))
+        preparar_partida(partida, ahora=hora - timedelta(minutes=10))
+        Torneo.objects.filter(pk=torneo.pk).update(estado=Torneo.Estado.CANCELADO)
+        with self.assertRaises(CheckInError):
+            confirmar_checkin(partida, participantes[0].usuario, CheckInPartida.Tipo.PARTICIPANTE, ahora=hora - timedelta(minutes=9))
+        Partida.objects.filter(pk=partida.pk).update(estado=Partida.Estado.LISTA_PARA_COMENZAR)
+        with self.assertRaises(CheckInError):
+            iniciar_partida(partida, ahora=hora)
+
+    def test_inscripcion_cancelada_no_confirma_checkin(self):
+        _, partida, participantes = self.crear_partida()
+        preparar_partida(partida)
+        InscripcionTorneo.objects.filter(pk=participantes[0].pk).update(estado=InscripcionTorneo.Estado.CANCELADA)
+        with self.assertRaises(CheckInError):
+            confirmar_checkin(partida, participantes[0].usuario, CheckInPartida.Tipo.PARTICIPANTE)

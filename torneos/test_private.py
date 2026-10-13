@@ -11,8 +11,8 @@ from usuarios.services import XPError, conceder_xp_torneo
 from videojuegos.models import PerfilVideojuegoUsuario, Videojuego
 
 from .models import AccesoTorneoPrivado, FormatoCompetitivo, InscripcionTorneo, Torneo
-from .privados import acceder_con_codigo, inscribir_en_privado, regenerar_codigo_privado
-from .services import InscripcionError, crear_torneo, inscribir_usuario
+from .privados import acceder_con_codigo, inscribir_en_privado, regenerar_codigo_privado, revocar_acceso_privado
+from .services import InscripcionError, crear_torneo, inscribir_usuario, publicar_torneo
 
 CLAVE = 'ClaveSegura123!'
 
@@ -87,6 +87,17 @@ class CodigoPrivadoTests(TorneoPrivadoTestBase):
 
 
 class AccesoPrivadoTests(TorneoPrivadoTestBase):
+    def test_acceso_persistente_y_revocacion_coherentes_en_urls_privadas(self):
+        usuario = self.jugador('acceso_compartido')
+        self.client.force_login(usuario)
+        self.client.get(self.ruta())
+        rutas = [reverse(nombre, args=[self.torneo.pk]) for nombre in ('ficha-torneo', 'bracket-torneo', 'denunciar-torneo')]
+        for ruta in rutas:
+            self.assertEqual(self.client.get(ruta).status_code, 200, ruta)
+        AccesoTorneoPrivado.objects.filter(torneo=self.torneo, usuario=usuario).update(estado=AccesoTorneoPrivado.Estado.REVOCADO)
+        for ruta in rutas:
+            self.assertEqual(self.client.get(ruta).status_code, 404, ruta)
+
     def test_codigo_invalido_es_neutral(self):
         self.client.force_login(self.jugador('invitado'))
         respuesta = self.client.get(reverse('acceso-privado', args=['inventado123']))
@@ -308,6 +319,27 @@ class InscripcionPrivadaTests(TorneoPrivadoTestBase):
 
 
 class GestionPrivadaTests(TorneoPrivadoTestBase):
+    def test_organizador_no_operativo_no_publica_ni_gestiona_accesos(self):
+        borrador = self.crear(estado=Torneo.Estado.BORRADOR)
+        acceso = AccesoTorneoPrivado.objects.create(torneo=self.torneo, usuario=self.jugador('invitado_inactivo'))
+        for estado in (Usuario.EstadoCuenta.SUSPENDIDA, Usuario.EstadoCuenta.BLOQUEADA, Usuario.EstadoCuenta.ELIMINADA):
+            with self.subTest(estado=estado):
+                Usuario.objects.filter(pk=self.organizador.pk).update(estado_cuenta=estado)
+                self.organizador.refresh_from_db()
+                with self.assertRaises(InscripcionError):
+                    publicar_torneo(borrador, self.organizador)
+                with self.assertRaises(InscripcionError):
+                    regenerar_codigo_privado(self.torneo, self.organizador)
+                with self.assertRaises(InscripcionError):
+                    revocar_acceso_privado(acceso, self.organizador)
+                self.client.force_login(self.organizador)
+                self.assertEqual(self.client.get(reverse('gestionar-privado', args=[self.torneo.pk])).status_code, 404)
+                self.assertEqual(self.client.get(reverse('editar-borrador-torneo', args=[borrador.pk])).status_code, 404)
+        borrador.refresh_from_db()
+        acceso.refresh_from_db()
+        self.assertEqual(borrador.estado, Torneo.Estado.BORRADOR)
+        self.assertEqual(acceso.estado, AccesoTorneoPrivado.Estado.ACTIVO)
+
     def test_organizador_ve_enlace_y_listas(self):
         invitado = self.jugador('invitado')
         self.client.force_login(invitado)

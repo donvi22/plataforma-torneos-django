@@ -23,7 +23,7 @@ def _solo_post(request):
 
 def _torneo_privado_propio(request, pk):
     torneo = get_object_or_404(Torneo.objects.select_related('videojuego'), pk=pk, tipo=Torneo.Tipo.PRIVADO)
-    if torneo.organizador_id != request.user.pk:
+    if not request.user.puede_operar or torneo.organizador_id != request.user.pk:
         raise Http404
     return torneo
 

@@ -11,7 +11,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from torneos.models import Torneo
+from torneos.models import InscripcionTorneo, Torneo
 
 from .models import CheckInPartida, HistorialProgramacionPartida, Partida
 
@@ -46,11 +46,23 @@ def _checkins_requeridos(partida):
 
 
 def _checkins_completos(partida):
+    participantes = list(partida.participantes.select_related('inscripcion__usuario'))
+    if len(participantes) != 2 or any(
+        p.inscripcion.estado != InscripcionTorneo.Estado.CONFIRMADA or not p.inscripcion.usuario.puede_operar
+        for p in participantes
+    ):
+        return False
     requeridos = _checkins_requeridos(partida)
     confirmados = set(
         partida.checkins.filter(confirmado=True).values_list('usuario_id', 'tipo')
     )
-    return bool(requeridos) and _responsable(partida) is not None and all(item in confirmados for item in requeridos)
+    responsable = _responsable(partida)
+    return bool(responsable and responsable.puede_operar) and all(item in confirmados for item in requeridos)
+
+
+def _validar_torneo_en_competicion(partida):
+    if partida.torneo.estado in (Torneo.Estado.BORRADOR, Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO):
+        raise CheckInError('El torneo no admite acciones competitivas en su estado actual.')
 
 
 def preparar_partida(partida, ahora=None):
@@ -60,7 +72,10 @@ def preparar_partida(partida, ahora=None):
         partida = Partida.objects.select_related('torneo', 'arbitro_asignado').get(pk=partida.pk)
         if not _requiere_checkin(partida):
             return partida
+        _validar_torneo_en_competicion(partida)
         if hasattr(partida, 'resultado_oficial'):
+            return partida
+        if partida.estado in (Partida.Estado.CHECK_IN, Partida.Estado.LISTA_PARA_COMENZAR):
             return partida
         if partida.estado in (Partida.Estado.FINALIZADA, Partida.Estado.CANCELADA, Partida.Estado.EN_CURSO):
             raise CheckInError('La partida ya no puede abrir su check-in.')
@@ -83,7 +98,10 @@ def preparar_partida(partida, ahora=None):
             if ahora < partida.fecha_hora_programada - timedelta(minutes=partida.torneo.duracion_checkin_min):
                 return partida
         partida.estado = Partida.Estado.CHECK_IN
-        partida.fecha_hora_apertura_checkin = ahora
+        partida.fecha_hora_apertura_checkin = (
+            partida.fecha_hora_programada - timedelta(minutes=partida.torneo.duracion_checkin_min)
+            if partida.torneo.tipo == Torneo.Tipo.OFICIAL else ahora
+        )
         partida.save(update_fields=('estado', 'fecha_hora_apertura_checkin'))
         try:
             from notificaciones.models import Notificacion
@@ -102,6 +120,7 @@ def confirmar_checkin(partida, usuario, tipo, ahora=None):
         partida = Partida.objects.select_related('torneo', 'arbitro_asignado').get(pk=partida.pk)
         if not usuario or not usuario.puede_operar:
             raise CheckInError('La cuenta no está activa para confirmar el check-in.')
+        _validar_torneo_en_competicion(partida)
         if not _requiere_checkin(partida):
             raise CheckInError('Los torneos privados no requieren check-in.')
         if partida.estado != Partida.Estado.CHECK_IN:
@@ -115,6 +134,7 @@ def confirmar_checkin(partida, usuario, tipo, ahora=None):
             raise CheckInError('Tipo de check-in no válido.')
         if tipo == CheckInPartida.Tipo.PARTICIPANTE and not partida.participantes.filter(
             inscripcion__usuario=usuario,
+            inscripcion__estado=InscripcionTorneo.Estado.CONFIRMADA,
         ).exists():
             raise CheckInError('El usuario no participa en esta partida.')
         if tipo == CheckInPartida.Tipo.ARBITRO:
@@ -145,8 +165,11 @@ def iniciar_partida(partida, ahora=None):
     ahora = ahora or timezone.now()
     with _scheduling_lock, transaction.atomic():
         partida = Partida.objects.select_related('torneo').get(pk=partida.pk)
+        _validar_torneo_en_competicion(partida)
         if partida.estado != Partida.Estado.LISTA_PARA_COMENZAR:
             raise CheckInError('La partida no está lista para comenzar.')
+        if _requiere_checkin(partida) and not _checkins_completos(partida):
+            raise CheckInError('La partida necesita participantes activos y todos los check-ins actuales.')
         if partida.torneo.tipo == Torneo.Tipo.OFICIAL:
             if not partida.fecha_hora_programada or ahora < partida.fecha_hora_programada:
                 raise CheckInError('La partida oficial todavía no ha llegado a su hora programada.')
@@ -178,7 +201,7 @@ def detectar_ausencias(partida, ahora=None):
     responsable = _responsable(partida)
     return {
         'participantes_ausentes': participantes_ausentes,
-        'arbitro_ausente': (responsable.pk, CheckInPartida.Tipo.ARBITRO) not in confirmados,
+        'arbitro_ausente': responsable is None or (responsable.pk, CheckInPartida.Tipo.ARBITRO) not in confirmados,
     }
 
 
@@ -186,11 +209,14 @@ def procesar_checkins(ahora=None):
     ahora = ahora or timezone.now()
     procesadas = 0
     for partida in Partida.objects.select_related('torneo').filter(
-        estado__in=(Partida.Estado.PENDIENTE, Partida.Estado.PROGRAMADA),
+        estado__in=(Partida.Estado.PENDIENTE, Partida.Estado.PROGRAMADA, Partida.Estado.LISTA_PARA_COMENZAR),
     ):
         anterior = partida.estado
         try:
-            preparar_partida(partida, ahora=ahora)
+            if partida.estado == Partida.Estado.LISTA_PARA_COMENZAR:
+                iniciar_partida(partida, ahora=ahora)
+            else:
+                preparar_partida(partida, ahora=ahora)
         except CheckInError:
             continue
         partida.refresh_from_db()

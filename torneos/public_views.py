@@ -68,6 +68,8 @@ def _puede_ver_privado(torneo, usuario):
         return False
     if torneo.organizador_id == usuario.pk or _es_administrador_autorizado(usuario):
         return True
+    if torneo.tipo == Torneo.Tipo.PRIVADO and torneo.estado != Torneo.Estado.BORRADOR and tiene_acceso_privado(torneo, usuario):
+        return True
     return torneo.inscripciones.filter(
         usuario=usuario,
         estado=InscripcionTorneo.Estado.CONFIRMADA,
@@ -117,12 +119,7 @@ def ficha(request, pk):
         pk=pk,
     )
     if torneo.tipo == Torneo.Tipo.PRIVADO or torneo.estado == Torneo.Estado.BORRADOR:
-        con_acceso = (
-            torneo.tipo == Torneo.Tipo.PRIVADO
-            and torneo.estado != Torneo.Estado.BORRADOR
-            and tiene_acceso_privado(torneo, request.user)
-        )
-        if not (con_acceso or _puede_ver_privado(torneo, request.user)):
+        if not _puede_ver_privado(torneo, request.user):
             raise Http404
     elif not (
         torneo.tipo in (Torneo.Tipo.PUBLICO, Torneo.Tipo.OFICIAL)

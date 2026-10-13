@@ -64,6 +64,34 @@ class ResultadoServiceTests(TestCase):
 		generar_bracket(torneo)
 		return torneo
 
+	def test_inscripcion_cancelada_no_declara_resultado(self):
+		torneo = self.crear_bracket(2)
+		partida = torneo.partidas.first()
+		Partida.objects.filter(pk=partida.pk).update(estado=Partida.Estado.EN_CURSO)
+		inscripcion = partida.participantes.first().inscripcion
+		InscripcionTorneo.objects.filter(pk=inscripcion.pk).update(estado=InscripcionTorneo.Estado.CANCELADA)
+		with self.assertRaises(ResultadoError):
+			declarar_resultado(partida, inscripcion.usuario, '2-1', inscripcion)
+		self.assertFalse(partida.declaraciones_resultado.exists())
+
+	def test_cancelacion_no_permite_declarar_validar_ni_avanzar(self):
+		torneo = self.crear_bracket()
+		partida = torneo.partidas.filter(numero_ronda=1).first()
+		ganador = partida.participantes.first().inscripcion
+		for estado in (Torneo.Estado.CANCELADO, Torneo.Estado.FINALIZADO):
+			Torneo.objects.filter(pk=torneo.pk).update(estado=estado)
+			Partida.objects.filter(pk=partida.pk).update(estado=Partida.Estado.EN_CURSO)
+			with self.assertRaises(ResultadoError):
+				declarar_resultado(partida, ganador.usuario, '2-1', ganador)
+			with self.assertRaises(ResultadoError):
+				validar_resultado(partida, self.organizador, '2-1', ganador)
+		Torneo.objects.filter(pk=torneo.pk).update(estado=Torneo.Estado.PREPARADO)
+		Partida.objects.filter(pk=partida.pk).update(estado=Partida.Estado.CANCELADA)
+		with self.assertRaises(ResultadoError):
+			validar_resultado(partida, self.organizador, '2-1', ganador)
+		self.assertFalse(partida.siguiente_partida.participantes.exists())
+		self.assertFalse(ResultadoPartida.objects.filter(partida=partida).exists())
+
 	def test_declaracion_valida_no_avanza_ni_crea_resultado_oficial(self):
 		torneo = self.crear_bracket()
 		partida = torneo.partidas.get(numero_ronda=1, numero_orden=1)

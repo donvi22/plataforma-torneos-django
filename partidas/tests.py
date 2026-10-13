@@ -6,7 +6,7 @@ from usuarios.models import Usuario
 from videojuegos.models import PerfilVideojuegoUsuario, Videojuego
 
 from .models import ParticipantePartida, Partida
-from .services import BracketError, generar_bracket
+from .services import BracketError, PreparacionBracketError, generar_bracket, preparar_bracket
 
 
 class BracketServiceTests(TestCase):
@@ -130,6 +130,29 @@ class BracketServiceTests(TestCase):
 		self.assertNotEqual(torneo.estado, Torneo.Estado.EN_CURSO)
 		self.assertEqual(torneo.historial_estados.filter(estado_nuevo=Torneo.Estado.PREPARADO).count(), 1)
 
+	def test_preparacion_repetida_no_cambia_estado_ni_historial(self):
+		torneo = self.crear_torneo_con_inscripciones(2)
+		partidas = generar_bracket(torneo)
+		for estado in (Torneo.Estado.PREPARADO, Torneo.Estado.EN_CURSO):
+			Torneo.objects.filter(pk=torneo.pk).update(estado=estado)
+			torneo.refresh_from_db()
+			historial = torneo.historial_estados.count()
+			self.assertEqual([p.pk for p in preparar_bracket(torneo, self.organizador)], [p.pk for p in partidas])
+			torneo.refresh_from_db()
+			self.assertEqual(torneo.estado, estado)
+			self.assertEqual(torneo.historial_estados.count(), historial)
+
+	def test_preparacion_no_reabre_torneos_terminales(self):
+		torneo = self.crear_torneo_con_inscripciones(2)
+		generar_bracket(torneo)
+		for estado in (Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO):
+			Torneo.objects.filter(pk=torneo.pk).update(estado=estado)
+			torneo.refresh_from_db()
+			with self.assertRaises(PreparacionBracketError):
+				preparar_bracket(torneo, self.organizador)
+			torneo.refresh_from_db()
+			self.assertEqual(torneo.estado, estado)
+
 	def test_rechaza_participante_de_otro_torneo(self):
 		torneo = self.crear_torneo_con_inscripciones(2)
 		otro_torneo = self.crear_torneo_con_inscripciones(2)
@@ -166,6 +189,17 @@ class BracketServiceTests(TestCase):
 		)
 		with self.assertRaises(ValidationError):
 			tercero.full_clean()
+
+	def test_admin_partida_no_modifica_estado_horario_o_lobby_directamente(self):
+		from django.contrib import admin
+		from django.test import RequestFactory
+		from partidas.admin import PartidaAdmin
+		usuario = Usuario.objects.create_superuser(username='admin_lectura', email='admin_lectura@example.com', password='test')
+		request = RequestFactory().post('/admin/partidas/partida/')
+		request.user = usuario
+		model_admin = PartidaAdmin(Partida, admin.site)
+		self.assertFalse(model_admin.has_change_permission(request))
+		self.assertTrue(model_admin.has_view_permission(request))
 
 	def test_rechaza_bracket_incompleto_existente(self):
 		torneo = self.crear_torneo_con_inscripciones(4)
