@@ -1,0 +1,27 @@
+.rk-owned-navigation { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; margin: 22px 0; }
+.rk-owned-navigation .rk-participation-tabs { margin: 0; }
+.rk-owned-tournaments .rk-participation-row { gap: 16px; grid-template-columns: 160px minmax(190px, 1.7fr) minmax(130px, .9fr) minmax(160px, 1.1fr) 110px; padding: 16px 18px; }
+.rk-owned-context { color: var(--rk-muted); font-size: 11px; line-height: 1.5; }
+.rk-owned-row-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 5px 14px; }
+.rk-owned-row-actions:empty { display: none; }
+.rk-owned-row-actions .rk-section-link { font-size: 11px; min-height: 28px; }
+.rk-owned-row-actions .rk-btn { font-size: 11px; min-height: 30px; padding: 5px 9px; }
+.rk-owned-primary { font-size: 12px; grid-area: action; min-height: 40px; padding: 8px 10px; }
+.rk-owned-primary svg { height: 15px; width: 15px; }
+.rk-owned-tournaments .rk-owned-publication { font-size: 11px; }
+.rk-owned-date { display: grid; gap: 4px; }
+.rk-owned-state[data-state='EN_CURSO'] { background: #302141; border-color: #68428C; color: #E3D6FF; }
+.rk-owned-state[data-state='INSCRIPCIONES_ABIERTAS'], .rk-owned-state[data-state='PRORROGA'] { background: #18352D; border-color: #305A4B; color: #A5E5CB; }
+.rk-owned-state[data-state='CANCELADO'] { background: #302830; border-color: #514151; color: #D5BCCB; }
+@media (max-width: 1250px) {
+    .rk-owned-tournaments .rk-participation-row { gap: 12px 16px; grid-template-areas: 'thumbnail content action' '. status status' '. meta meta'; grid-template-columns: 128px minmax(0, 1fr) 110px; }
+    .rk-owned-tournaments .rk-participation-thumbnail { height: 72px; width: 128px; }
+    .rk-owned-tournaments .rk-participation-status, .rk-owned-tournaments .rk-participation-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+    .rk-owned-tournaments .rk-participation-status { align-items: center; }
+}
+@media (max-width: 650px) {
+    .rk-owned-tournaments .rk-participation-row { gap: 12px; grid-template-areas: 'thumbnail content content' 'status status status' 'meta meta action'; grid-template-columns: 96px minmax(0, 1fr) 110px; padding: 16px; }
+    .rk-owned-tournaments .rk-participation-thumbnail { height: 54px; width: 96px; }
+    .rk-owned-tournaments .rk-participation-meta { align-content: start; flex-direction: column; }
+    .rk-owned-primary { align-self: end; justify-self: end; max-width: 110px; width: 100%; }
+}

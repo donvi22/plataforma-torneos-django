@@ -3,14 +3,16 @@ from io import BytesIO
 
 from PIL import Image
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
 from usuarios.models import Usuario
-from videojuegos.models import RangoVideojuego, Videojuego
+from videojuegos.models import PerfilVideojuegoUsuario, RangoVideojuego, Videojuego
 
-from .models import FormatoCompetitivo, Torneo
+from .models import FormatoCompetitivo, InscripcionTorneo, Torneo
 from .forms import TorneoForm
 
 
@@ -152,13 +154,85 @@ class GestionTorneosViewsTests(TestCase):
         self.assertIsNone(torneo.fecha_publicacion)
 
     def test_mis_torneos_solo_muestra_los_propios(self):
-        Torneo.objects.create(
+        ajeno = Torneo.objects.create(
             nombre='Ajeno', videojuego=self.videojuego, organizador=self.otro,
             tipo=Torneo.Tipo.PRIVADO, formato_competitivo=self.formato, max_participantes=2,
         )
+        perfil = PerfilVideojuegoUsuario.objects.create(usuario=self.usuario, videojuego=self.videojuego, nick_en_juego='Inscrito')
+        InscripcionTorneo.objects.create(torneo=ajeno, usuario=self.usuario, perfil_videojuego=perfil, nick_historico='Inscrito')
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse('mis-torneos'))
         self.assertNotContains(respuesta, 'Ajeno')
+
+    def crear_torneo_organizado(self, nombre, estado=Torneo.Estado.INSCRIPCIONES_ABIERTAS, tipo=Torneo.Tipo.PUBLICO, **extra):
+        return Torneo.objects.create(
+            nombre=nombre, videojuego=self.videojuego, organizador=self.usuario,
+            tipo=tipo, formato_competitivo=self.formato, max_participantes=8, estado=estado, **extra,
+        )
+
+    def test_mis_torneos_prioriza_atencion_y_conserva_historico(self):
+        ahora = timezone.now()
+        terminal = self.crear_torneo_organizado('Finalizado reciente', Torneo.Estado.FINALIZADO)
+        cancelado = self.crear_torneo_organizado('Cancelado reciente', Torneo.Estado.CANCELADO)
+        borrador = self.crear_torneo_organizado('Borrador', Torneo.Estado.BORRADOR)
+        proximo = self.crear_torneo_organizado('Próximo', Torneo.Estado.PROXIMAMENTE, fecha_apertura_inscripciones=ahora + timedelta(days=1))
+        lejano = self.crear_torneo_organizado('Cierre posterior', fecha_cierre_inscripciones=ahora + timedelta(hours=2))
+        cercano = self.crear_torneo_organizado('Cierre próximo', fecha_cierre_inscripciones=ahora + timedelta(minutes=10))
+        curso = self.crear_torneo_organizado('En curso', Torneo.Estado.EN_CURSO)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse('mis-torneos'))
+        filas = respuesta.context['torneos']
+        self.assertEqual([torneo.pk for torneo in filas[:5]], [curso.pk, cercano.pk, lejano.pk, proximo.pk, borrador.pk])
+        self.assertEqual({torneo.pk for torneo in filas[5:]}, {terminal.pk, cancelado.pk})
+
+    def test_mis_torneos_filtros_tipos_y_vacio(self):
+        self.client.force_login(self.usuario)
+        url = reverse('mis-torneos')
+        self.assertContains(self.client.get(url), 'Todavía no tienes torneos')
+        publico = self.crear_torneo_organizado('Público')
+        privado = self.crear_torneo_organizado('Privado', tipo=Torneo.Tipo.PRIVADO)
+        oficial = self.crear_torneo_organizado('Oficial', Torneo.Estado.FINALIZADO, Torneo.Tipo.OFICIAL)
+        cancelado = self.crear_torneo_organizado('Cancelado', Torneo.Estado.CANCELADO)
+        self.assertEqual({t.pk for t in self.client.get(url, {'vista': 'activos'}).context['torneos']}, {publico.pk, privado.pk})
+        self.assertEqual([t.pk for t in self.client.get(url, {'vista': 'finalizados'}).context['torneos']], [oficial.pk])
+        todos = self.client.get(url, {'vista': 'inventado', 'organizador': self.otro.pk})
+        self.assertEqual(todos.context['vista'], 'todos')
+        self.assertEqual({t.pk for t in todos.context['torneos']}, {publico.pk, privado.pk, oficial.pk, cancelado.pk})
+
+    def test_mis_torneos_cta_reutiliza_gestion_y_publicacion_post(self):
+        borrador = self.crear_torneo_organizado('Editar', Torneo.Estado.BORRADOR, Torneo.Tipo.PRIVADO)
+        privado = self.crear_torneo_organizado('Accesos', tipo=Torneo.Tipo.PRIVADO)
+        publico = self.crear_torneo_organizado('Arbitraje')
+        oficial = self.crear_torneo_organizado('Calendario', tipo=Torneo.Tipo.OFICIAL)
+        final = self.crear_torneo_organizado('Histórico', Torneo.Estado.FINALIZADO)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse('mis-torneos'))
+        rutas = {t.pk: t.accion_url for t in respuesta.context['torneos']}
+        self.assertEqual(rutas, {borrador.pk: 'editar-borrador-torneo', privado.pk: 'gestionar-privado', publico.pk: 'gestionar-arbitros-torneo', oficial.pk: 'calendario-partidas', final.pk: 'ficha-torneo'})
+        self.assertContains(respuesta, f'<form method="post" action="{reverse("publicar-torneo", args=[borrador.pk])}">')
+        self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
+        self.assertTemplateUsed(respuesta, 'components/torneo_media.html')
+        Usuario.objects.filter(pk=self.usuario.pk).update(estado_cuenta=Usuario.EstadoCuenta.SUSPENDIDA)
+        restringida = self.client.get(reverse('mis-torneos'))
+        self.assertTrue(all(t.accion_url == 'ficha-torneo' and not t.mostrar_publicar for t in restringida.context['torneos']))
+
+    def test_mis_torneos_conteos_no_consultan_por_fila(self):
+        torneo = self.crear_torneo_organizado('Conteo')
+        perfil = PerfilVideojuegoUsuario.objects.create(usuario=self.otro, videojuego=self.videojuego, nick_en_juego='Participante')
+        InscripcionTorneo.objects.create(torneo=torneo, usuario=self.otro, perfil_videojuego=perfil, nick_historico='Participante')
+        otro_usuario = Usuario.objects.create_user(username='cancelado', email='cancelado@example.com', password='test')
+        otro_perfil = PerfilVideojuegoUsuario.objects.create(usuario=otro_usuario, videojuego=self.videojuego, nick_en_juego='Cancelado')
+        InscripcionTorneo.objects.create(torneo=torneo, usuario=otro_usuario, perfil_videojuego=otro_perfil, nick_historico='Cancelado', estado=InscripcionTorneo.Estado.CANCELADA)
+        self.client.force_login(self.usuario)
+        self.client.get(reverse('mis-torneos'))
+        with CaptureQueriesContext(connection) as inicial:
+            respuesta = self.client.get(reverse('mis-torneos'))
+        self.assertEqual(respuesta.context['torneos'][0].confirmados, 1)
+        for indice in range(5):
+            self.crear_torneo_organizado(f'Adicional {indice}')
+        with CaptureQueriesContext(connection) as poblado:
+            self.client.get(reverse('mis-torneos'))
+        self.assertEqual(len(poblado), len(inicial))
 
     def test_formulario_muestra_rangos_y_tamanos_del_formato(self):
         formulario = TorneoForm(

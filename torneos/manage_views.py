@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import TorneoForm
 from .models import Torneo
-from .public_views import _es_administrador_autorizado
+from .public_views import _confirmadas_count, _es_administrador_autorizado
 from .services import CierreTorneoError, InscripcionError, cerrar_torneo, crear_torneo, publicar_torneo
 from .services import cancelar_inscripcion, inscribir_usuario
 from .models import InscripcionTorneo
@@ -81,8 +81,56 @@ def publicar(request, pk):
 
 @login_required
 def mis_torneos(request):
-    torneos = Torneo.objects.filter(organizador=request.user).select_related('videojuego').order_by('-fecha_creacion')
-    return render(request, 'torneos/mis_torneos.html', {'torneos': torneos})
+    vista = request.GET.get('vista', 'todos')
+    if vista not in ('todos', 'activos', 'finalizados'):
+        vista = 'todos'
+    torneos = Torneo.objects.filter(organizador=request.user).select_related('videojuego').annotate(
+        confirmados=_confirmadas_count(),
+        prioridad_gestion=Case(
+            When(estado=Torneo.Estado.EN_CURSO, then=0),
+            When(estado__in=(Torneo.Estado.PREPARADO, Torneo.Estado.INSCRIPCIONES_ABIERTAS, Torneo.Estado.PRORROGA, Torneo.Estado.INSCRIPCIONES_CERRADAS), then=1),
+            When(estado=Torneo.Estado.PROXIMAMENTE, then=2),
+            When(estado__in=(Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO), then=4),
+            default=3, output_field=IntegerField(),
+        ),
+        fecha_gestion=Case(
+            When(estado__in=(Torneo.Estado.INSCRIPCIONES_ABIERTAS, Torneo.Estado.PRORROGA), then=Coalesce('fecha_cierre_inscripciones', 'fecha_inicio_prevista')),
+            When(estado__in=(Torneo.Estado.PROXIMAMENTE, Torneo.Estado.BORRADOR), then=Coalesce('fecha_apertura_inscripciones', 'fecha_inicio_prevista')),
+            When(estado=Torneo.Estado.EN_CURSO, then=Coalesce('fecha_inicio_real', 'fecha_inicio_prevista')),
+            When(estado__in=(Torneo.Estado.PREPARADO, Torneo.Estado.INSCRIPCIONES_CERRADAS), then='fecha_inicio_prevista'),
+            default=None, output_field=DateTimeField(),
+        ),
+        fecha_historial_gestion=Coalesce('fecha_fin_real', 'fecha_actualizacion', 'fecha_creacion'),
+    )
+    if vista == 'activos':
+        torneos = torneos.exclude(estado__in=(Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO))
+    elif vista == 'finalizados':
+        torneos = torneos.filter(estado=Torneo.Estado.FINALIZADO)
+    torneos = torneos.order_by('prioridad_gestion', F('fecha_gestion').asc(nulls_last=True), '-fecha_historial_gestion', '-fecha_creacion', '-pk')
+    torneos = list(torneos)
+    for torneo in torneos:
+        autorizado = _puede_gestionar(torneo, request.user)
+        terminal = torneo.estado in (Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO)
+        torneo.accion_url = 'ficha-torneo'
+        torneo.accion_texto = 'Ver torneo'
+        torneo.accion_contexto = 'Consulta del torneo'
+        if autorizado and not terminal:
+            if torneo.estado == Torneo.Estado.BORRADOR:
+                torneo.accion_url = 'editar-borrador-torneo'
+                torneo.accion_contexto = 'Editar borrador'
+            elif torneo.tipo == Torneo.Tipo.PRIVADO:
+                torneo.accion_url = 'gestionar-privado'
+                torneo.accion_contexto = 'Invitación y accesos'
+            elif torneo.tipo == Torneo.Tipo.OFICIAL:
+                torneo.accion_url = 'calendario-partidas'
+                torneo.accion_contexto = 'Calendario de partidas'
+            else:
+                torneo.accion_url = 'gestionar-arbitros-torneo'
+                torneo.accion_contexto = 'Árbitros y asignaciones'
+            torneo.accion_texto = 'Gestionar'
+        torneo.mostrar_accesos = autorizado and torneo.tipo == Torneo.Tipo.PRIVADO and torneo.accion_url != 'gestionar-privado'
+        torneo.mostrar_publicar = autorizado and torneo.estado == Torneo.Estado.BORRADOR and (torneo.tipo != Torneo.Tipo.OFICIAL or _es_administrador_autorizado(request.user))
+    return render(request, 'torneos/mis_torneos.html', {'torneos': torneos, 'vista': vista})
 
 
 @login_required

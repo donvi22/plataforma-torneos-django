@@ -1,6 +1,54 @@
 {% extends 'base.html' %}
-{% block title %}Mis torneos · Arena provisional{% endblock %}
+{% load static %}
+{% block title %}Mis torneos{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/participations.css' %}">
+<link rel="stylesheet" href="{% static 'css/owned-tournaments.css' %}">
+{% endblock %}
 {% block content %}
-<section class="catalogue-header"><p class="eyebrow">Organización</p><h1>Mis torneos.</h1><p class="lead">Consulta y prepara los torneos que has creado.</p><p><a class="text-link" href="{% url 'mis-torneos-privados' %}">Mis torneos privados</a></p></section>
-{% if torneos %}<div class="tournament-grid">{% for torneo in torneos %}<article class="tournament-card"><div class="tournament-card-body"><div class="card-meta"><span>{{ torneo.get_tipo_display }}</span><span>{{ torneo.get_estado_display }}</span></div><h2>{{ torneo.nombre }}</h2><p class="muted">{{ torneo.videojuego.nombre }} · Creado {{ torneo.fecha_creacion|date:'j/m/Y H:i' }}</p><a class="text-link" href="{% url 'ficha-torneo' torneo.pk %}">Ver ficha</a>{% if torneo.tipo == 'PRIVADO' %} <a class="text-link" href="{% url 'gestionar-privado' torneo.pk %}">Invitación y accesos</a>{% endif %}{% if torneo.estado == 'BORRADOR' %}<div class="action-row"><a class="button button-small" href="{% url 'editar-borrador-torneo' torneo.pk %}">Editar</a><form method="post" action="{% url 'publicar-torneo' torneo.pk %}" class="inline-form">{% csrf_token %}<button class="button button-small button-quiet" type="submit">{% if torneo.tipo == 'PRIVADO' %}Abrir inscripciones{% else %}Publicar{% endif %}</button></form></div>{% endif %}</div></article>{% endfor %}</div>{% else %}<section class="empty-panel"><h2>Todavía no tienes torneos</h2><p class="muted">Puedes preparar el primero desde Crear torneo.</p></section>{% endif %}
+<div class="rk-dashboard rk-participations rk-owned-tournaments">
+	<header class="rk-participations-heading">
+		<div><p class="rk-kicker">Organización</p><h1>Mis torneos</h1><p class="rk-description">Gestiona los torneos que has creado y revisa su estado.</p></div>
+		<a class="rk-btn rk-btn--primary" href="{% url 'crear-torneo' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#plus"></use></svg>Crear torneo</a>
+	</header>
+	<div class="rk-owned-navigation">
+		<nav class="rk-participation-tabs" aria-label="Filtrar torneos organizados">
+			<a href="{% url 'mis-torneos' %}"{% if vista == 'todos' %} aria-current="page"{% endif %}>Todos</a>
+			<a href="?vista=activos"{% if vista == 'activos' %} aria-current="page"{% endif %}>Activos</a>
+			<a href="?vista=finalizados"{% if vista == 'finalizados' %} aria-current="page"{% endif %}>Finalizados</a>
+		</nav>
+		<a class="rk-section-link" href="{% url 'mis-torneos-privados' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#lock-keyhole"></use></svg>Mis torneos privados</a>
+	</div>
+	{% if torneos %}
+	<ul class="rk-participation-list" aria-label="Torneos que organizas">
+		{% for torneo in torneos %}
+		<li class="rk-participation-row" data-tournament-state="{{ torneo.estado }}">
+			<div class="rk-card-media rk-participation-thumbnail{% if not torneo.imagen_banner %} rk-card-media--fallback{% endif %}" aria-hidden="true">{% include 'components/torneo_media.html' with torneo=torneo variant='thumbnail' only %}</div>
+			<div class="rk-participation-copy">
+				<div class="rk-participation-title"><h2><a href="{% url torneo.accion_url torneo.pk %}" title="{{ torneo.nombre }}">{{ torneo.nombre }}</a></h2><span class="rk-badge{% if torneo.tipo == 'OFICIAL' %} rk-badge--official{% endif %}">{{ torneo.get_tipo_display }}</span></div>
+				<p class="rk-metadata">{{ torneo.videojuego.nombre }}</p>
+				<p class="rk-owned-context">{{ torneo.accion_contexto }}</p>
+				<div class="rk-owned-row-actions">
+					{% if torneo.accion_url != 'ficha-torneo' %}<a class="rk-section-link" href="{% url 'ficha-torneo' torneo.pk %}">Ver torneo</a>{% endif %}
+					{% if torneo.mostrar_accesos %}<a class="rk-section-link" href="{% url 'gestionar-privado' torneo.pk %}">Invitación y accesos</a>{% endif %}
+					{% if torneo.mostrar_publicar %}<form method="post" action="{% url 'publicar-torneo' torneo.pk %}">{% csrf_token %}<button class="rk-btn rk-btn--secondary" type="submit">{% if torneo.tipo == 'PRIVADO' %}Abrir inscripciones{% else %}Publicar{% endif %}</button></form>{% endif %}
+				</div>
+			</div>
+			<div class="rk-participation-status">
+				<div class="rk-state-field"><span class="rk-field-label">Estado</span><span class="rk-badge rk-owned-state" data-state="{{ torneo.estado }}">{{ torneo.get_estado_display }}</span></div>
+				<p class="rk-metadata rk-owned-publication">{% if torneo.tipo == 'PRIVADO' %}Acceso por invitación{% elif torneo.fecha_publicacion %}Publicado {{ torneo.fecha_publicacion|date:'j M Y' }}{% else %}Sin publicar{% endif %}</p>
+			</div>
+			<div class="rk-participation-meta">
+				<span class="rk-metadata"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#users"></use></svg>{{ torneo.confirmados }}/{{ torneo.max_participantes }} participantes</span>
+				{% with fecha=torneo.fecha_gestion|default:torneo.fecha_fin_real|default:torneo.fecha_creacion %}<div class="rk-owned-date"><span class="rk-field-label">{% if fecha == torneo.fecha_cierre_inscripciones %}Cierre de inscripciones{% elif fecha == torneo.fecha_apertura_inscripciones %}Apertura de inscripciones{% elif fecha == torneo.fecha_fin_real %}Finalización{% elif fecha == torneo.fecha_creacion %}Creación{% else %}Inicio{% endif %}</span><span class="rk-metadata"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#calendar-days"></use></svg><time datetime="{{ fecha|date:'c' }}">{{ fecha|date:'j M Y · H:i' }}</time></span></div>{% endwith %}
+			</div>
+			<a class="rk-btn rk-btn--primary rk-owned-primary" href="{% url torneo.accion_url torneo.pk %}" aria-label="{{ torneo.accion_texto }} {{ torneo.nombre }}" title="{{ torneo.accion_contexto }}">{{ torneo.accion_texto }}<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-up-right"></use></svg></a>
+		</li>
+		{% endfor %}
+	</ul>
+	{% else %}
+	<section class="rk-empty" aria-labelledby="owned-empty-title"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#trophy"></use></svg><h2 id="owned-empty-title">{% if vista == 'todos' %}Todavía no tienes torneos{% elif vista == 'activos' %}No tienes torneos activos{% else %}No tienes torneos finalizados{% endif %}</h2><p>{% if vista == 'todos' %}Crea tu primer torneo y organiza tu próxima competición.{% else %}Los demás torneos siguen disponibles en Todos.{% endif %}</p><div class="rk-actions"><a class="rk-btn rk-btn--primary" href="{% url 'crear-torneo' %}">Crear torneo</a>{% if vista != 'todos' %}<a class="rk-btn rk-btn--secondary" href="{% url 'mis-torneos' %}">Ver todos</a>{% endif %}</div></section>
+	{% endif %}
+</div>
 {% endblock %}
