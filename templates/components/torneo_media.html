@@ -1,0 +1,3 @@
+{% load static %}
+{% if torneo.imagen_banner %}<img src="{{ torneo.imagen_banner.url }}" alt="" loading="lazy">{% elif torneo.videojuego.imagen %}<img class="rk-card-game-image" src="{{ torneo.videojuego.imagen.url }}" alt="" loading="lazy">{% else %}<div class="rk-card-media-fallback"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#trophy"></use></svg><span>{{ torneo.videojuego.nombre }}</span></div>{% endif %}
+{% if variant == 'catalogue' or variant == 'thumbnail' %}{% if not torneo.imagen_banner and torneo.videojuego.imagen %}<span class="rk-card-banner-label" aria-hidden="true">{{ torneo.videojuego.nombre }}</span>{% endif %}{% endif %}

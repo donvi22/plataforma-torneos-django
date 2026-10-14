@@ -1,6 +1,9 @@
 from datetime import timedelta
 
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 
@@ -146,3 +149,112 @@ class EnrollmentViewsTests(TestCase):
         respuesta = self.client.get(reverse('mis-participaciones'))
         self.assertNotContains(respuesta, 'Otro')
         self.assertNotContains(respuesta, torneo.nombre)
+
+    def crear_inscripcion(self, torneo, estado=InscripcionTorneo.Estado.CONFIRMADA, **extra):
+        return InscripcionTorneo.objects.create(
+            torneo=torneo, usuario=self.usuario, perfil_videojuego=self.perfil,
+            nick_historico='JugadorArena', estado=estado, **extra,
+        )
+
+    def test_participaciones_conserva_tipos_terminales_y_canceladas(self):
+        publico = self.crear_inscripcion(self.crear_torneo())
+        oficial = self.crear_inscripcion(self.crear_torneo(tipo=Torneo.Tipo.OFICIAL, estado=Torneo.Estado.FINALIZADO))
+        privado = self.crear_inscripcion(self.crear_torneo(tipo=Torneo.Tipo.PRIVADO, estado=Torneo.Estado.CANCELADO))
+        cancelada = self.crear_inscripcion(self.crear_torneo(), estado=InscripcionTorneo.Estado.CANCELADA)
+        descalificada = self.crear_inscripcion(self.crear_torneo(), estado=InscripcionTorneo.Estado.DESCALIFICADA)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse('mis-participaciones'))
+        self.assertEqual({fila.pk for fila in respuesta.context['inscripciones']}, {fila.pk for fila in (publico, oficial, privado, cancelada, descalificada)})
+        for texto in ('Público', 'Oficial', 'Privado', 'Finalizado', 'Cancelado', 'Cancelada', 'Descalificada', 'JugadorArena', 'Estado del torneo', 'Tu inscripción'):
+            self.assertContains(respuesta, texto)
+
+    def test_filtros_participaciones_no_confunden_cancelacion_con_activa(self):
+        activa = self.crear_inscripcion(self.crear_torneo())
+        cancelada = self.crear_inscripcion(self.crear_torneo(), estado=InscripcionTorneo.Estado.CANCELADA)
+        finalizada = self.crear_inscripcion(self.crear_torneo(estado=Torneo.Estado.FINALIZADO))
+        self.client.force_login(self.usuario)
+        url = reverse('mis-participaciones')
+        activos = self.client.get(url, {'vista': 'activos'})
+        self.assertEqual([fila.pk for fila in activos.context['inscripciones']], [activa.pk])
+        finalizados = self.client.get(url, {'vista': 'finalizados'})
+        self.assertEqual([fila.pk for fila in finalizados.context['inscripciones']], [finalizada.pk])
+        invalido = self.client.get(url, {'vista': 'no-valida', 'usuario': self.otro.pk})
+        self.assertEqual(invalido.context['vista'], 'todos')
+        self.assertEqual(len(invalido.context['inscripciones']), 3)
+        self.assertEqual(InscripcionTorneo.objects.get(pk=cancelada.pk).estado, InscripcionTorneo.Estado.CANCELADA)
+
+    def test_orden_participaciones_prioriza_activos_y_fecha_proxima(self):
+        ahora = timezone.now()
+        lejano = self.crear_torneo()
+        cercano = self.crear_torneo()
+        Torneo.objects.filter(pk=lejano.pk).update(fecha_cierre_inscripciones=ahora + timedelta(hours=4))
+        Torneo.objects.filter(pk=cercano.pk).update(fecha_cierre_inscripciones=ahora + timedelta(minutes=10))
+        lejos = self.crear_inscripcion(lejano)
+        cerca = self.crear_inscripcion(cercano)
+        curso = self.crear_inscripcion(self.crear_torneo(estado=Torneo.Estado.EN_CURSO))
+        final = self.crear_inscripcion(self.crear_torneo(estado=Torneo.Estado.FINALIZADO), fecha_cancelacion=ahora - timedelta(days=20))
+        Torneo.objects.filter(pk=final.torneo_id).update(fecha_fin_real=ahora)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse('mis-participaciones'))
+        filas = list(respuesta.context['inscripciones'])
+        self.assertEqual([fila.pk for fila in filas], [curso.pk, cerca.pk, lejos.pk, final.pk])
+        self.assertEqual(filas[-1].fecha_historial, ahora)
+
+    def test_participaciones_vacias_y_login(self):
+        url = reverse('mis-participaciones')
+        self.assertEqual(self.client.get(url).status_code, 302)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(url)
+        self.assertContains(respuesta, 'Aún no tienes participaciones')
+        self.assertContains(respuesta, 'Explorar torneos')
+        self.assertContains(self.client.get(url, {'vista': 'activos'}), 'No tienes participaciones activas')
+
+    def test_participaciones_conteo_completo_sin_n_mas_uno(self):
+        torneo = self.crear_torneo()
+        self.crear_inscripcion(torneo)
+        otro_perfil = PerfilVideojuegoUsuario.objects.create(usuario=self.otro, videojuego=self.videojuego, nick_en_juego='Otro')
+        InscripcionTorneo.objects.create(torneo=torneo, usuario=self.otro, perfil_videojuego=otro_perfil, nick_historico='Otro')
+        self.client.force_login(self.usuario)
+        self.client.get(reverse('mis-participaciones'))
+        with CaptureQueriesContext(connection) as inicial:
+            primera = self.client.get(reverse('mis-participaciones'))
+        self.assertEqual(primera.context['inscripciones'][0].confirmados, 2)
+        for indice in range(5):
+            self.crear_inscripcion(self.crear_torneo())
+        with CaptureQueriesContext(connection) as poblado:
+            respuesta = self.client.get(reverse('mis-participaciones'))
+        self.assertEqual(len(respuesta.context['inscripciones']), 6)
+        self.assertEqual(len(poblado), len(inicial))
+
+    def test_miniatura_participacion_reutiliza_banner_y_fallback_de_tarjeta(self):
+        torneo = self.crear_torneo()
+        self.crear_inscripcion(torneo)
+        self.client.force_login(self.usuario)
+        for banner, logo in (
+            ('torneos/banner-prueba.png', 'videojuegos/logo-prueba.png'),
+            ('', 'videojuegos/logo-prueba.png'),
+            ('', ''),
+        ):
+            with self.subTest(banner=banner, logo=logo):
+                Torneo.objects.filter(pk=torneo.pk).update(imagen_banner=banner)
+                Videojuego.objects.filter(pk=self.videojuego.pk).update(imagen=logo)
+                respuesta = self.client.get(reverse('mis-participaciones'))
+                self.assertTemplateUsed(respuesta, 'components/torneo_media.html')
+                self.assertContains(respuesta, 'rk-participation-thumbnail')
+                self.assertContains(respuesta, 'JugadorArena')
+                self.assertNotContains(respuesta, 'rk-participation-logo')
+                actual = Torneo.objects.select_related('videojuego').get(pk=torneo.pk)
+                actual.confirmados = 1
+                media = render_to_string('components/torneo_media.html', {'torneo': actual, 'variant': 'thumbnail'})
+                tarjeta = render_to_string('components/torneo_card.html', {'torneo': actual, 'variant': 'catalogue'})
+                if banner:
+                    self.assertContains(respuesta, '/media/' + banner)
+                    self.assertIn('/media/' + banner, tarjeta)
+                    self.assertNotIn('rk-card-game-image', media)
+                elif logo:
+                    self.assertContains(respuesta, 'rk-card-media--fallback')
+                    self.assertIn('rk-card-game-image', media)
+                    self.assertIn('/media/' + logo, tarjeta)
+                else:
+                    self.assertContains(respuesta, 'rk-card-media-fallback')
+                    self.assertIn('rk-card-media-fallback', tarjeta)

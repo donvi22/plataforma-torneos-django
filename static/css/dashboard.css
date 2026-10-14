@@ -108,7 +108,7 @@ body:has(.rk-dashboard) { background: #0D0D0F; color: #F2F2F5; }
 .rk-tournament-card--catalogue:hover, .rk-tournament-card--catalogue:focus-within { border-color: var(--rk-purple-hover); box-shadow: 0 6px 18px #0005; transform: translateY(-3px); }
 .rk-tournament-card--catalogue .rk-card-media { flex: 0 0 auto; height: 136px; isolation: isolate; }
 .rk-tournament-card--catalogue .rk-card-media > img:not(.rk-card-game-image) { height: 100%; object-fit: cover; width: 100%; }
-.rk-tournament-card--catalogue .rk-card-media--fallback { background-image: linear-gradient(110deg, #292137C0, #15151A30), repeating-linear-gradient(-35deg, transparent 0 22px, #FFFFFF06 22px 23px), var(--rk-tournament-image); }
+.rk-card-media--fallback { background-image: linear-gradient(110deg, #292137C0, #15151A30), repeating-linear-gradient(-35deg, transparent 0 22px, #FFFFFF06 22px 23px), var(--rk-tournament-image); }
 .rk-tournament-card--catalogue .rk-card-game-image { bottom: 10px; height: 84px; object-fit: contain; padding: 0; position: absolute; right: 14px; width: 100px; }
 .rk-tournament-card--catalogue .rk-card-banner-label { bottom: 22px; color: var(--rk-text); font-size: 18px; font-weight: 600; left: 16px; line-height: 1.25; max-width: 55%; overflow-wrap: anywhere; position: absolute; }
 .rk-tournament-card--catalogue .rk-card-media-fallback { justify-content: space-between; padding: 48px 16px 18px; }

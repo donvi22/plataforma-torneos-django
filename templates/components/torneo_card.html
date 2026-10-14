@@ -1,9 +1,8 @@
 {% load static %}
 <article class="rk-tournament-card{% if variant == 'catalogue' %} rk-tournament-card--catalogue{% endif %}">
     <div class="rk-card-media{% if variant == 'catalogue' and not torneo.imagen_banner %} rk-card-media--fallback{% endif %}">
-        {% if torneo.imagen_banner %}<img src="{{ torneo.imagen_banner.url }}" alt="" loading="lazy">{% elif torneo.videojuego.imagen %}<img class="rk-card-game-image" src="{{ torneo.videojuego.imagen.url }}" alt="" loading="lazy">{% else %}<div class="rk-card-media-fallback"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#trophy"></use></svg><span>{{ torneo.videojuego.nombre }}</span></div>{% endif %}
+        {% include 'components/torneo_media.html' with torneo=torneo variant=variant only %}
         {% if variant == 'catalogue' %}
-            {% if not torneo.imagen_banner and torneo.videojuego.imagen %}<span class="rk-card-banner-label" aria-hidden="true">{{ torneo.videojuego.nombre }}</span>{% endif %}
             <div class="rk-card-banner-badges"><span class="rk-badge{% if torneo.tipo == 'OFICIAL' %} rk-badge--official{% endif %}">{{ torneo.get_tipo_display }}</span><span class="rk-badge rk-badge--state" data-state="{{ torneo.estado }}">{{ torneo.get_estado_display }}</span></div>
         {% endif %}
     </div>

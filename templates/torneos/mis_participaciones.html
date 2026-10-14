@@ -1,6 +1,47 @@
 {% extends 'base.html' %}
-{% block title %}Mis participaciones · Arena provisional{% endblock %}
+{% load static %}
+{% block title %}Mis participaciones{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/participations.css' %}">
+{% endblock %}
 {% block content %}
-<section class="catalogue-header"><p class="eyebrow">Competición</p><h1>Mis participaciones.</h1><p class="lead">Aquí conservas el historial de tus inscripciones.</p><p><a class="text-link" href="{% url 'mis-torneos-privados' %}">Mis torneos privados</a></p></section>
-{% if inscripciones %}<div class="tournament-grid">{% for inscripcion in inscripciones %}<article class="tournament-card"><div class="tournament-card-body"><div class="card-meta"><span>{{ inscripcion.get_estado_display }}</span><span>{{ inscripcion.torneo.get_tipo_display }}</span></div><h2>{{ inscripcion.torneo.nombre }}</h2><p class="muted">{{ inscripcion.torneo.videojuego.nombre }}</p><p>Nickname histórico: <strong>{{ inscripcion.nick_historico }}</strong></p><a class="text-link" href="{% url 'ficha-torneo' inscripcion.torneo.pk %}">Ver ficha</a></div></article>{% endfor %}</div>{% else %}<section class="empty-panel"><h2>Aún no tienes participaciones</h2><p class="muted">Tus inscripciones aparecerán aquí.</p></section>{% endif %}
+<div class="rk-dashboard rk-participations">
+	<header class="rk-participations-heading">
+		<div><p class="rk-kicker">Competición</p><h1>Mis participaciones</h1><p class="rk-description">Consulta los torneos en los que participas y tu actividad competitiva.</p></div>
+		<a class="rk-btn rk-btn--secondary" href="{% url 'mis-torneos-privados' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#lock-keyhole"></use></svg>Mis torneos privados</a>
+	</header>
+
+	<nav class="rk-participation-tabs" aria-label="Filtrar participaciones">
+		<a href="{% url 'mis-participaciones' %}"{% if vista == 'todos' %} aria-current="page"{% endif %}>Todos</a>
+		<a href="?vista=activos"{% if vista == 'activos' %} aria-current="page"{% endif %}>Activos</a>
+		<a href="?vista=finalizados"{% if vista == 'finalizados' %} aria-current="page"{% endif %}>Finalizados</a>
+	</nav>
+
+	{% if inscripciones %}
+	<ul class="rk-participation-list" aria-label="Tus inscripciones en torneos">
+		{% for inscripcion in inscripciones %}
+		<li class="rk-participation-row" data-registration-state="{{ inscripcion.estado }}" data-tournament-state="{{ inscripcion.torneo.estado }}">
+			<div class="rk-card-media rk-participation-thumbnail{% if not inscripcion.torneo.imagen_banner %} rk-card-media--fallback{% endif %}" aria-hidden="true">{% include 'components/torneo_media.html' with torneo=inscripcion.torneo variant='thumbnail' only %}</div>
+			<div class="rk-participation-copy">
+				<div class="rk-participation-title"><h2><a href="{% url 'ficha-torneo' inscripcion.torneo.pk %}" title="{{ inscripcion.torneo.nombre }}">{{ inscripcion.torneo.nombre }}</a></h2><span class="rk-badge{% if inscripcion.torneo.tipo == 'OFICIAL' %} rk-badge--official{% endif %}">{{ inscripcion.torneo.get_tipo_display }}</span></div>
+				<p class="rk-metadata">{{ inscripcion.torneo.videojuego.nombre }}</p>
+				<p class="rk-participation-nick"><span>Nick histórico</span><strong>{{ inscripcion.nick_historico }}</strong></p>
+			</div>
+			<div class="rk-participation-status">
+				<div class="rk-state-field"><span class="rk-field-label">Estado del torneo</span><span class="rk-badge">{{ inscripcion.torneo.get_estado_display }}</span></div>
+				<div class="rk-state-field"><span class="rk-field-label">Tu inscripción</span><span class="rk-badge rk-registration-badge{% if inscripcion.prioridad < 2 %} rk-registration-badge--active{% endif %}" data-state="{{ inscripcion.estado }}">{{ inscripcion.get_estado_display }}</span></div>
+			</div>
+			<div class="rk-participation-meta">
+				<span class="rk-metadata"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#users"></use></svg>{{ inscripcion.confirmados }}/{{ inscripcion.torneo.max_participantes }} participantes</span>
+				{% with fecha=inscripcion.fecha_atencion|default:inscripcion.fecha_historial %}<span class="rk-metadata"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#calendar-days"></use></svg><time datetime="{{ fecha|date:'c' }}">{{ fecha|date:'j M Y · H:i' }}</time></span>{% endwith %}
+			</div>
+			<a class="rk-btn rk-btn--primary rk-participation-action" href="{% url 'ficha-torneo' inscripcion.torneo.pk %}" aria-label="Ver torneo {{ inscripcion.torneo.nombre }}" title="Ver torneo"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-up-right"></use></svg></a>
+		</li>
+		{% endfor %}
+	</ul>
+	{% else %}
+	<section class="rk-empty" aria-labelledby="participations-empty-title"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#trophy"></use></svg><h2 id="participations-empty-title">{% if vista == 'todos' %}Aún no tienes participaciones{% elif vista == 'activos' %}No tienes participaciones activas{% else %}No hay participaciones en torneos finalizados{% endif %}</h2><p>{% if vista == 'todos' %}Tu próxima competición empieza con un torneo.{% else %}Tu historial completo sigue disponible en Todos.{% endif %}</p><div class="rk-actions"><a class="rk-btn rk-btn--primary" href="{% url 'catalogo-torneos' %}">Explorar torneos</a>{% if vista != 'todos' %}<a class="rk-btn rk-btn--secondary" href="{% url 'mis-participaciones' %}">Ver todos</a>{% endif %}</div></section>
+	{% endif %}
+</div>
 {% endblock %}

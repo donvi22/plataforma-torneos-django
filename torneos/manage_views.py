@@ -1,6 +1,8 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.db.models import Case, Count, DateTimeField, F, IntegerField, Q, When
+from django.db.models.functions import Coalesce
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -136,10 +138,37 @@ def cancelar_inscripcion_web(request, pk):
 
 @login_required
 def mis_participaciones(request):
+    activa = Q(estado=InscripcionTorneo.Estado.CONFIRMADA) & ~Q(torneo__estado__in=(Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO))
+    vista = request.GET.get('vista', 'todos')
+    if vista not in ('todos', 'activos', 'finalizados'):
+        vista = 'todos'
     inscripciones = InscripcionTorneo.objects.filter(
         usuario=request.user,
-    ).select_related('torneo__videojuego').order_by('-fecha_inscripcion')
-    return render(request, 'torneos/mis_participaciones.html', {'inscripciones': inscripciones})
+    ).select_related('torneo__videojuego').annotate(
+        confirmados=Count('torneo__inscripciones', filter=Q(torneo__inscripciones__estado=InscripcionTorneo.Estado.CONFIRMADA), distinct=True),
+        prioridad=Case(
+            When(activa & Q(torneo__estado=Torneo.Estado.EN_CURSO), then=0),
+            When(activa, then=1), default=2, output_field=IntegerField(),
+        ),
+        fecha_atencion=Case(
+            When(activa & Q(torneo__estado__in=(Torneo.Estado.INSCRIPCIONES_ABIERTAS, Torneo.Estado.PRORROGA)), then=Coalesce('torneo__fecha_cierre_inscripciones', 'torneo__fecha_inicio_prevista')),
+            When(activa & Q(torneo__estado__in=(Torneo.Estado.PROXIMAMENTE, Torneo.Estado.BORRADOR)), then=Coalesce('torneo__fecha_apertura_inscripciones', 'torneo__fecha_inicio_prevista')),
+            When(activa, then='torneo__fecha_inicio_prevista'), default=None, output_field=DateTimeField(),
+        ),
+        fecha_historial=Case(
+            When(estado=InscripcionTorneo.Estado.CANCELADA, then=Coalesce('fecha_cancelacion', 'fecha_inscripcion')),
+            When(estado=InscripcionTorneo.Estado.DESCALIFICADA, then=Coalesce('fecha_descalificacion', 'fecha_inscripcion')),
+            default=Coalesce('torneo__fecha_fin_real', 'fecha_inscripcion'), output_field=DateTimeField(),
+        ),
+    )
+    if vista == 'activos':
+        inscripciones = inscripciones.filter(activa)
+    elif vista == 'finalizados':
+        inscripciones = inscripciones.filter(torneo__estado=Torneo.Estado.FINALIZADO)
+    inscripciones = inscripciones.order_by('prioridad', F('fecha_atencion').asc(nulls_last=True), '-fecha_historial', '-pk')
+    return render(request, 'torneos/mis_participaciones.html', {
+        'inscripciones': inscripciones, 'vista': vista,
+    })
 
 
 @login_required
