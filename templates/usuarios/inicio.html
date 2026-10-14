@@ -1,19 +1,71 @@
 {% extends 'base.html' %}
-{% block title %}Inicio · Arena provisional{% endblock %}
+{% load static usuarios_extras %}
+{% block title %}Inicio{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">{% endblock %}
 {% block content %}
-<section class="hero-panel">
-    <p class="eyebrow">Plataforma de competición</p>
-    {% if user.is_authenticated %}
-        <h1>Hola, {{ user.username }}.</h1>
-        <p class="lead">Tu espacio de jugador está listo para la siguiente fase del proyecto.</p>
-        <a class="button" href="{% url 'perfil-propio' %}">Ver mi perfil</a>
-    {% else %}
-        <h1>Tu próxima partida empieza aquí.</h1>
-        <p class="lead">Una base sencilla para reunir jugadores, torneos y competición.</p>
-        <div class="action-row">
-            <a class="button" href="{% url 'registro' %}">Crear cuenta</a>
-            <a class="button button-quiet" href="{% url 'login' %}">Iniciar sesión</a>
+<div class="rk-dashboard">
+    <header class="rk-dashboard-intro">
+        <div class="rk-intro-copy">
+            <p class="rk-kicker">Tu espacio competitivo</p>
+            <h1>{% if user.is_authenticated %}Hola, {{ user.username }}.{% else %}Tu próxima competición.{% endif %}</h1>
+            <p class="rk-description">{% if user.is_authenticated %}Encuentra tu próximo reto y mantén tu competición al día.{% else %}Torneos abiertos, partidas reales. Encuentra dónde competir.{% endif %}</p>
         </div>
+        <div class="rk-actions">
+            <a class="rk-btn rk-btn--primary" href="{% url 'catalogo-torneos' %}">Explorar torneos<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-up-right"></use></svg></a>
+            {% if puede_crear %}<a class="rk-btn rk-btn--secondary" href="{% url 'crear-torneo' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#plus"></use></svg>Crear torneo</a>{% elif not user.is_authenticated %}<a class="rk-btn rk-btn--secondary" href="{% url 'registro' %}">Crear cuenta</a>{% endif %}
+        </div>
+    </header>
+
+    <section class="rk-section" aria-labelledby="featured-title">
+        <div class="rk-section-heading"><div><p class="rk-kicker">Descubre</p><h2 id="featured-title">Torneos destacados</h2></div><a class="rk-section-link" href="{% url 'catalogo-torneos' %}">Ver todos<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-right"></use></svg></a></div>
+        {% if destacados %}
+        <div class="rk-card-grid">
+            {% for torneo in destacados %}{% include 'components/torneo_card.html' with torneo=torneo only %}{% endfor %}
+        </div>
+        {% else %}
+        <div class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#trophy"></use></svg><h3>El próximo reto está por llegar</h3><p>No hay torneos destacados disponibles ahora.</p><a class="rk-section-link" href="{% url 'catalogo-torneos' %}">Explorar torneos</a></div>
+        {% endif %}
+    </section>
+
+    {% if user.is_authenticated %}
+    <div class="rk-dashboard-columns">
+        <section class="rk-section" aria-labelledby="own-title">
+            <div class="rk-section-heading"><div><p class="rk-kicker">Organización</p><h2 id="own-title">Mis torneos</h2></div><a class="rk-section-link" href="{% url 'mis-torneos' %}">Ver todos<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-right"></use></svg></a></div>
+            {% if mis_torneos %}
+            <ul class="rk-compact-list">
+                {% for torneo in mis_torneos %}
+                <li class="rk-compact-row">
+                    <span class="rk-row-logo" aria-hidden="true">{% if torneo.videojuego.imagen %}<img src="{{ torneo.videojuego.imagen.url }}" alt="" loading="lazy">{% else %}<svg viewBox="0 0 24 24"><use href="{% static 'img/lucide.svg' %}#gamepad-2"></use></svg>{% endif %}</span>
+                    <div class="rk-row-copy"><div class="rk-row-title"><h3><a href="{% url 'ficha-torneo' torneo.pk %}">{{ torneo.nombre }}</a></h3><span class="rk-badge{% if torneo.tipo == 'OFICIAL' %} rk-badge--official{% endif %}">{{ torneo.get_tipo_display }}</span></div><div class="rk-metadata"><span>{{ torneo.videojuego.nombre }}</span><span>{{ torneo.confirmados }}/{{ torneo.max_participantes }} participantes</span><span>{{ torneo.get_estado_display }}</span>{% if torneo.fecha_inicio_prevista %}<time datetime="{{ torneo.fecha_inicio_prevista|date:'c' }}">{{ torneo.fecha_inicio_prevista|date:'j M · H:i' }}</time>{% endif %}</div></div>
+                    <a class="rk-row-action" href="{% url 'ficha-torneo' torneo.pk %}" aria-label="Ver torneo {{ torneo.nombre }}" title="Ver torneo"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-up-right"></use></svg></a>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#flag"></use></svg><h3>Tu primer torneo empieza contigo</h3><p>Aún no has creado ningún torneo.</p>{% if puede_crear %}<a class="rk-btn rk-btn--secondary" href="{% url 'crear-torneo' %}">Crear torneo</a>{% endif %}</div>
+            {% endif %}
+        </section>
+
+        <section class="rk-section" aria-labelledby="matches-title">
+            <div class="rk-section-heading"><div><p class="rk-kicker">En tu agenda</p><h2 id="matches-title">Próximas partidas</h2></div><a class="rk-section-link" href="{% url 'mis-partidas' %}">Mis partidas<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-right"></use></svg></a></div>
+            {% if proximas_partidas %}
+            <ul class="rk-compact-list">
+                {% for entrada in proximas_partidas %}
+                <li class="rk-match-row">
+                    <div class="rk-match-copy">
+                    <div class="rk-metadata"><span class="rk-badge{% if entrada.rol == 'Árbitro' %} rk-badge--official{% endif %}">{{ entrada.rol }}</span><span>{{ entrada.partida.get_estado_display }}</span><span>Ronda {{ entrada.partida.numero_ronda }}</span></div>
+                    <h3><a href="{% url 'detalle-partida' entrada.partida.pk %}">{{ entrada.partida.torneo.nombre }}</a></h3>
+                    <div class="rk-match-players">{% if entrada.rol == 'Jugador' %}<span class="rk-metadata">Rival</span>{% if entrada.rival %}{% identidad_competitiva entrada.rival.usuario entrada.rival.nick_historico %}{% else %}<span class="rk-metadata">Rival por determinar</span>{% endif %}{% else %}{% for inscripcion in entrada.participantes %}{% identidad_competitiva inscripcion.usuario inscripcion.nick_historico %}{% if not forloop.last %}<span class="rk-metadata">vs</span>{% endif %}{% empty %}<span class="rk-metadata">Rivales por determinar</span>{% endfor %}{% endif %}</div>
+                    </div>
+                    <div class="rk-match-time"><span class="rk-metadata">{% if entrada.partida.fecha_hora_programada %}<time datetime="{{ entrada.partida.fecha_hora_programada|date:'c' }}">{{ entrada.partida.fecha_hora_programada|date:'j M · H:i' }}</time>{% else %}Horario por confirmar{% endif %}</span><a class="rk-row-action" href="{% url 'detalle-partida' entrada.partida.pk %}" aria-label="Ver partida {{ entrada.partida.numero_orden }} de {{ entrada.partida.torneo.nombre }}" title="Ver partida"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-up-right"></use></svg></a></div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#swords"></use></svg><h3>Sin partidas pendientes</h3><p>Tus próximas partidas aparecerán aquí.</p><a class="rk-section-link" href="{% url 'mis-participaciones' %}">Mis participaciones</a></div>
+            {% endif %}
+        </section>
+    </div>
     {% endif %}
-</section>
+</div>
 {% endblock %}

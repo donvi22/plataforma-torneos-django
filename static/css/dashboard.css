@@ -1,0 +1,109 @@
+body:has(.rk-dashboard) { background: #0D0D0F; color: #F2F2F5; }
+.rk-dashboard {
+    --rk-surface: #15151A;
+    --rk-card: #1B1B22;
+    --rk-border: #2A2A34;
+    --rk-text: #F2F2F5;
+    --rk-muted: #A7A7B3;
+    --rk-purple: #7C3AED;
+    --rk-purple-hover: #8B5CF6;
+    color: var(--rk-text);
+    font-family: 'Segoe UI', sans-serif;
+    letter-spacing: 0;
+    margin: 0 auto;
+    max-width: 1280px;
+    min-width: 0;
+}
+.rk-dashboard svg { display: block; fill: none; flex: 0 0 auto; height: 18px; overflow: visible; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; width: 18px; }
+.rk-dashboard :is(h1, h2, h3, p) { margin: 0; }
+.rk-dashboard h1 { font-size: 32px; font-weight: 650; line-height: 1.2; max-width: none; overflow-wrap: anywhere; }
+.rk-dashboard h2 { font-size: 20px; font-weight: 600; line-height: 1.3; }
+.rk-dashboard h3 { font-size: 16px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+.rk-dashboard h3 a { text-decoration: none; }
+.rk-dashboard h3 a:hover { color: #C4B5FD; }
+.rk-dashboard :is(a, button):focus-visible { outline: 2px solid #A78BFA; outline-offset: 4px; }
+.rk-dashboard-intro { --rk-hero-image: none; align-items: flex-start; background-color: var(--rk-surface); background-image: linear-gradient(90deg, #15151AF5 0%, #15151ACC 55%, #15151A66 100%), var(--rk-hero-image); background-position: center; background-size: cover; border-bottom: 1px solid var(--rk-border); display: flex; flex-direction: column; gap: 20px; justify-content: center; min-height: 246px; padding: 30px 32px; }
+.rk-intro-copy { max-width: 620px; min-width: 0; width: 100%; }
+.rk-kicker { color: var(--rk-muted); font-size: 11px; font-weight: 600; line-height: 1.5; text-transform: uppercase; }
+.rk-dashboard-intro .rk-kicker { margin-bottom: 8px; }
+.rk-dashboard .rk-description { color: var(--rk-muted); font-size: 14px; line-height: 1.6; margin-top: 12px; }
+.rk-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; gap: 10px; }
+.rk-btn { align-items: center; border: 1px solid transparent; border-radius: 6px; display: inline-flex; font: 600 13px/1.4 'Segoe UI', sans-serif; gap: 8px; justify-content: center; min-height: 42px; padding: 10px 16px; text-align: center; text-decoration: none; }
+.rk-btn--primary { background: var(--rk-purple); color: #fff; }
+.rk-btn--primary:hover { background: var(--rk-purple-hover); }
+.rk-btn--secondary { background: var(--rk-surface); border-color: var(--rk-border); color: var(--rk-text); }
+.rk-btn--secondary:hover { background: var(--rk-card); border-color: #5B477A; }
+.rk-section { margin-top: 24px; min-width: 0; }
+.rk-section-heading { align-items: end; display: flex; gap: 16px; justify-content: space-between; margin-bottom: 18px; }
+.rk-section-heading .rk-kicker { margin-bottom: 5px; }
+.rk-section-link { align-items: center; color: #C4B5FD; display: inline-flex; flex: 0 0 auto; font-size: 12px; font-weight: 500; gap: 6px; min-height: 32px; text-decoration: none; }
+.rk-section-link:hover { color: var(--rk-text); }
+.rk-section-link svg { height: 15px; width: 15px; }
+.rk-card-grid { display: grid; gap: 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rk-tournament-card { background: var(--rk-card); border: 1px solid var(--rk-border); border-radius: 8px; display: flex; flex-direction: column; min-width: 0; }
+.rk-card-media { --rk-tournament-image: linear-gradient(120deg, #202027, #15151A); background: var(--rk-tournament-image) center / cover no-repeat, var(--rk-surface); border-bottom: 1px solid var(--rk-border); border-radius: 7px 7px 0 0; height: 82px; overflow: hidden; position: relative; }
+.rk-card-media > img { display: block; height: 100%; object-fit: cover; width: 100%; }
+.rk-card-media > .rk-card-game-image { object-fit: contain; padding: 12px; }
+.rk-card-media-fallback { align-items: center; color: var(--rk-muted); display: flex; font-size: 12px; gap: 10px; height: 100%; justify-content: center; padding: 12px; }
+.rk-card-media-fallback > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-card-media-fallback svg { height: 28px; width: 28px; }
+.rk-badge { background: #27272F; border: 1px solid #3A3A46; border-radius: 4px; color: var(--rk-text); display: inline-flex; font-size: 10px; font-weight: 600; line-height: 1.4; padding: 3px 7px; }
+.rk-badge--official { background: #302141; border-color: #5B3A80; color: #DBC9FF; }
+.rk-card-body { display: flex; flex: 1; flex-direction: column; gap: 7px; padding: 12px 14px; }
+.rk-card-body h3 { font-size: 16px; }
+.rk-card-meta { justify-content: space-between; }
+.rk-metadata { align-items: center; color: var(--rk-muted); display: flex; flex-wrap: wrap; font-size: 12px; gap: 8px; line-height: 1.6; overflow-wrap: anywhere; }
+.rk-metadata svg { height: 15px; width: 15px; }
+.rk-card-status { margin-top: 0; }
+.rk-status-dot { background: #A7A7B3; border-radius: 50%; flex: 0 0 auto; height: 6px; width: 6px; }
+.rk-status-dot[data-state='INSCRIPCIONES_ABIERTAS'], .rk-status-dot[data-state='PRORROGA'] { background: #55CFA1; }
+.rk-status-dot[data-state='EN_CURSO'] { background: #A78BFA; }
+.rk-card-facts { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 0; }
+.rk-card-facts .rk-metadata { font-size: 11px; }
+.rk-card-link { align-items: center; border-top: 1px solid var(--rk-border); color: var(--rk-text); display: flex; font-size: 12px; font-weight: 600; justify-content: space-between; margin-top: auto; min-height: 30px; padding-top: 6px; text-decoration: none; }
+.rk-card-link:hover { color: #C4B5FD; }
+.rk-dashboard-columns { align-items: start; display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.rk-compact-list { background: var(--rk-surface); border: 1px solid var(--rk-border); border-radius: 6px; list-style: none; margin: 0; padding: 0; }
+.rk-compact-row, .rk-match-row { border-bottom: 1px solid var(--rk-border); min-width: 0; padding: 12px 14px; }
+.rk-compact-list > li:last-child { border-bottom: 0; }
+.rk-compact-row { align-items: center; display: flex; gap: 10px; justify-content: space-between; }
+.rk-row-logo { align-items: center; background: var(--rk-card); border: 1px solid var(--rk-border); border-radius: 5px; color: var(--rk-muted); display: flex; flex: 0 0 32px; height: 32px; justify-content: center; overflow: hidden; }
+.rk-row-logo img { height: 100%; object-fit: contain; padding: 4px; width: 100%; }
+.rk-row-copy { display: grid; flex: 1 1 auto; gap: 4px; min-width: 0; }
+.rk-row-title { align-items: baseline; display: flex; flex-wrap: wrap; gap: 5px 8px; }
+.rk-row-title h3, .rk-match-copy h3 { font-size: 14px; }
+.rk-row-copy .rk-metadata { font-size: 11px; gap: 3px 8px; }
+.rk-row-action { align-items: center; border: 1px solid var(--rk-border); border-radius: 5px; color: var(--rk-muted); display: flex; flex: 0 0 auto; height: 34px; justify-content: center; text-decoration: none; width: 34px; }
+.rk-row-action:hover { background: var(--rk-card); color: var(--rk-text); }
+.rk-match-row { align-items: center; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) auto; }
+.rk-match-copy { display: grid; gap: 4px; min-width: 0; }
+.rk-match-copy > .rk-metadata { font-size: 11px; gap: 6px; }
+.rk-match-players { align-items: center; display: flex; flex-wrap: wrap; gap: 6px 10px; min-width: 0; }
+.rk-match-players .player-account { color: var(--rk-muted); font: 11px/1.5 'Segoe UI', sans-serif; }
+.rk-match-players .player-nick { font-size: 12px; }
+.rk-match-time { align-items: flex-end; display: flex; flex-direction: column; gap: 5px; max-width: 120px; text-align: right; }
+.rk-match-time > .rk-metadata { font-size: 11px; justify-content: flex-end; }
+.rk-empty { align-items: center; background: var(--rk-surface); border: 1px dashed var(--rk-border); border-radius: 6px; display: flex; flex-direction: column; gap: 8px; justify-content: center; min-height: 158px; padding: 20px; text-align: center; }
+.rk-empty > svg { color: var(--rk-muted); height: 26px; margin-bottom: 4px; width: 26px; }
+.rk-empty p { color: var(--rk-muted); font-size: 13px; line-height: 1.6; }
+.rk-empty .rk-btn { margin-top: 6px; }
+@media (max-width: 1150px) {
+    .rk-card-grid { gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .rk-dashboard-columns { gap: 20px; grid-template-columns: 1fr; }
+}
+@media (max-width: 650px) {
+    .rk-dashboard h1 { font-size: 28px; }
+    .rk-dashboard h2 { font-size: 18px; }
+    .rk-dashboard-intro { gap: 18px; min-height: 230px; padding: 24px 20px; }
+    .rk-actions { width: 100%; }
+    .rk-actions .rk-btn { flex: 1 1 auto; }
+    .rk-card-grid { grid-template-columns: 1fr; }
+    .rk-card-media { height: 90px; }
+    .rk-section { margin-top: 26px; }
+    .rk-section-heading { align-items: center; gap: 10px; }
+}
+@media (max-width: 420px) {
+    .rk-match-row { gap: 8px; }
+    .rk-match-time { max-width: 86px; }
+    .rk-row-logo { display: none; }
+}

@@ -7,6 +7,7 @@
     <title>{% filter cut:' · Arena provisional' %}{% block title %}Inicio{% endblock %}{% endfilter %} | Ranked Kingdom</title>
     <link rel="stylesheet" href="{% static 'css/site.css' %}">
     <link rel="stylesheet" href="{% static 'css/shell.css' %}">
+    {% block page_styles %}{% endblock %}
 </head>
 <body{% if user.is_authenticated %} class="rk-app"{% endif %}>
     <a class="rk-skip-link" href="#main-content">Saltar al contenido</a>
@@ -63,7 +64,9 @@
             </div>
             <div class="rk-profile" data-profile-menu>
                 <button class="rk-avatar-button" type="button" id="rk-profile-toggle" aria-expanded="false" aria-controls="rk-profile-popover" aria-label="Menú de perfil de {{ user.username }}" title="Mi cuenta">
-                    {% if user.avatar %}<img src="{{ user.avatar.url }}" alt="">{% else %}<span aria-hidden="true">{{ user.username|first|upper }}</span>{% endif %}
+                    <span class="rk-profile-avatar">{% if user.avatar %}<img src="{{ user.avatar.url }}" alt="">{% else %}<span aria-hidden="true">{{ user.username|first|upper }}</span>{% endif %}</span>
+                    <span class="rk-profile-name">{{ user.username }}</span>
+                    <svg class="rk-profile-chevron" viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#chevron-down"></use></svg>
                 </button>
                 <div class="rk-profile-popover" id="rk-profile-popover" hidden>
                     <div class="rk-profile-heading"><strong>{{ user.username }}</strong><span>Mi cuenta</span></div>

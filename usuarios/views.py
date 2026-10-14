@@ -4,7 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.contrib.auth.views import LoginView
 from django.core.paginator import Paginator
-from django.db.models import Prefetch
+from django.db.models import Case, DateTimeField, F, IntegerField, Prefetch, Q, When
+from django.db.models.functions import Coalesce
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -22,7 +23,58 @@ from .services import progreso_nivel
 
 
 def inicio(request):
-    return render(request, 'usuarios/inicio.html')
+    from arbitraje.models import ArbitroTorneo
+    from partidas.models import Partida, ParticipantePartida
+    from torneos.models import InscripcionTorneo, Torneo
+    from torneos.public_views import _catalogo_queryset, _confirmadas_count
+
+    catalogo = _catalogo_queryset().exclude(estado__in=(Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO))
+    destacados = list(catalogo.order_by('-fecha_publicacion', '-pk')[:3])
+    contexto = {'destacados': destacados, 'mis_torneos': [], 'proximas_partidas': [], 'puede_crear': False}
+    if request.user.is_authenticated:
+        usuario = request.user
+        contexto['puede_crear'] = usuario.puede_operar
+        contexto['mis_torneos'] = list(Torneo.objects.filter(organizador=usuario).select_related(
+            'videojuego',
+        ).annotate(
+            confirmados=_confirmadas_count(),
+            prioridad_terminal=Case(
+                When(estado__in=(Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO), then=1),
+                default=0, output_field=IntegerField(),
+            ),
+            prioridad_atencion=Case(
+                When(estado=Torneo.Estado.EN_CURSO, then=0),
+                default=1, output_field=IntegerField(),
+            ),
+            fecha_resumen=Case(
+                When(estado__in=(Torneo.Estado.INSCRIPCIONES_ABIERTAS, Torneo.Estado.PRORROGA), then=Coalesce('fecha_cierre_inscripciones', 'fecha_inicio_prevista')),
+                When(estado__in=(Torneo.Estado.PROXIMAMENTE, Torneo.Estado.BORRADOR), then=Coalesce('fecha_apertura_inscripciones', 'fecha_inicio_prevista')),
+                When(estado__in=(Torneo.Estado.PREPARADO, Torneo.Estado.INSCRIPCIONES_CERRADAS), then='fecha_inicio_prevista'),
+                default=None, output_field=DateTimeField(),
+            ),
+        ).order_by('prioridad_terminal', 'prioridad_atencion', F('fecha_resumen').asc(nulls_last=True), '-fecha_creacion', '-pk')[:3])
+        partidas = Partida.objects.filter(
+            Q(participantes__inscripcion__usuario=usuario, participantes__inscripcion__estado=InscripcionTorneo.Estado.CONFIRMADA)
+            | Q(arbitro_asignado__usuario=usuario, arbitro_asignado__estado_invitacion=ArbitroTorneo.EstadoInvitacion.ACEPTADA, arbitro_asignado__activo_en_torneo=True),
+            estado__in=(Partida.Estado.PENDIENTE, Partida.Estado.PROGRAMADA, Partida.Estado.CHECK_IN, Partida.Estado.LISTA_PARA_COMENZAR, Partida.Estado.EN_CURSO),
+            torneo__estado__in=(Torneo.Estado.PREPARADO, Torneo.Estado.EN_CURSO),
+        ).filter(
+            Q(torneo_id__in=catalogo.values('pk')) | Q(torneo__tipo=Torneo.Tipo.PRIVADO),
+        ).select_related('torneo__videojuego', 'arbitro_asignado').prefetch_related(Prefetch(
+            'participantes', queryset=ParticipantePartida.objects.select_related('inscripcion__usuario').order_by('posicion'),
+        )).defer('codigo_lobby', 'contrasena_lobby', 'nombre_lobby', 'instrucciones_lobby').distinct().order_by(
+            F('fecha_hora_programada').asc(nulls_last=True), 'torneo_id', 'numero_ronda', 'numero_orden',
+        )[:3]
+        for partida in partidas:
+            participantes = list(partida.participantes.all())
+            es_jugador = any(p.inscripcion.usuario_id == usuario.pk and p.inscripcion.estado == InscripcionTorneo.Estado.CONFIRMADA for p in participantes)
+            contexto['proximas_partidas'].append({
+                'partida': partida,
+                'rol': 'Jugador' if es_jugador else 'Árbitro',
+                'rival': next((p.inscripcion for p in participantes if p.inscripcion.usuario_id != usuario.pk), None) if es_jugador else None,
+                'participantes': [p.inscripcion for p in participantes] if not es_jugador else [],
+            })
+    return render(request, 'usuarios/inicio.html', contexto)
 
 
 def registro(request):

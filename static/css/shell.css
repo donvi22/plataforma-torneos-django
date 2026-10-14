@@ -62,8 +62,13 @@
 .rk-topbar .notification-popover { border-radius: 8px; box-shadow: 0 16px 40px #0008; top: calc(100% + 18px); }
 .rk-topbar .notification-quick-open:hover, .rk-topbar .notification-view-all:hover { background: var(--rk-secondary); }
 .rk-profile { position: relative; }
-.rk-avatar-button { background: var(--panel); border: 1px solid var(--line); border-radius: 50%; color: var(--ink); cursor: pointer; display: grid; font: 600 15px 'Segoe UI', sans-serif; height: 40px; overflow: hidden; padding: 0; place-items: center; width: 40px; }
-.rk-avatar-button img { height: 100%; object-fit: cover; width: 100%; }
+.rk-avatar-button { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--ink); cursor: pointer; display: flex; font: 600 13px 'Segoe UI', sans-serif; gap: 9px; height: 42px; max-width: 232px; padding: 4px 8px 4px 4px; }
+.rk-avatar-button:hover { background: var(--panel); border-color: var(--line); }
+.rk-profile-avatar { background: var(--panel); border: 1px solid var(--line); border-radius: 50%; display: grid; flex: 0 0 32px; height: 32px; overflow: hidden; place-items: center; width: 32px; }
+.rk-profile-avatar img { height: 100%; object-fit: cover; width: 100%; }
+.rk-profile-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-topbar .rk-profile-chevron { height: 14px; width: 14px; }
+.rk-avatar-button[aria-expanded='true'] .rk-profile-chevron { transform: rotate(180deg); }
 .rk-profile-popover { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 16px 40px #0008; padding: 6px; position: absolute; right: 0; top: calc(100% + 18px); width: min(260px, calc(100vw - 24px)); }
 .rk-profile-popover[hidden], .rk-backdrop[hidden] { display: none; }
 .rk-profile-heading { border-bottom: 1px solid var(--line); display: grid; gap: 4px; margin-bottom: 4px; overflow-wrap: anywhere; padding: 14px 10px; }
@@ -91,6 +96,8 @@
     .rk-topbar { gap: 12px; padding: 0 16px; }
     .rk-app .page-shell { padding: 24px 16px; }
     .rk-topbar-actions { gap: 10px; }
+    .rk-profile-name, .rk-topbar .rk-profile-chevron { display: none; }
+    .rk-avatar-button { border-radius: 50%; justify-content: center; padding: 0; width: 40px; }
     .rk-topbar .notification-popover { position: fixed; right: 12px; top: calc(var(--rk-topbar-height) + 8px); }
     .rk-profile-popover { position: fixed; right: 12px; top: calc(var(--rk-topbar-height) + 8px); }
     .rk-sidebar-open { overflow: hidden; }
