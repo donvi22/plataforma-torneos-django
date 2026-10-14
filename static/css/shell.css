@@ -1,0 +1,105 @@
+.rk-app {
+    --ink: #F2F2F5;
+    --muted: #A7A7B3;
+    --paper: #0D0D0F;
+    --panel: #1B1B22;
+    --line: #2A2A34;
+    --accent: #7C3AED;
+    --accent-dark: #8B5CF6;
+    --teal: #8B5CF6;
+    --rk-secondary: #15151A;
+    --rk-sidebar-width: 256px;
+    --rk-topbar-height: 76px;
+    background: var(--paper);
+    color-scheme: dark;
+    padding-top: var(--rk-topbar-height);
+}
+.rk-skip-link { background: #7C3AED; color: #fff; left: 16px; padding: 12px; position: fixed; top: -100px; z-index: 100; }
+.rk-skip-link:focus { top: 12px; }
+.rk-sidebar, .rk-topbar { font-family: 'Segoe UI', sans-serif; letter-spacing: 0; }
+.rk-sidebar { background: var(--rk-secondary); border-right: 1px solid var(--line); bottom: 0; display: flex; flex-direction: column; left: 0; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--line) transparent; padding: 24px 12px 16px 16px; position: fixed; top: 0; width: var(--rk-sidebar-width); z-index: 40; }
+.rk-sidebar::-webkit-scrollbar { width: 6px; }
+.rk-sidebar::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.rk-sidebar::-webkit-scrollbar-track { background: transparent; }
+.rk-sidebar svg, .rk-topbar svg { display: block; fill: none; flex-shrink: 0; overflow: visible; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.75; }
+.rk-brand { align-items: center; display: flex; flex: 0 0 auto; gap: 12px; margin: 0 8px 32px; text-decoration: none; }
+.rk-brand-mark { align-items: center; background: var(--accent); border-radius: 8px; color: #fff; display: flex; height: 44px; justify-content: center; width: 44px; }
+.rk-brand-mark svg { height: 25px; width: 25px; }
+.rk-brand-name { font-size: 19px; font-weight: 700; line-height: 1.15; }
+.rk-brand-name > span { color: var(--muted); display: block; font-size: 14px; font-weight: 500; margin-top: 4px; }
+.rk-navigation { align-items: stretch; display: flex; flex: 0 0 auto; flex-direction: column; gap: 6px; font: inherit; min-width: 0; }
+.rk-navigation svg, .rk-sidebar-bottom svg, .rk-topbar svg { fill: none; flex: 0 0 auto; height: 20px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.75; width: 20px; }
+.rk-nav-link, .rk-tournaments summary { align-items: center; border-radius: 6px; color: var(--muted); display: flex; gap: 12px; min-height: 46px; padding: 10px 12px; text-decoration: none; }
+.rk-nav-link > span, .rk-tournaments summary > span { font-size: 14px; font-weight: 500; }
+.rk-nav-link:hover, .rk-tournaments summary:hover, .rk-subnavigation a:hover { background: var(--panel); color: var(--ink); }
+.rk-navigation [aria-current='page'] { background: #7C3AED20; color: #C4B5FD; }
+.rk-tournaments summary { cursor: pointer; list-style: none; }
+.rk-tournaments summary::-webkit-details-marker { display: none; }
+.rk-tournaments .rk-chevron { height: 16px; margin-left: auto; transition: transform 180ms ease; width: 16px; }
+.rk-tournaments[open] .rk-chevron { transform: rotate(180deg); }
+.rk-tournaments.is-closing .rk-chevron { transform: rotate(0deg); }
+.rk-tournaments.is-animating .rk-subnavigation { opacity: 0; }
+.rk-tournaments:not([open]) .rk-subnavigation { opacity: 0; visibility: hidden; }
+.rk-subnavigation { border-left: 1px solid var(--line); display: grid; gap: 2px; margin: 2px 0 8px 21px; padding-left: 14px; }
+.rk-subnavigation a { border-radius: 4px; color: var(--muted); font-size: 13px; min-height: 38px; padding: 10px; }
+.rk-unavailable { cursor: default; flex-wrap: wrap; }
+.rk-unavailable small { color: var(--muted); font-size: 9px; margin-left: auto; }
+.rk-unavailable:hover { background: none; color: var(--muted); }
+.rk-sidebar-bottom { border-top: 1px solid var(--line); flex: 0 0 auto; margin-top: auto; padding-top: 14px; }
+.rk-sidebar-caption { color: var(--muted); display: block; font-size: 11px; padding: 16px 12px 0; }
+.rk-topbar { align-items: center; background: var(--rk-secondary); border-bottom: 1px solid var(--line); display: flex; gap: 20px; height: var(--rk-topbar-height); left: var(--rk-sidebar-width); padding: 0 32px; position: fixed; right: 0; top: 0; z-index: 30; }
+.rk-icon-button { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 6px; color: var(--muted); cursor: pointer; display: inline-flex; flex: 0 0 auto; height: 40px; justify-content: center; padding: 0; width: 40px; }
+.rk-icon-button:hover { background: var(--panel); border-color: var(--line); color: var(--ink); }
+.rk-search { align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; display: flex; flex: 1 1 auto; gap: 10px; max-width: 520px; min-width: 0; padding-left: 14px; }
+.rk-search > svg { color: var(--muted); }
+.rk-search input { background: transparent; border: 0; color: var(--ink); font: inherit; font-size: 13px; height: 40px; min-width: 0; padding: 0; width: 100%; }
+.rk-search input::placeholder { color: var(--muted); }
+.rk-search input:focus { outline: none; }
+.rk-search:focus-within { border-color: var(--accent-dark); outline: 2px solid var(--accent); outline-offset: 2px; }
+.rk-topbar-actions { align-items: center; display: flex; flex: 0 0 auto; gap: 16px; margin-left: auto; }
+.rk-topbar .notification-bell { position: relative; }
+.rk-topbar .notification-count { background: var(--accent); font-size: 10px; min-height: 16px; min-width: 16px; position: absolute; right: -2px; top: -2px; }
+.rk-topbar .notification-popover { border-radius: 8px; box-shadow: 0 16px 40px #0008; top: calc(100% + 18px); }
+.rk-topbar .notification-quick-open:hover, .rk-topbar .notification-view-all:hover { background: var(--rk-secondary); }
+.rk-profile { position: relative; }
+.rk-avatar-button { background: var(--panel); border: 1px solid var(--line); border-radius: 50%; color: var(--ink); cursor: pointer; display: grid; font: 600 15px 'Segoe UI', sans-serif; height: 40px; overflow: hidden; padding: 0; place-items: center; width: 40px; }
+.rk-avatar-button img { height: 100%; object-fit: cover; width: 100%; }
+.rk-profile-popover { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 16px 40px #0008; padding: 6px; position: absolute; right: 0; top: calc(100% + 18px); width: min(260px, calc(100vw - 24px)); }
+.rk-profile-popover[hidden], .rk-backdrop[hidden] { display: none; }
+.rk-profile-heading { border-bottom: 1px solid var(--line); display: grid; gap: 4px; margin-bottom: 4px; overflow-wrap: anywhere; padding: 14px 10px; }
+.rk-profile-heading strong { font-size: 14px; }
+.rk-profile-heading span { color: var(--muted); font-size: 12px; }
+.rk-profile-popover a, .rk-profile-popover button { align-items: center; background: none; border: 0; border-radius: 4px; color: var(--ink); cursor: pointer; display: flex; font: inherit; font-size: 13px; gap: 12px; min-height: 40px; padding: 10px; text-align: left; text-decoration: none; width: 100%; }
+.rk-profile-popover a:hover, .rk-profile-popover button:hover { background: var(--rk-secondary); }
+.rk-profile-popover form { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
+.rk-app .page-shell { margin: 0 0 0 var(--rk-sidebar-width); max-width: none; min-height: calc(100vh - var(--rk-topbar-height)); padding: 32px; }
+.rk-app .page-shell :is(input, textarea, select) { background: var(--rk-secondary); color: var(--ink); color-scheme: dark; }
+.rk-app .page-shell .player-account { color: var(--muted); }
+.rk-app .page-shell .profile-panel, .rk-app .page-shell .form-panel, .rk-app .page-shell .empty-panel { box-shadow: none; }
+.rk-app :is(a, button, summary):focus-visible { outline: 2px solid var(--accent-dark); outline-offset: 3px; }
+.rk-app .page-shell:focus { outline: none; }
+.rk-app.rk-sidebar-collapsed { --rk-sidebar-width: 0px; }
+.rk-sidebar-collapsed .rk-sidebar { visibility: hidden; width: 256px; transform: translateX(-100%); }
+.rk-backdrop { background: #0009; border: 0; inset: 0; position: fixed; z-index: 35; }
+@media (prefers-reduced-motion: reduce) {
+    .rk-tournaments .rk-chevron { transition: none; }
+}
+@media (max-width: 900px) {
+    .rk-app { --rk-sidebar-width: 0px; --rk-topbar-height: 68px; }
+    .rk-sidebar { max-width: calc(100vw - 52px); top: var(--rk-topbar-height); transform: translateX(-100%); visibility: hidden; width: 256px; }
+    .rk-sidebar-open .rk-sidebar { transform: none; visibility: visible; }
+    .rk-topbar { gap: 12px; padding: 0 16px; }
+    .rk-app .page-shell { padding: 24px 16px; }
+    .rk-topbar-actions { gap: 10px; }
+    .rk-topbar .notification-popover { position: fixed; right: 12px; top: calc(var(--rk-topbar-height) + 8px); }
+    .rk-profile-popover { position: fixed; right: 12px; top: calc(var(--rk-topbar-height) + 8px); }
+    .rk-sidebar-open { overflow: hidden; }
+}
+@media (max-width: 480px) {
+    .rk-topbar { gap: 8px; padding: 0 12px; }
+    .rk-search { gap: 6px; padding-left: 8px; }
+    .rk-search > svg { display: none; }
+    .rk-topbar-actions { gap: 6px; }
+    .rk-search input { font-size: 12px; }
+    .rk-topbar .rk-icon-button, .rk-avatar-button { height: 36px; width: 36px; }
+}

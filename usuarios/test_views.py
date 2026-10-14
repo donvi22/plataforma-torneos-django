@@ -11,6 +11,41 @@ from .models import Usuario
 
 
 class UsuarioViewsTests(TestCase):
+    def test_shell_autenticado_preserva_rutas_y_acciones_seguras(self):
+        usuario = self.crear_usuario()
+        self.client.force_login(usuario)
+        respuesta = self.client.get(reverse('inicio'))
+        self.assertContains(respuesta, 'id="rk-sidebar"', count=1)
+        self.assertContains(respuesta, 'class="rk-topbar"', count=1)
+        self.assertContains(respuesta, 'id="notification-toggle"', count=1)
+        self.assertContains(respuesta, 'id="rk-profile-toggle"', count=1)
+        self.assertContains(respuesta, 'class="rk-tournaments"')
+        self.assertContains(respuesta, 'aria-disabled="true"', count=3)
+        self.assertContains(respuesta, '<form class="rk-search" method="get" action="/buscar/"')
+        self.assertContains(respuesta, '<form method="post" action="/logout/">')
+        self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
+        self.assertNotContains(respuesta, usuario.email)
+        for nombre in ('inicio', 'crear-torneo', 'catalogo-torneos', 'mis-torneos', 'mis-participaciones', 'mis-partidas', 'centro-arbitraje', 'perfil-propio', 'editar-perfil', 'mis-denuncias', 'catalogo-videojuegos'):
+            self.assertContains(respuesta, reverse(nombre))
+
+    def test_shell_solo_en_paginas_autenticadas_y_uniforme(self):
+        self.assertNotContains(self.client.get(reverse('inicio')), 'id="rk-sidebar"')
+        usuario = self.crear_usuario()
+        self.client.force_login(usuario)
+        for nombre in ('inicio', 'catalogo-torneos', 'mis-partidas', 'centro-arbitraje', 'buscar-usuarios', 'editar-perfil'):
+            respuesta = self.client.get(reverse(nombre))
+            self.assertContains(respuesta, 'id="rk-sidebar"', count=1)
+            self.assertContains(respuesta, 'id="rk-profile-popover"', count=1)
+            self.assertContains(respuesta, 'Ranked Kingdom')
+
+    def test_shell_avatar_actual_y_fallback(self):
+        usuario = self.crear_usuario(avatar='avatars/shell-avatar.png')
+        self.client.force_login(usuario)
+        self.assertContains(self.client.get(reverse('inicio')), '<img src="/media/avatars/shell-avatar.png" alt="">')
+        usuario.avatar = ''
+        usuario.save(update_fields=('avatar',))
+        self.assertContains(self.client.get(reverse('inicio')), '<span aria-hidden="true">J</span>')
+
     def crear_imagen(self, nombre='avatar.png', formato='PNG'):
         contenido = BytesIO()
         Image.new('RGB', (32, 32), color='teal').save(contenido, format=formato)

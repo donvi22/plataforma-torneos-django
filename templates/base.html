@@ -4,71 +4,93 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}Arena provisional{% endblock %}</title>
+    <title>{% filter cut:' · Arena provisional' %}{% block title %}Inicio{% endblock %}{% endfilter %} | Ranked Kingdom</title>
     <link rel="stylesheet" href="{% static 'css/site.css' %}">
+    <link rel="stylesheet" href="{% static 'css/shell.css' %}">
 </head>
-<body>
+<body{% if user.is_authenticated %} class="rk-app"{% endif %}>
+    <a class="rk-skip-link" href="#main-content">Saltar al contenido</a>
+    {% if user.is_authenticated %}
+    <aside class="rk-sidebar" id="rk-sidebar" aria-label="Menú lateral">
+        <a class="rk-brand" href="{% url 'inicio' %}"><span class="rk-brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="{% static 'img/lucide.svg' %}#crown"></use></svg></span><span class="rk-brand-name">Ranked<span>Kingdom</span></span></a>
+        <nav class="rk-navigation" aria-label="Navegación principal">
+            <a class="rk-nav-link" href="{% url 'inicio' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#house"></use></svg><span>Inicio</span></a>
+            <details class="rk-tournaments"{% if '/torneos/' in request.path or '/partidas/' in request.path %} open{% endif %}>
+                <summary aria-controls="rk-tournaments-submenu"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#trophy"></use></svg><span>Torneos</span><svg viewBox="0 0 24 24" class="rk-chevron" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#chevron-down"></use></svg></summary>
+                <div class="rk-subnavigation" id="rk-tournaments-submenu">
+                    <a href="{% url 'crear-torneo' %}">Crear torneo</a>
+                    <a href="{% url 'catalogo-torneos' %}">Explorar torneos</a>
+                    <a href="{% url 'mis-torneos' %}">Mis torneos</a>
+                    <a href="{% url 'mis-participaciones' %}">Mis participaciones</a>
+                    <a href="{% url 'mis-partidas' %}">Mis partidas</a>
+                </div>
+            </details>
+            <span class="rk-nav-link rk-unavailable" aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#users"></use></svg><span>Equipos</span><small>Próximamente</small></span>
+            <a class="rk-nav-link" href="{% url 'centro-arbitraje' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#scale"></use></svg><span>Arbitraje</span></a>
+            <span class="rk-nav-link rk-unavailable" aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#medal"></use></svg><span>Ranking</span><small>Próximamente</small></span>
+            <span class="rk-nav-link rk-unavailable" aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#messages-square"></use></svg><span>Comunidad</span><small>Próximamente</small></span>
+            <a class="rk-nav-link" href="{% url 'catalogo-videojuegos' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#gamepad-2"></use></svg><span>Videojuegos</span></a>
+            {% if perms.torneos.add_torneo %}<a class="rk-nav-link" href="{% url 'centro-moderacion' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#shield-check"></use></svg><span>Moderación</span></a>{% endif %}
+        </nav>
+        <div class="rk-sidebar-bottom"><a class="rk-nav-link" href="{% url 'mis-denuncias' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#life-buoy"></use></svg><span>Soporte</span></a><span class="rk-sidebar-caption">Ranked Kingdom</span></div>
+    </aside>
+    <button class="rk-backdrop" type="button" aria-label="Cerrar menú lateral" tabindex="-1" hidden></button>
+    <header class="rk-topbar" aria-label="Barra superior">
+        <button class="rk-icon-button rk-sidebar-toggle" type="button" aria-controls="rk-sidebar" aria-expanded="true" aria-label="Contraer menú lateral" title="Menú lateral"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#menu"></use></svg></button>
+        <form class="rk-search" method="get" action="{% url 'buscar-usuarios' %}" role="search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#search"></use></svg>
+            <input type="search" name="q" placeholder="Buscar usuarios" aria-label="Buscar usuarios por nickname" maxlength="150" autocomplete="off">
+            <button class="rk-icon-button" type="submit" aria-label="Buscar" title="Buscar"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-right"></use></svg></button>
+        </form>
+        <div class="rk-topbar-actions">
+            <div class="notification-menu" data-notification-menu>
+                <button class="notification-bell rk-icon-button" type="button" id="notification-toggle" aria-expanded="false" aria-controls="notification-popover" aria-label="Notificaciones{% if notificaciones_no_leidas %}, {{ notificaciones_no_leidas }} sin leer{% endif %}" title="Notificaciones">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#bell"></use></svg>
+                    {% if notificaciones_no_leidas %}<span class="notification-count" aria-hidden="true">{{ notificaciones_no_leidas }}</span>{% endif %}
+                </button>
+                <div class="notification-popover" id="notification-popover" role="region" aria-labelledby="notification-toggle" hidden>
+                    {% if ultimas_notificaciones %}
+                    <ul class="notification-quick-list">
+                        {% for notificacion in ultimas_notificaciones %}
+                        <li class="notification-quick-item{% if notificacion.leida %} is-read{% else %} is-unread{% endif %}">
+                            <form method="post" action="{% url 'abrir-notificacion' notificacion.pk %}">{% csrf_token %}<button class="notification-quick-open" type="submit"><span class="notification-quick-title">{{ notificacion.titulo }}</span><time datetime="{{ notificacion.fecha_creacion|date:'c' }}">{{ notificacion.fecha_creacion|date:'j M, H:i' }}</time></button></form>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}<p class="notification-quick-empty">No tienes notificaciones.</p>{% endif %}
+                    <a class="notification-view-all" href="{% url 'centro-notificaciones' %}">Ver todas las notificaciones</a>
+                </div>
+            </div>
+            <div class="rk-profile" data-profile-menu>
+                <button class="rk-avatar-button" type="button" id="rk-profile-toggle" aria-expanded="false" aria-controls="rk-profile-popover" aria-label="Menú de perfil de {{ user.username }}" title="Mi cuenta">
+                    {% if user.avatar %}<img src="{{ user.avatar.url }}" alt="">{% else %}<span aria-hidden="true">{{ user.username|first|upper }}</span>{% endif %}
+                </button>
+                <div class="rk-profile-popover" id="rk-profile-popover" hidden>
+                    <div class="rk-profile-heading"><strong>{{ user.username }}</strong><span>Mi cuenta</span></div>
+                    <a href="{% url 'perfil-propio' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#user"></use></svg>Mi perfil</a>
+                    <a href="{% url 'editar-perfil' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#pencil"></use></svg>Editar perfil</a>
+                    <a href="{% url 'mis-denuncias' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#flag"></use></svg>Mis denuncias</a>
+                    <a href="{% url 'editar-perfil' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#settings"></use></svg>Configuración / Ajustes</a>
+                    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#log-out"></use></svg>Cerrar sesión</button></form>
+                </div>
+            </div>
+        </div>
+    </header>
+    {% else %}
     <header class="site-header">
-        <a class="brand" href="{% url 'inicio' %}">Arena provisional</a>
+        <a class="brand" href="{% url 'inicio' %}">Ranked Kingdom</a>
         <nav aria-label="Navegación principal">
             <form class="user-search" method="get" action="{% url 'buscar-usuarios' %}" role="search">
                 <input type="search" name="q" placeholder="Buscar usuarios" aria-label="Buscar usuarios por nickname" maxlength="150">
             </form>
-            {% if user.is_authenticated %}
-                <a href="{% url 'perfil-propio' %}">{{ user.username }}</a>
-                <a href="{% url 'mis-denuncias' %}">Mis denuncias</a>
-                <a href="{% url 'catalogo-videojuegos' %}">Videojuegos</a>
-                <a href="{% url 'catalogo-torneos' %}">Torneos</a>
-                <a href="{% url 'crear-torneo' %}">Crear torneo</a>
-                <a href="{% url 'mis-torneos' %}">Mis torneos</a>
-                <a href="{% url 'mis-participaciones' %}">Mis participaciones</a>
-                <a href="{% url 'mis-partidas' %}">Mis partidas</a>
-                <a href="{% url 'centro-arbitraje' %}">Arbitraje</a>
-                {% if perms.torneos.add_torneo %}<a href="{% url 'centro-moderacion' %}">Moderación</a>{% endif %}
-                <a href="{% url 'editar-perfil' %}">Editar perfil</a>
-                    <div class="notification-menu" data-notification-menu>
-                        <button class="notification-bell" type="button" id="notification-toggle"
-                            aria-expanded="false" aria-controls="notification-popover"
-                            aria-label="Notificaciones{% if notificaciones_no_leidas %}, {{ notificaciones_no_leidas }} sin leer{% endif %}">
-                            <span class="notification-bell-icon" aria-hidden="true">&#128276;</span>
-                            <span>Notificaciones</span>
-                            {% if notificaciones_no_leidas %}<span class="notification-count" aria-hidden="true">{{ notificaciones_no_leidas }}</span>{% endif %}
-                        </button>
-                        <div class="notification-popover" id="notification-popover" role="region"
-                            aria-labelledby="notification-toggle" hidden>
-                            {% if ultimas_notificaciones %}
-                                <ul class="notification-quick-list">
-                                    {% for notificacion in ultimas_notificaciones %}
-                                        <li class="notification-quick-item{% if notificacion.leida %} is-read{% else %} is-unread{% endif %}">
-                                            <form method="post" action="{% url 'abrir-notificacion' notificacion.pk %}">
-                                                {% csrf_token %}
-                                                <button class="notification-quick-open" type="submit">
-                                                    <span class="notification-quick-title">{{ notificacion.titulo }}</span>
-                                                    <time datetime="{{ notificacion.fecha_creacion|date:'c' }}">{{ notificacion.fecha_creacion|date:'j M, H:i' }}</time>
-                                                </button>
-                                            </form>
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                            {% else %}
-                                <p class="notification-quick-empty">No tienes notificaciones.</p>
-                            {% endif %}
-                            <a class="notification-view-all" href="{% url 'centro-notificaciones' %}">Ver todas las notificaciones</a>
-                        </div>
-                    </div>
-                <form method="post" action="{% url 'logout' %}" class="inline-form">
-                    {% csrf_token %}
-                    <button type="submit" class="link-button">Cerrar sesión</button>
-                </form>
-            {% else %}
                 <a href="{% url 'catalogo-videojuegos' %}">Videojuegos</a>
                 <a href="{% url 'catalogo-torneos' %}">Torneos</a>
                 <a href="{% url 'login' %}">Iniciar sesión</a>
                 <a class="button button-small" href="{% url 'registro' %}">Crear cuenta</a>
-            {% endif %}
         </nav>
     </header>
-    <main class="page-shell">
+    {% endif %}
+    <main class="page-shell" id="main-content" tabindex="-1">
         {% if messages %}
             <div class="messages" aria-live="polite">
                 {% for message in messages %}<p class="message">{{ message }}</p>{% endfor %}
@@ -76,7 +98,8 @@
         {% endif %}
         {% block content %}{% endblock %}
     </main>
-    <footer class="site-footer">Proyecto de torneo · primera interfaz</footer>
+    {% if not user.is_authenticated %}<footer class="site-footer">Ranked Kingdom</footer>{% endif %}
     <script src="{% static 'js/notifications.js' %}" defer></script>
+    <script src="{% static 'js/shell.js' %}" defer></script>
 </body>
 </html>
