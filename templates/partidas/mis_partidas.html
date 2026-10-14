@@ -1,12 +1,39 @@
 {% extends 'base.html' %}
-{% block title %}Mis partidas · Arena provisional{% endblock %}
+{% load static usuarios_extras %}
+{% block title %}Mis partidas{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/participations.css' %}">
+<link rel="stylesheet" href="{% static 'css/my-matches.css' %}">
+{% endblock %}
 {% block content %}
-<section class="catalogue-header"><p class="eyebrow">Competición</p><h1>Mis partidas.</h1><p class="lead">Consulta tus enfrentamientos confirmados en todos tus torneos.</p></section>
-{% if partidas %}
-<div class="tournament-grid">
-{% for detalle in partidas %}
-<article class="tournament-card"><div class="tournament-card-body"><div class="card-meta"><span>{{ detalle.partida.get_estado_display }}</span><span>Ronda {{ detalle.partida.numero_ronda }}</span></div><h2>{{ detalle.partida.torneo.nombre }}</h2><p class="muted">{{ detalle.partida.torneo.videojuego.nombre }}</p><p>Partida {{ detalle.partida.numero_orden }}</p>{% if detalle.partida.fecha_hora_programada %}<p>{{ detalle.partida.fecha_hora_programada|date:'j/m/Y H:i' }}</p>{% endif %}<a class="text-link" href="{% url 'detalle-partida' detalle.partida.pk %}">Ver partida</a></div></article>
-{% endfor %}
+<div class="rk-dashboard rk-participations rk-my-matches">
+	<header class="rk-participations-heading"><div><p class="rk-kicker">Competición</p><h1>Mis partidas</h1><p class="rk-description">Consulta tus próximas partidas y el historial de encuentros.</p></div><a class="rk-btn rk-btn--secondary" href="{% url 'mis-participaciones' %}">Mis participaciones</a></header>
+	<nav class="rk-participation-tabs" aria-label="Filtrar partidas">
+		<a href="{% url 'mis-partidas' %}"{% if vista == 'todas' %} aria-current="page"{% endif %}>Todas</a>
+		<a href="?vista=proximas"{% if vista == 'proximas' %} aria-current="page"{% endif %}>Próximas</a>
+		<a href="?vista=en_curso"{% if vista == 'en_curso' %} aria-current="page"{% endif %}>En curso</a>
+		<a href="?vista=finalizadas"{% if vista == 'finalizadas' %} aria-current="page"{% endif %}>Finalizadas</a>
+	</nav>
+	{% if partidas %}
+	<ul class="rk-participation-list rk-user-match-list" aria-label="Encuentros en los que intervienes">
+		{% for detalle in partidas %}
+		{% ifchanged detalle.historica %}<li class="rk-user-match-group"><h2>{% if detalle.historica %}Historial de encuentros{% else %}Próximas y activas{% endif %}</h2></li>{% endifchanged %}
+		<li class="rk-participation-row rk-user-match-row" data-match-state="{{ detalle.partida.estado }}" data-role="{{ detalle.rol }}">
+			<div class="rk-card-media rk-participation-thumbnail{% if not detalle.partida.torneo.imagen_banner %} rk-card-media--fallback{% endif %}" aria-hidden="true">{% include 'components/torneo_media.html' with torneo=detalle.partida.torneo variant='thumbnail' only %}</div>
+			<div class="rk-participation-copy">
+				<div class="rk-user-match-title"><h3><a href="{% url 'detalle-partida' detalle.partida.pk %}">{{ detalle.partida.torneo.nombre }}</a></h3><span class="rk-badge{% if detalle.rol == 'Árbitro' %} rk-badge--official{% endif %}">{{ detalle.rol }}</span></div>
+				<p class="rk-metadata"><span>{{ detalle.partida.torneo.videojuego.nombre }}</span><span>Ronda {{ detalle.partida.numero_ronda }}</span><span>Partida {{ detalle.partida.numero_orden }}</span></p>
+				<div class="rk-user-match-versus">{% if detalle.inscripciones.1 or detalle.inscripciones.2 %}{% if detalle.inscripciones.1 %}{% identidad_competitiva detalle.inscripciones.1.usuario detalle.inscripciones.1.nick_historico %}{% else %}<span class="rk-metadata">Por determinar</span>{% endif %}<span class="rk-user-match-vs">vs</span>{% if detalle.inscripciones.2 %}{% identidad_competitiva detalle.inscripciones.2.usuario detalle.inscripciones.2.nick_historico %}{% else %}<span class="rk-metadata">Por determinar</span>{% endif %}{% else %}<span class="rk-metadata rk-user-match-unknown">Rivales por determinar</span>{% endif %}</div>
+			</div>
+			<div class="rk-participation-status"><span class="rk-field-label">Estado de la partida</span><span class="rk-badge rk-user-match-state" data-state="{{ detalle.partida.estado }}">{{ detalle.partida.get_estado_display }}</span></div>
+			<div class="rk-participation-meta"><span class="rk-field-label">{% if detalle.partida.fecha_hora_programada %}Hora programada{% elif detalle.partida.fecha_hora_fin_real %}Finalizada{% else %}Horario{% endif %}</span><span class="rk-metadata"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#clock-3"></use></svg>{% with fecha=detalle.partida.fecha_hora_programada|default:detalle.partida.fecha_hora_fin_real %}{% if fecha %}<time datetime="{{ fecha|date:'c' }}">{{ fecha|date:'j M Y · H:i' }}</time>{% else %}Por confirmar{% endif %}{% endwith %}</span></div>
+			<a class="rk-btn rk-btn--primary rk-participation-action" href="{% url 'detalle-partida' detalle.partida.pk %}" aria-label="Ver partida {{ detalle.partida.numero_orden }}" title="Abrir encuentro"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-up-right"></use></svg></a>
+		</li>
+		{% endfor %}
+	</ul>
+	{% else %}
+	<section class="rk-empty" aria-labelledby="matches-empty-title"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#swords"></use></svg><h2 id="matches-empty-title">{% if vista == 'todas' %}Aún no tienes partidas{% else %}No hay partidas en esta vista{% endif %}</h2><p>{% if vista == 'todas' %}Tus encuentros aparecerán aquí cuando participes o tengas una asignación arbitral.{% else %}Consulta Todas para ver el resto de tus encuentros.{% endif %}</p><div class="rk-actions"><a class="rk-btn rk-btn--primary" href="{% url 'mis-participaciones' %}">Mis participaciones</a>{% if vista != 'todas' %}<a class="rk-btn rk-btn--secondary" href="{% url 'mis-partidas' %}">Ver todas</a>{% endif %}</div></section>
+	{% endif %}
 </div>
-{% else %}<section class="empty-panel"><h2>Aún no tienes partidas</h2><p class="muted">Cuando avances a un enfrentamiento, aparecerá aquí.</p><a class="text-link" href="{% url 'mis-participaciones' %}">Ver mis participaciones</a></section>{% endif %}
 {% endblock %}

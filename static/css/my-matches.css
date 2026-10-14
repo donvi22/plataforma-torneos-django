@@ -1,0 +1,35 @@
+.rk-user-match-group { background: #1B1B2280; border-bottom: 1px solid var(--rk-border); padding: 12px 20px; }
+.rk-user-match-group:first-child { border-radius: 5px 5px 0 0; }
+.rk-user-match-group h2 { color: var(--rk-muted); font-size: 12px; font-weight: 600; line-height: 1.5; }
+.rk-my-matches .rk-participation-copy { gap: 7px; }
+.rk-user-match-title { align-items: baseline; display: flex; flex-wrap: wrap; gap: 6px 9px; }
+.rk-user-match-title h3 { display: -webkit-box; font-size: 17px; line-height: 1.35; overflow: hidden; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.rk-user-match-title a { text-decoration: none; }
+.rk-user-match-title a:hover { color: #C4B5FD; }
+.rk-my-matches .rk-participation-copy > .rk-metadata { font-size: 11px; gap: 4px 10px; }
+.rk-user-match-versus { align-items: start; display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); min-width: 0; }
+.rk-user-match-versus > .player-identity { min-width: 0; }
+.rk-user-match-versus .player-nick { font-size: 13px; line-height: 1.4; }
+.rk-user-match-versus .player-account { font: 11px/1.5 'Segoe UI', sans-serif; }
+.rk-user-match-versus .text-link { color: var(--rk-muted); }
+.rk-user-match-versus .text-link:hover { color: #C4B5FD; }
+.rk-user-match-vs { color: var(--rk-muted); font-size: 10px; line-height: 1.8; }
+.rk-user-match-unknown { grid-column: 1 / -1; }
+.rk-my-matches .rk-participation-status { justify-items: start; }
+.rk-user-match-state[data-state='EN_CURSO'] { background: #302141; border-color: #68428C; color: #E3D6FF; }
+.rk-user-match-state[data-state='CHECK_IN'], .rk-user-match-state[data-state='LISTA_PARA_COMENZAR'] { background: #18352D; border-color: #305A4B; color: #A5E5CB; }
+.rk-user-match-state[data-state='CANCELADA'], .rk-user-match-state[data-state='INCIDENCIA'] { background: #382326; border-color: #624047; color: #F0BAC2; }
+@media (max-width: 1200px) {
+    .rk-my-matches .rk-participation-row { grid-template-areas: 'thumbnail content action' '. status meta'; grid-template-columns: 128px minmax(0, 1fr) auto; }
+    .rk-my-matches .rk-participation-meta { max-width: 210px; }
+    .rk-my-matches .rk-participation-status { align-items: start; flex-direction: column; gap: 4px; }
+}
+@media (max-width: 650px) {
+    .rk-user-match-group { padding: 10px 16px; }
+    .rk-my-matches .rk-participation-row { grid-template-areas: 'thumbnail content content' 'status status action' 'meta meta meta'; grid-template-columns: 96px minmax(0, 1fr) 38px; }
+    .rk-user-match-title h3 { font-size: 16px; }
+    .rk-user-match-versus { gap: 6px; }
+    .rk-user-match-versus .player-nick { font-size: 12px; }
+    .rk-user-match-versus .player-account { font-size: 10px; }
+    .rk-my-matches .rk-participation-meta { max-width: none; }
+}

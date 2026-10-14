@@ -2,6 +2,8 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Case, DateTimeField, F, IntegerField, Prefetch, Q, When
+from django.db.models.functions import Coalesce
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -9,7 +11,7 @@ from django.utils import timezone
 from torneos.models import InscripcionTorneo
 from torneos.public_views import PUBLIC_STATES, _puede_ver_privado
 
-from .models import CheckInPartida, Partida, ResultadoPartida
+from .models import CheckInPartida, Partida, ParticipantePartida, ResultadoPartida
 from .forms import LobbyPartidaForm, ProgramarPartidaForm
 from .lobby import lobby_configurado, puede_editar_lobby, puede_ver_lobby
 from .scheduling import CheckInError, confirmar_checkin, puede_programar_partidas
@@ -144,12 +146,46 @@ def _queryset_partidas():
 
 @login_required
 def mis_partidas(request):
-    partidas = _queryset_partidas().filter(
-        participantes__inscripcion__usuario=request.user,
-        participantes__inscripcion__estado=InscripcionTorneo.Estado.CONFIRMADA,
-    ).distinct().order_by('torneo_id', 'numero_ronda', 'numero_orden')
+    proximas = (Partida.Estado.PENDIENTE, Partida.Estado.PROGRAMADA, Partida.Estado.CHECK_IN, Partida.Estado.LISTA_PARA_COMENZAR)
+    en_curso = (Partida.Estado.EN_CURSO, Partida.Estado.PENDIENTE_VALIDACION, Partida.Estado.INCIDENCIA)
+    terminales = (Partida.Estado.FINALIZADA, Partida.Estado.CANCELADA)
+    vista = request.GET.get('vista', 'todas')
+    if vista not in ('todas', 'proximas', 'en_curso', 'finalizadas'):
+        vista = 'todas'
+    partidas = Partida.objects.filter(
+        Q(participantes__inscripcion__usuario=request.user, participantes__inscripcion__estado=InscripcionTorneo.Estado.CONFIRMADA)
+        | Q(arbitro_asignado__usuario=request.user, arbitro_asignado__estado_invitacion='ACEPTADA', arbitro_asignado__activo_en_torneo=True),
+    ).select_related('torneo__videojuego', 'arbitro_asignado').prefetch_related(Prefetch(
+        'participantes', queryset=ParticipantePartida.objects.select_related('inscripcion__usuario').order_by('posicion'),
+    )).defer('codigo_lobby', 'contrasena_lobby', 'nombre_lobby', 'instrucciones_lobby').annotate(
+        prioridad_listado=Case(
+            When(estado=Partida.Estado.EN_CURSO, then=0),
+            When(estado__in=(Partida.Estado.CHECK_IN, Partida.Estado.LISTA_PARA_COMENZAR, Partida.Estado.PENDIENTE_VALIDACION, Partida.Estado.INCIDENCIA), then=1),
+            When(estado__in=proximas, fecha_hora_programada__isnull=False, then=2),
+            When(estado__in=proximas, then=3), default=4, output_field=IntegerField(),
+        ),
+        fecha_proxima=Case(When(estado__in=terminales, then=None), default='fecha_hora_programada', output_field=DateTimeField()),
+        fecha_historica=Coalesce('fecha_hora_fin_real', 'fecha_hora_programada', 'fecha_hora_inicio_real'),
+    ).distinct()
+    if vista == 'proximas':
+        partidas = partidas.filter(estado__in=proximas)
+    elif vista == 'en_curso':
+        partidas = partidas.filter(estado__in=en_curso)
+    elif vista == 'finalizadas':
+        partidas = partidas.filter(estado=Partida.Estado.FINALIZADA)
+    partidas = partidas.order_by('prioridad_listado', F('fecha_proxima').asc(nulls_last=True), F('fecha_historica').desc(nulls_last=True), 'torneo_id', 'numero_ronda', 'numero_orden', 'pk')
+    filas = []
+    for partida in partidas:
+        participantes = list(partida.participantes.all())
+        es_jugador = any(p.inscripcion.usuario_id == request.user.pk and p.inscripcion.estado == InscripcionTorneo.Estado.CONFIRMADA for p in participantes)
+        filas.append({
+            'partida': partida,
+            'inscripciones': {p.posicion: p.inscripcion for p in participantes},
+            'rol': 'Jugador' if es_jugador else 'Árbitro',
+            'historica': partida.estado in terminales,
+        })
     return render(request, 'partidas/mis_partidas.html', {
-        'partidas': [_preparar_partida(partida, request.user) for partida in partidas],
+        'partidas': filas, 'vista': vista,
     })
 
 
