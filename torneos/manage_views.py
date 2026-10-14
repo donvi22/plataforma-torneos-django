@@ -33,7 +33,7 @@ def crear(request):
         else:
             messages.success(request, 'El torneo se ha guardado como borrador.')
             return redirect('mis-torneos')
-    return render(request, 'torneos/gestionar.html', {
+    return render(request, 'torneos/crear.html', {
         'form': form, 'modo': 'crear', 'formato_tamanos': form.formato_tamanos,
     })
 

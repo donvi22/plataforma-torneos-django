@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Crear torneo{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-create.css' %}">
+{% endblock %}
+{% block content %}
+<div class="rk-dashboard rk-create-tournament">
+    <header class="rk-create-heading"><p class="rk-kicker">Organización</p><h1>Crear torneo</h1><p class="rk-description">Configura tu torneo y revisa los detalles antes de publicarlo.</p></header>
+    <div class="rk-create-layout">
+        <form id="create-tournament-form" method="post" enctype="multipart/form-data" class="tournament-form rk-guided-form" novalidate data-create-tournament data-bound="{{ form.is_bound|yesno:'true,false' }}" data-rangos-url="{% url 'rangos-por-videojuego' 0 %}">
+            {% csrf_token %}
+            {% if form.errors %}<div class="rk-form-error-summary" role="alert"><h2>Revisa los datos del torneo</h2>{% if form.non_field_errors %}<ul>{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}{% for field in form %}{% if field.errors %}<a href="#{{ field.id_for_label }}">{{ field.label }}: {{ field.errors|join:' ' }}</a>{% endif %}{% endfor %}</div>{% endif %}
+            <p id="rangos-status" class="rk-form-help rk-form-status" role="status" aria-live="polite"></p>
+
+            <fieldset class="rk-form-section"><legend><span aria-hidden="true">01</span>Información básica</legend><p class="rk-form-section-description">Nombre, juego y alcance de la competición.</p>
+                <div class="rk-form-grid">
+                    <div class="rk-field-wide">{% include 'components/form_field.html' with field=form.nombre only %}</div>
+                    {% include 'components/form_field.html' with field=form.videojuego help='Los rangos disponibles dependen del videojuego.' only %}
+                    {% include 'components/form_field.html' with field=form.tipo only %}
+                    <div class="rk-field-wide rk-type-descriptions">{% for value,label in form.tipo.field.choices %}<p data-type-description="{{ value }}" class="rk-form-help">{% if value == 'PRIVADO' %}<strong>{{ label }}.</strong> Entre invitados, sin XP ni Karma automático.{% elif value == 'PUBLICO' %}<strong>{{ label }}.</strong> Competición pública con XP y Karma según las reglas actuales.{% elif value == 'OFICIAL' %}<strong>{{ label }}.</strong> Competición oficial administrada y programada.{% endif %}</p>{% endfor %}</div>
+                    <div class="rk-field-wide">{% include 'components/form_field.html' with field=form.imagen_banner help='Imagen opcional para identificar tu torneo.' only %}{% if form.is_bound %}<p class="rk-form-help">Si seleccionaste una imagen, vuelve a adjuntarla antes de enviar.</p>{% endif %}</div>
+                </div>
+            </fieldset>
+
+            <fieldset class="rk-form-section"><legend><span aria-hidden="true">02</span>Competición</legend><p class="rk-form-section-description">Formato, plazas y reglas del encuentro.</p>
+                <div class="rk-form-grid">
+                    {% include 'components/form_field.html' with field=form.formato_competitivo only %}
+                    {% include 'components/form_field.html' with field=form.max_participantes help='Las plazas se ajustan al formato seleccionado.' only %}
+                    <div class="rk-field-wide rk-form-grid" data-types="PUBLICO OFICIAL" data-has-errors="{% if form.nivel_minimo.errors or form.rango_minimo.errors or form.rango_maximo.errors %}true{% else %}false{% endif %}">
+                        {% include 'components/form_field.html' with field=form.nivel_minimo only %}
+                        <div class="rk-field-wide rk-form-grid">{% include 'components/form_field.html' with field=form.rango_minimo only %}{% include 'components/form_field.html' with field=form.rango_maximo only %}</div>
+                    </div>
+                    <div class="rk-field-wide">{% include 'components/form_field.html' with field=form.reglas only %}</div>
+                </div>
+            </fieldset>
+
+            <fieldset class="rk-form-section"><legend><span aria-hidden="true">03</span>Fechas y calendario</legend><p class="rk-form-section-description">Las fechas se interpretan en Europe/Madrid.</p>
+                <div class="rk-form-grid">
+                    {% include 'components/form_field.html' with field=form.fecha_apertura_inscripciones only %}
+                    {% include 'components/form_field.html' with field=form.fecha_cierre_inscripciones only %}
+                    <div data-types="PUBLICO OFICIAL" data-has-errors="{{ form.duracion_prorroga_min.errors|yesno:'true,false' }}">{% include 'components/form_field.html' with field=form.duracion_prorroga_min only %}</div>
+                    <div data-types="PUBLICO" data-has-errors="{{ form.descanso_entre_partidas_min.errors|yesno:'true,false' }}">{% include 'components/form_field.html' with field=form.descanso_entre_partidas_min only %}</div>
+                    <div class="rk-field-wide">{% include 'components/form_field.html' with field=form.fecha_inicio_prevista only %}</div>
+                </div>
+            </fieldset>
+
+            <fieldset class="rk-form-section"><legend><span aria-hidden="true">04</span>Acceso y visibilidad</legend>
+                <div class="rk-access-note"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#shield-check"></use></svg><div>{% for value,label in form.tipo.field.choices %}<p data-access-description="{{ value }}">{% if value == 'PRIVADO' %}El enlace privado estará disponible en Invitación y accesos después de guardar el torneo.{% elif value == 'PUBLICO' %}El torneo aparecerá en el catálogo cuando lo publiques desde Mis torneos.{% elif value == 'OFICIAL' %}La publicación y la configuración oficial mantienen los controles de administración.{% endif %}</p>{% endfor %}</div></div>
+            </fieldset>
+
+            <section class="rk-form-section rk-create-review" aria-labelledby="review-title"><h2 id="review-title"><span aria-hidden="true">05</span>Revisión y creación</h2><p class="rk-form-section-description">El torneo se guarda como borrador. Podrás publicarlo o abrir inscripciones desde Mis torneos.</p><div class="rk-create-review-line"><strong data-summary="nombre">{{ form.nombre.value|default:'Nuevo torneo' }}</strong><span class="rk-badge" data-summary="tipo">Por definir</span><span class="rk-metadata" data-summary="plazas">Plazas por definir</span></div><div class="rk-actions"><button class="rk-btn rk-btn--primary" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#plus"></use></svg>Crear torneo</button><a class="rk-btn rk-btn--secondary" href="{% url 'mis-torneos' %}">Cancelar</a></div></section>
+        </form>
+
+        <aside class="rk-summary-panel" aria-labelledby="summary-title"><div class="rk-create-summary-title"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#trophy"></use></svg><h2 id="summary-title">Tu torneo</h2><span class="rk-badge">Borrador</span></div><p class="rk-summary-name" data-summary="nombre">{{ form.nombre.value|default:'Nuevo torneo' }}</p><dl class="rk-summary-details"><dt>Videojuego</dt><dd data-summary="videojuego">Por elegir</dd><dt>Tipo</dt><dd data-summary="tipo">Por definir</dd><dt>Formato</dt><dd data-summary="formato">Por elegir</dd><dt>Plazas</dt><dd data-summary="plazas">Por definir</dd><dt>Apertura</dt><dd data-summary="apertura">Sin programar</dd><dt>Cierre</dt><dd data-summary="cierre">Sin programar</dd><dt>Inicio</dt><dd data-summary="inicio">Sin programar</dd></dl><a class="rk-section-link" href="#review-title">Revisar y crear<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-down"></use></svg></a></aside>
+    </div>
+    {{ formato_tamanos|json_script:'formato-tamanos-data' }}
+</div>
+<script src="{% static 'js/torneo-form.js' %}" defer></script>
+<script src="{% static 'js/tournament-create.js' %}" defer></script>
+{% endblock %}

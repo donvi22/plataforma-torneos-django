@@ -1,0 +1,62 @@
+.rk-create-heading { border-bottom: 1px solid var(--rk-border); padding: 6px 0 24px; }
+.rk-create-heading .rk-kicker { margin-bottom: 6px; }
+.rk-create-tournament h1 { font-size: 28px; }
+.rk-create-layout { align-items: start; display: grid; gap: 36px; grid-template-columns: minmax(0, 1fr) 300px; margin-top: 24px; }
+.rk-guided-form { min-width: 0; }
+.rk-form-section { border: 0; border-bottom: 1px solid var(--rk-border); margin: 0 0 24px; min-width: 0; padding: 0 0 24px; }
+.rk-form-section legend, .rk-create-review h2 { align-items: center; display: flex; float: none; font-size: 18px; font-weight: 600; gap: 12px; line-height: 1.4; margin: 0 0 10px; padding: 0; width: 100%; }
+.rk-form-section legend > span, .rk-create-review h2 > span { color: #C4B5FD; font-size: 12px; font-weight: 600; }
+.rk-create-tournament .rk-form-section-description { color: var(--rk-muted); font-size: 13px; line-height: 1.6; margin-bottom: 20px; }
+.rk-form-grid { align-items: start; display: grid; gap: 20px 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; }
+.rk-field-group { display: grid; gap: 8px; min-width: 0; }
+.rk-field-wide { grid-column: 1 / -1; min-width: 0; }
+.rk-field-group label { align-items: baseline; color: var(--rk-text); display: flex; flex-wrap: wrap; font-size: 12px; font-weight: 600; gap: 5px 8px; }
+.rk-field-required { color: var(--rk-muted); font-size: 10px; font-weight: 400; }
+.rk-create-tournament .rk-field-group :is(input, select, textarea) { background: var(--rk-surface); border: 1px solid var(--rk-border); border-radius: 5px; color: var(--rk-text); color-scheme: dark; font: 400 13px/1.5 'Segoe UI', sans-serif; min-height: 42px; min-width: 0; padding: 10px 12px; width: 100%; }
+.rk-field-group textarea { resize: vertical; }
+.rk-field-group input::placeholder { color: var(--rk-muted); }
+.rk-create-tournament .rk-field-group :is(input, select, textarea):focus-visible { border-color: var(--rk-purple-hover); outline: 2px solid var(--rk-purple-hover); outline-offset: 2px; }
+.rk-field-group input[type='file'] { padding: 7px; }
+.rk-field-group input::file-selector-button { background: var(--rk-card); border: 1px solid var(--rk-border); border-radius: 4px; color: var(--rk-text); cursor: pointer; font: inherit; margin-right: 12px; padding: 5px 10px; }
+.rk-create-tournament .rk-form-help { color: var(--rk-muted); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.rk-form-status:empty { display: none; }
+.rk-create-tournament .rk-form-status:not(:empty) { border-left: 2px solid var(--rk-purple-hover); margin-bottom: 20px; padding: 8px 12px; }
+.rk-type-descriptions { border-left: 2px solid var(--rk-purple); padding-left: 12px; }
+.rk-type-descriptions strong { color: var(--rk-text); font-weight: 600; }
+.rk-form-error { color: #F0BAC2; font-size: 12px; line-height: 1.5; list-style: none; margin: 0; padding: 0; }
+.rk-create-tournament .has-error :is(input, select, textarea) { border-color: #BE6476; }
+.rk-form-error-summary { background: #382326; border: 1px solid #80505B; border-radius: 6px; color: #F4D8DF; display: grid; gap: 10px; margin-bottom: 24px; padding: 18px; }
+.rk-form-error-summary h2 { font-size: 16px; }
+.rk-form-error-summary a, .rk-form-error-summary li { font-size: 12px; line-height: 1.5; }
+.rk-form-error-summary ul { margin: 0; padding-left: 18px; }
+.rk-access-note { align-items: start; color: var(--rk-muted); display: flex; font-size: 13px; gap: 12px; line-height: 1.7; }
+.rk-access-note > svg { color: #C4B5FD; margin-top: 2px; }
+.rk-create-review { border-bottom: 0; margin-bottom: 0; }
+.rk-create-review-line { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; overflow-wrap: anywhere; }
+.rk-create-review-line strong { font-size: 14px; }
+.rk-summary-panel { background: var(--rk-surface); border: 1px solid var(--rk-border); border-radius: 6px; min-width: 0; padding: 20px; position: sticky; top: calc(var(--rk-topbar-height, 76px) + 24px); }
+.rk-create-summary-title { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.rk-create-summary-title h2 { flex: 1; font-size: 16px; }
+.rk-create-summary-title > svg { color: #C4B5FD; }
+.rk-create-tournament .rk-summary-name { font-size: 20px; font-weight: 600; line-height: 1.4; margin-top: 20px; overflow-wrap: anywhere; }
+.rk-summary-details { border-bottom: 1px solid var(--rk-border); border-top: 1px solid var(--rk-border); display: grid; gap: 10px 12px; grid-template-columns: auto minmax(0, 1fr); margin: 18px 0 10px; padding: 16px 0; }
+.rk-summary-details dt { color: var(--rk-muted); font-size: 11px; }
+.rk-summary-details dd { font-size: 12px; line-height: 1.5; margin: 0; overflow-wrap: anywhere; text-align: right; }
+.rk-create-tournament [hidden] { display: none; }
+.rk-create-tournament :is(input, select, textarea) { scroll-margin-top: calc(var(--rk-topbar-height, 76px) + 20px); }
+.rk-create-tournament #review-title { scroll-margin-top: calc(var(--rk-topbar-height, 76px) + 20px); }
+@media (max-width: 1150px) {
+    .rk-create-layout { gap: 28px; grid-template-columns: minmax(0, 1fr) 250px; }
+}
+@media (max-width: 1000px) {
+    .rk-create-layout { grid-template-columns: 1fr; }
+    .rk-summary-panel { position: static; }
+}
+@media (max-width: 650px) {
+    .rk-create-tournament h1 { font-size: 26px; }
+    .rk-form-grid { gap: 18px; grid-template-columns: 1fr; }
+    .rk-create-review .rk-btn { flex: 1 1 auto; }
+    .rk-form-section legend, .rk-create-review h2 { font-size: 17px; }
+    .rk-field-group input[type='file'] { font-size: 11px; }
+    .rk-summary-panel { padding: 18px; }
+}

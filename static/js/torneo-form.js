@@ -38,7 +38,9 @@
                 campo.add(new Option(rango.posicion + '. ' + rango.nombre, rango.id, false, String(rango.id) === anterior));
             });
         });
-        status.textContent = rangos.length ? '' : 'Este videojuego no tiene rangos configurados.';
+        status.textContent = rangos.length || (form.hasAttribute('data-create-tournament') && !videojuego.value)
+            ? ''
+            : 'Este videojuego no tiene rangos configurados.';
     }
 
     function actualizarRangos(conservar) {
@@ -85,5 +87,5 @@
     prorroga.addEventListener('change', coordinarFechas);
     actualizarTamanos();
     actualizarRangos(true);
-    coordinarFechas();
+    if (form.dataset.bound !== 'true') coordinarFechas();
 }());

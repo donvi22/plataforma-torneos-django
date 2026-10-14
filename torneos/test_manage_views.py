@@ -57,6 +57,74 @@ class GestionTorneosViewsTests(TestCase):
         datos.update(extra)
         return datos
 
+    def test_crear_formulario_seccionado_con_campos_unicos_y_edicion_sin_cambios(self):
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse('crear-torneo'))
+        self.assertTemplateUsed(respuesta, 'torneos/crear.html')
+        for titulo in ('Información básica', 'Competición', 'Fechas y calendario', 'Acceso y visibilidad', 'Revisión y creación', 'Tu torneo'):
+            self.assertContains(respuesta, titulo)
+        for campo in TorneoForm.Meta.fields:
+            self.assertContains(respuesta, f'name="{campo}"', count=1)
+        self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
+        self.assertContains(respuesta, 'enctype="multipart/form-data"')
+        self.assertContains(respuesta, 'data-create-tournament')
+        torneo = Torneo.objects.create(
+            nombre='Edición conservada', organizador=self.usuario, videojuego=self.videojuego,
+            tipo=Torneo.Tipo.PRIVADO, formato_competitivo=self.formato, max_participantes=2,
+        )
+        edicion = self.client.get(reverse('editar-borrador-torneo', args=[torneo.pk]))
+        self.assertTemplateUsed(edicion, 'torneos/gestionar.html')
+        self.assertNotContains(edicion, 'css/tournament-create.css')
+        self.assertContains(edicion, 'Guardar borrador')
+
+    def test_crear_tipos_visibles_son_los_del_formulario_y_oficial_solo_admin(self):
+        self.client.force_login(self.otro)
+        respuesta = self.client.get(reverse('crear-torneo'))
+        self.assertEqual([tipo for tipo, _ in respuesta.context['form'].fields['tipo'].choices], [Torneo.Tipo.PRIVADO])
+        self.assertNotContains(respuesta, 'data-type-description="OFICIAL"')
+        self.client.force_login(self.usuario)
+        publico = self.client.get(reverse('crear-torneo'))
+        self.assertEqual({tipo for tipo, _ in publico.context['form'].fields['tipo'].choices}, {Torneo.Tipo.PRIVADO, Torneo.Tipo.PUBLICO})
+        self.client.force_login(self.admin)
+        oficial = self.client.get(reverse('crear-torneo'))
+        self.assertContains(oficial, 'data-type-description="OFICIAL"')
+        self.client.post(reverse('crear-torneo'), self.datos_privado(nombre='Oficial autorizado', tipo='OFICIAL'))
+        self.assertTrue(Torneo.objects.filter(nombre='Oficial autorizado', tipo=Torneo.Tipo.OFICIAL, estado=Torneo.Estado.BORRADOR).exists())
+
+    def test_crear_errores_de_fecha_visibles_y_valores_preservados(self):
+        self.client.force_login(self.usuario)
+        apertura = timezone.localtime(timezone.now()).replace(second=0, microsecond=0) + timedelta(hours=2)
+        datos = self.datos_publico(
+            nombre='Nombre conservado',
+            fecha_apertura_inscripciones=apertura.strftime('%Y-%m-%dT%H:%M'),
+            fecha_cierre_inscripciones=(apertura - timedelta(minutes=5)).strftime('%Y-%m-%dT%H:%M'),
+        )
+        respuesta = self.client.post(reverse('crear-torneo'), datos)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.context['form'].errors)
+        self.assertContains(respuesta, 'Revisa los datos del torneo')
+        self.assertContains(respuesta, 'data-bound="true"')
+        self.assertContains(respuesta, 'id="id_fecha_cierre_inscripciones_error"')
+        self.assertContains(respuesta, 'value="Nombre conservado"')
+        self.assertContains(respuesta, f'value="{datos["fecha_cierre_inscripciones"]}"')
+        self.assertFalse(Torneo.objects.filter(nombre='Nombre conservado').exists())
+        privado = self.client.post(reverse('crear-torneo'), self.datos_privado(rango_minimo=self.rango_otro.pk))
+        self.assertIn('rango_minimo', privado.context['form'].errors)
+        self.assertContains(privado, 'data-has-errors="true"')
+        self.assertContains(privado, 'id="id_rango_minimo_error"')
+
+    def test_crear_error_general_de_limite_se_muestra_sin_crear_otro(self):
+        Torneo.objects.create(
+            nombre='Privado existente', organizador=self.usuario, videojuego=self.videojuego,
+            tipo=Torneo.Tipo.PRIVADO, formato_competitivo=self.formato, max_participantes=2,
+        )
+        self.client.force_login(self.usuario)
+        respuesta = self.client.post(reverse('crear-torneo'), self.datos_privado(nombre='Segundo privado'))
+        self.assertTrue(respuesta.context['form'].non_field_errors())
+        self.assertContains(respuesta, 'ya tiene un torneo privado activo')
+        self.assertContains(respuesta, 'value="Segundo privado"')
+        self.assertEqual(Torneo.objects.filter(organizador=self.usuario).count(), 1)
+
     def imagen(self, nombre='banner.png', formato='PNG'):
         contenido = BytesIO()
         Image.new('RGB', (320, 120), color='navy').save(contenido, format=formato)
