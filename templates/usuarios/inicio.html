@@ -20,7 +20,7 @@
         <div class="rk-section-heading"><div><p class="rk-kicker">Descubre</p><h2 id="featured-title">Torneos destacados</h2></div><a class="rk-section-link" href="{% url 'catalogo-torneos' %}">Ver todos<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-right"></use></svg></a></div>
         {% if destacados %}
         <div class="rk-card-grid">
-            {% for torneo in destacados %}{% include 'components/torneo_card.html' with torneo=torneo only %}{% endfor %}
+            {% for torneo in destacados %}{% include 'components/torneo_card.html' with torneo=torneo variant='catalogue' only %}{% endfor %}
         </div>
         {% else %}
         <div class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#trophy"></use></svg><h3>El próximo reto está por llegar</h3><p>No hay torneos destacados disponibles ahora.</p><a class="rk-section-link" href="{% url 'catalogo-torneos' %}">Explorar torneos</a></div>
@@ -29,24 +29,29 @@
 
     {% if user.is_authenticated %}
     <div class="rk-dashboard-columns">
-        <section class="rk-section" aria-labelledby="own-title">
-            <div class="rk-section-heading"><div><p class="rk-kicker">Organización</p><h2 id="own-title">Mis torneos</h2></div><a class="rk-section-link" href="{% url 'mis-torneos' %}">Ver todos<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-right"></use></svg></a></div>
+        <section class="rk-section rk-summary-section" aria-labelledby="own-title">
+            <div class="rk-section-heading"><div><p class="rk-kicker">Tus participaciones</p><h2 id="own-title">Mis torneos</h2></div><a class="rk-section-link" href="{% url 'mis-participaciones' %}">Ver todos<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-right"></use></svg></a></div>
             {% if mis_torneos %}
             <ul class="rk-compact-list">
                 {% for torneo in mis_torneos %}
                 <li class="rk-compact-row">
                     <span class="rk-row-logo" aria-hidden="true">{% if torneo.videojuego.imagen %}<img src="{{ torneo.videojuego.imagen.url }}" alt="" loading="lazy">{% else %}<svg viewBox="0 0 24 24"><use href="{% static 'img/lucide.svg' %}#gamepad-2"></use></svg>{% endif %}</span>
-                    <div class="rk-row-copy"><div class="rk-row-title"><h3><a href="{% url 'ficha-torneo' torneo.pk %}">{{ torneo.nombre }}</a></h3><span class="rk-badge{% if torneo.tipo == 'OFICIAL' %} rk-badge--official{% endif %}">{{ torneo.get_tipo_display }}</span></div><div class="rk-metadata"><span>{{ torneo.videojuego.nombre }}</span><span>{{ torneo.confirmados }}/{{ torneo.max_participantes }} participantes</span><span>{{ torneo.get_estado_display }}</span>{% if torneo.fecha_inicio_prevista %}<time datetime="{{ torneo.fecha_inicio_prevista|date:'c' }}">{{ torneo.fecha_inicio_prevista|date:'j M · H:i' }}</time>{% endif %}</div></div>
-                    <a class="rk-row-action" href="{% url 'ficha-torneo' torneo.pk %}" aria-label="Ver torneo {{ torneo.nombre }}" title="Ver torneo"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-up-right"></use></svg></a>
+                    <div class="rk-row-copy"><div class="rk-row-title"><h3><a href="{% url 'ficha-torneo' torneo.pk %}" title="{{ torneo.nombre }}">{{ torneo.nombre }}</a></h3><span class="rk-badge{% if torneo.tipo == 'OFICIAL' %} rk-badge--official{% endif %}">{{ torneo.get_tipo_display }}</span></div><div class="rk-metadata"><span>{{ torneo.videojuego.nombre }}</span><span>{{ torneo.confirmados }}/{{ torneo.max_participantes }} participantes</span><span>{{ torneo.get_estado_display }}</span></div></div>
+                    <div class="rk-row-time">
+                        {% with fecha=torneo.fecha_resumen|default:torneo.fecha_inicio_prevista %}
+                        {% if fecha %}<span class="rk-row-date-label">{% if fecha == torneo.fecha_cierre_inscripciones %}Cierre{% elif fecha == torneo.fecha_apertura_inscripciones %}Apertura{% else %}Inicio{% endif %}</span><time class="rk-metadata" datetime="{{ fecha|date:'c' }}">{{ fecha|date:'j M · H:i' }}</time>{% else %}<span class="rk-metadata">Fecha por confirmar</span>{% endif %}
+                        {% endwith %}
+                        <a class="rk-row-action" href="{% url 'ficha-torneo' torneo.pk %}" aria-label="Ver torneo {{ torneo.nombre }}" title="Ver torneo"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-up-right"></use></svg></a>
+                    </div>
                 </li>
                 {% endfor %}
             </ul>
             {% else %}
-            <div class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#flag"></use></svg><h3>Tu primer torneo empieza contigo</h3><p>Aún no has creado ningún torneo.</p>{% if puede_crear %}<a class="rk-btn rk-btn--secondary" href="{% url 'crear-torneo' %}">Crear torneo</a>{% endif %}</div>
+            <div class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#flag"></use></svg><h3>Tu próximo torneo te espera</h3><p>Aún no estás inscrito en ningún torneo.</p><a class="rk-btn rk-btn--secondary" href="{% url 'catalogo-torneos' %}">Explorar torneos</a></div>
             {% endif %}
         </section>
 
-        <section class="rk-section" aria-labelledby="matches-title">
+        <section class="rk-section rk-summary-section" aria-labelledby="matches-title">
             <div class="rk-section-heading"><div><p class="rk-kicker">En tu agenda</p><h2 id="matches-title">Próximas partidas</h2></div><a class="rk-section-link" href="{% url 'mis-partidas' %}">Mis partidas<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-right"></use></svg></a></div>
             {% if proximas_partidas %}
             <ul class="rk-compact-list">

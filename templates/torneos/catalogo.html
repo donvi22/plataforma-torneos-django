@@ -1,13 +1,42 @@
 {% extends 'base.html' %}
-{% block title %}Torneos · Arena provisional{% endblock %}
+{% load static %}
+{% block title %}Explorar torneos{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/catalogue.css' %}">
+{% endblock %}
 {% block content %}
-<section class="catalogue-header"><p class="eyebrow">Competición</p><h1>Encuentra tu próximo torneo.</h1><p class="lead">Consulta eventos públicos y oficiales publicados.</p></section>
-<form method="get" class="filter-bar tournament-filters" aria-label="Filtrar torneos">
-    <label for="id_q">Buscar por nombre</label><input id="id_q" name="q" value="{{ busqueda }}" type="search" placeholder="Ej. Copa de verano">
-    <label for="id_tipo">Tipo</label><select id="id_tipo" name="tipo"><option value="">Todos</option><option value="PUBLICO" {% if tipo_seleccionado == 'PUBLICO' %}selected{% endif %}>Público</option><option value="OFICIAL" {% if tipo_seleccionado == 'OFICIAL' %}selected{% endif %}>Oficial</option></select>
-    <label for="id_estado">Estado</label><select id="id_estado" name="estado"><option value="">Todos</option>{% for value,label in estados %}<option value="{{ value }}" {% if estado_seleccionado == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-    <label for="id_orden">Ordenar</label><select id="id_orden" name="orden"><option value="recientes" {% if orden_seleccionada == 'recientes' %}selected{% endif %}>Publicación reciente</option><option value="apertura" {% if orden_seleccionada == 'apertura' %}selected{% endif %}>Próxima apertura</option></select>
-    <button class="button" type="submit">Aplicar filtros</button>
-</form>
-{% if page_obj.object_list %}<div class="tournament-grid">{% for torneo in page_obj %}<article class="tournament-card">{% if torneo.imagen_banner %}<img src="{{ torneo.imagen_banner.url }}" alt="Banner de {{ torneo.nombre }}">{% else %}<div class="tournament-thumb" aria-hidden="true">{{ torneo.nombre|first|upper }}</div>{% endif %}<div class="tournament-card-body"><div class="card-meta"><span>{{ torneo.get_tipo_display }}</span><span>{{ torneo.estado_presentacion }}</span></div><h2>{{ torneo.nombre }}</h2><p class="muted">{{ torneo.videojuego.nombre }} · {{ torneo.confirmados }}/{{ torneo.max_participantes }} participantes</p><p class="tournament-date">{% if torneo.fecha_apertura_inscripciones %}Apertura: {{ torneo.fecha_apertura_inscripciones|date:'j/m/Y H:i' }}{% endif %}{% if torneo.fecha_inicio_prevista %}<br>Inicio previsto: {{ torneo.fecha_inicio_prevista|date:'j/m/Y H:i' }}{% endif %}</p><a class="text-link" href="{% url 'ficha-torneo' torneo.pk %}">Ver ficha</a></div></article>{% endfor %}</div><nav class="pagination" aria-label="Paginación">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}&q={{ busqueda }}&tipo={{ tipo_seleccionado }}&estado={{ estado_seleccionado }}&orden={{ orden_seleccionada }}">Anterior</a>{% endif %}<span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}&q={{ busqueda }}&tipo={{ tipo_seleccionado }}&estado={{ estado_seleccionado }}&orden={{ orden_seleccionada }}">Siguiente</a>{% endif %}</nav>{% else %}<section class="empty-panel"><h2>No hay torneos disponibles</h2><p class="muted">Prueba a cambiar la búsqueda o los filtros.</p></section>{% endif %}
+<div class="rk-dashboard rk-catalogue">
+    <header class="rk-catalogue-heading">
+        <p class="rk-kicker">Competición</p>
+        <h1>Explorar torneos</h1>
+        <p class="rk-description">Encuentra tu próximo reto entre torneos públicos y oficiales.</p>
+    </header>
+    <form method="get" action="{% url 'catalogo-torneos' %}" class="rk-catalogue-filters" aria-label="Filtrar torneos">
+        <label for="id_q">Buscar por nombre<input id="id_q" name="q" value="{{ busqueda }}" type="search" placeholder="Nombre del torneo"></label>
+        <label for="id_videojuego">Videojuego<select id="id_videojuego" name="videojuego"><option value="">Todos</option>{% for juego in videojuegos %}<option value="{{ juego.pk }}"{% if videojuego_seleccionado == juego.pk|stringformat:'s' %} selected{% endif %}>{{ juego.nombre }}</option>{% endfor %}</select></label>
+        <label for="id_tipo">Tipo<select id="id_tipo" name="tipo"><option value="">Todos</option><option value="PUBLICO"{% if tipo_seleccionado == 'PUBLICO' %} selected{% endif %}>Público</option><option value="OFICIAL"{% if tipo_seleccionado == 'OFICIAL' %} selected{% endif %}>Oficial</option></select></label>
+        <label for="id_estado">Estado<select id="id_estado" name="estado"><option value="">Todos</option>{% for value,label in estados %}<option value="{{ value }}"{% if estado_seleccionado == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label for="id_orden">Ordenar<select id="id_orden" name="orden"><option value="recientes"{% if orden_seleccionada == 'recientes' %} selected{% endif %}>Publicación reciente</option><option value="apertura"{% if orden_seleccionada == 'apertura' %} selected{% endif %}>Próxima apertura</option></select></label>
+        <button class="rk-btn rk-btn--primary" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#sliders-horizontal"></use></svg>Aplicar filtros</button>
+    </form>
+    <div class="rk-catalogue-results"><p class="rk-metadata">{{ page_obj.paginator.count }} torneo{{ page_obj.paginator.count|pluralize }}{% if page_obj.paginator.count %} · Mostrando {{ page_obj.start_index }} a {{ page_obj.end_index }}{% endif %}</p>{% if filtros_activos %}<a class="rk-section-link" href="{% url 'catalogo-torneos' %}">Limpiar filtros<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#x"></use></svg></a>{% endif %}</div>
+    {% if page_obj.object_list %}
+    <div class="rk-card-grid rk-catalogue-grid">
+        {% for torneo in page_obj %}{% include 'components/torneo_card.html' with torneo=torneo variant='catalogue' only %}{% endfor %}
+    </div>
+    <nav class="rk-catalogue-pagination" aria-label="Paginación de torneos">
+        {% if page_obj.has_previous %}<a class="rk-btn rk-btn--secondary" href="?{{ filtros_query }}&amp;page={{ page_obj.previous_page_number }}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#chevron-left"></use></svg>Anterior</a>{% else %}<span class="rk-btn rk-btn--secondary" aria-disabled="true"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#chevron-left"></use></svg>Anterior</span>{% endif %}
+        <div class="rk-page-numbers">
+            {% for numero in paginas %}
+                {% if numero == page_obj.paginator.ELLIPSIS %}<span class="rk-page-gap">{{ numero }}</span>{% elif numero == page_obj.number %}<span class="rk-page-number rk-page-current" aria-current="page" aria-label="Página {{ numero }}">{{ numero }}</span>{% else %}<a class="rk-page-number" href="?{{ filtros_query }}&amp;page={{ numero }}" aria-label="Página {{ numero }}">{{ numero }}</a>{% endif %}
+            {% endfor %}
+        </div>
+        {% if page_obj.has_next %}<a class="rk-btn rk-btn--secondary" href="?{{ filtros_query }}&amp;page={{ page_obj.next_page_number }}">Siguiente<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#chevron-right"></use></svg></a>{% else %}<span class="rk-btn rk-btn--secondary" aria-disabled="true">Siguiente<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#chevron-right"></use></svg></span>{% endif %}
+        <span class="rk-metadata rk-page-status">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+    </nav>
+    {% else %}
+    <section class="rk-empty" aria-labelledby="catalogue-empty-title"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#search"></use></svg><h2 id="catalogue-empty-title">{% if filtros_activos %}No hay resultados para estos filtros{% else %}No hay torneos disponibles{% endif %}</h2><p>{% if filtros_activos %}Prueba otra búsqueda o amplía los filtros.{% else %}Los próximos torneos publicados aparecerán aquí.{% endif %}</p>{% if filtros_activos %}<a class="rk-btn rk-btn--secondary" href="{% url 'catalogo-torneos' %}">Limpiar filtros</a>{% endif %}</section>
+    {% endif %}
+</div>
 {% endblock %}

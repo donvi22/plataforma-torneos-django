@@ -34,7 +34,9 @@ def inicio(request):
     if request.user.is_authenticated:
         usuario = request.user
         contexto['puede_crear'] = usuario.puede_operar
-        contexto['mis_torneos'] = list(Torneo.objects.filter(organizador=usuario).select_related(
+        contexto['mis_torneos'] = list(Torneo.objects.filter(pk__in=InscripcionTorneo.objects.filter(
+            usuario=usuario, estado=InscripcionTorneo.Estado.CONFIRMADA,
+        ).values('torneo_id')).select_related(
             'videojuego',
         ).annotate(
             confirmados=_confirmadas_count(),

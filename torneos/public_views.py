@@ -5,6 +5,7 @@ from django.db.models import Count, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
+from videojuegos.models import Videojuego
 
 from .models import ClasificacionTorneo, InscripcionTorneo, Torneo
 from .privados import tiene_acceso_privado
@@ -78,12 +79,20 @@ def _puede_ver_privado(torneo, usuario):
 
 def catalogo(request):
     queryset = _catalogo_queryset()
+    videojuegos = list(Videojuego.objects.filter(
+        pk__in=queryset.values('videojuego_id'),
+    ).only('nombre').order_by('nombre'))
     busqueda = request.GET.get('q', '').strip()
+    videojuego = request.GET.get('videojuego', '').strip()
     tipo = request.GET.get('tipo', '').strip().upper()
     estado = request.GET.get('estado', '').strip().upper()
     orden = request.GET.get('orden', 'recientes').strip().lower()
     if busqueda:
         queryset = queryset.filter(nombre__icontains=busqueda)
+    if videojuego in {str(juego.pk) for juego in videojuegos}:
+        queryset = queryset.filter(videojuego_id=videojuego)
+    else:
+        videojuego = ''
     if tipo in (Torneo.Tipo.PUBLICO, Torneo.Tipo.OFICIAL):
         queryset = queryset.filter(tipo=tipo)
     else:
@@ -92,19 +101,28 @@ def catalogo(request):
         queryset = queryset.filter(estado=estado)
     else:
         estado = ''
-    queryset = queryset.order_by(SORT_OPTIONS.get(orden, SORT_OPTIONS['recientes']))
+    queryset = queryset.order_by(SORT_OPTIONS.get(orden, SORT_OPTIONS['recientes']), '-pk')
     if orden not in SORT_OPTIONS:
         orden = 'recientes'
-    page = Paginator(queryset, 9).get_page(request.GET.get('page'))
+    page = Paginator(queryset, 12).get_page(request.GET.get('page'))
     ahora = timezone.now()
-    for torneo in page.object_list:
-        torneo.estado_presentacion = _estado_presentacion(torneo, ahora)
+    filtros = request.GET.copy()
+    filtros.clear()
+    for clave, valor in (('q', busqueda), ('videojuego', videojuego), ('tipo', tipo), ('estado', estado), ('orden', orden)):
+        if valor:
+            filtros[clave] = valor
+    paginas = list(page.paginator.get_elided_page_range(page.number, on_each_side=1, on_ends=1))
     return render(request, 'torneos/catalogo.html', {
         'page_obj': page,
         'busqueda': busqueda,
         'tipo_seleccionado': tipo,
         'estado_seleccionado': estado,
         'orden_seleccionada': orden,
+        'videojuegos': videojuegos,
+        'videojuego_seleccionado': videojuego,
+        'filtros_query': filtros.urlencode(),
+        'filtros_activos': bool(busqueda or videojuego or tipo or estado or orden != 'recientes'),
+        'paginas': paginas,
         'tipos': Torneo.Tipo,
         'estados': [(value, label) for value, label in Torneo.Estado.choices if value in PUBLIC_STATES],
         'ahora': ahora,

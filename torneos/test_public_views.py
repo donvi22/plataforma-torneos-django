@@ -1,6 +1,11 @@
 from datetime import timedelta
+from html import escape
+from urllib.parse import urlencode
 
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 
@@ -69,12 +74,106 @@ class TorneosPublicosViewsTests(TestCase):
         self.assertEqual(respuesta.status_code, 200)
 
     def test_paginacion(self):
-        for indice in range(11):
+        for indice in range(25):
             self.crear_torneo(nombre=f'Copa {indice}')
         respuesta = self.client.get(reverse('catalogo-torneos'))
-        self.assertContains(respuesta, 'Página 1 de 2')
+        self.assertEqual(len(respuesta.context['page_obj']), 12)
+        self.assertContains(respuesta, 'Página 1 de 3')
         respuesta = self.client.get(reverse('catalogo-torneos'), {'page': 2})
-        self.assertContains(respuesta, 'Página 2 de 2')
+        self.assertEqual(len(respuesta.context['page_obj']), 12)
+        self.assertContains(respuesta, 'Página 2 de 3')
+        respuesta = self.client.get(reverse('catalogo-torneos'), {'page': 3})
+        self.assertEqual(len(respuesta.context['page_obj']), 1)
+
+    def test_filtro_videojuego_solo_ofrece_juegos_con_torneos_visibles(self):
+        otro = Videojuego.objects.create(nombre='Otro juego visible', genero='Estrategia')
+        oculto = Videojuego.objects.create(nombre='Solo privado', genero='Accion')
+        torneo = self.crear_torneo(nombre='Seleccionado', videojuego=otro)
+        self.crear_torneo(nombre='Otro torneo')
+        self.crear_torneo(nombre='Evento secreto', videojuego=oculto, tipo=Torneo.Tipo.PRIVADO)
+        respuesta = self.client.get(reverse('catalogo-torneos'), {'videojuego': otro.pk})
+        self.assertEqual([fila.pk for fila in respuesta.context['page_obj']], [torneo.pk])
+        self.assertEqual(respuesta.context['videojuego_seleccionado'], str(otro.pk))
+        self.assertNotContains(respuesta, 'Solo privado')
+        self.assertContains(respuesta, f'value="{otro.pk}" selected')
+        invalido = self.client.get(reverse('catalogo-torneos'), {'videojuego': 'no-valido'})
+        self.assertEqual(invalido.status_code, 200)
+        self.assertEqual(invalido.context['videojuego_seleccionado'], '')
+
+    def test_paginacion_conserva_filtros_y_busqueda_codificados(self):
+        for indice in range(13):
+            self.crear_torneo(nombre=f'Copa & Elite {indice}', tipo=Torneo.Tipo.OFICIAL, estado=Torneo.Estado.EN_CURSO)
+        parametros = {'q': 'Copa & Elite', 'videojuego': str(self.videojuego.pk), 'tipo': 'OFICIAL', 'estado': 'EN_CURSO', 'orden': 'apertura'}
+        respuesta = self.client.get(reverse('catalogo-torneos'), parametros)
+        self.assertEqual(len(respuesta.context['page_obj']), 12)
+        self.assertContains(respuesta, '?' + escape(urlencode(parametros)) + '&amp;page=2')
+        self.assertContains(respuesta, 'aria-current="page"')
+        segunda = self.client.get(reverse('catalogo-torneos'), {**parametros, 'page': 2})
+        self.assertEqual(len(segunda.context['page_obj']), 1)
+        self.assertContains(segunda, '?' + escape(urlencode(parametros)) + '&amp;page=1')
+
+    def test_orden_estable_entre_paginas_con_misma_fecha(self):
+        torneos = [self.crear_torneo(nombre=f'Empate {indice}') for indice in range(13)]
+        Torneo.objects.filter(pk__in=[torneo.pk for torneo in torneos]).update(fecha_publicacion=timezone.now())
+        primera = self.client.get(reverse('catalogo-torneos'))
+        segunda = self.client.get(reverse('catalogo-torneos'), {'page': 2})
+        ids = [torneo.pk for torneo in primera.context['page_obj']] + [torneo.pk for torneo in segunda.context['page_obj']]
+        self.assertEqual(ids, sorted([torneo.pk for torneo in torneos], reverse=True))
+
+    def test_catalogo_vacio_distingue_busqueda_y_permite_limpiar(self):
+        respuesta = self.client.get(reverse('catalogo-torneos'))
+        self.assertContains(respuesta, 'No hay torneos disponibles')
+        self.assertFalse(respuesta.context['filtros_activos'])
+        self.crear_torneo()
+        respuesta = self.client.get(reverse('catalogo-torneos'), {'q': 'Sin coincidencias'})
+        self.assertContains(respuesta, 'No hay resultados para estos filtros')
+        self.assertContains(respuesta, 'Limpiar filtros')
+        self.assertContains(respuesta, 'href="' + reverse('catalogo-torneos') + '"')
+
+    def test_catalogo_no_anade_consultas_por_tarjeta(self):
+        self.crear_torneo(estado=Torneo.Estado.INSCRIPCIONES_ABIERTAS)
+        with CaptureQueriesContext(connection) as inicial:
+            self.client.get(reverse('catalogo-torneos'))
+        for indice in range(11):
+            self.crear_torneo(nombre=f'Tarjeta {indice}', estado=Torneo.Estado.INSCRIPCIONES_ABIERTAS)
+        with CaptureQueriesContext(connection) as poblado:
+            respuesta = self.client.get(reverse('catalogo-torneos'))
+        self.assertEqual(len(respuesta.context['page_obj']), 12)
+        self.assertEqual(len(poblado), len(inicial))
+
+    def test_tarjeta_catalogo_variantes_de_imagen_sin_alterar_home(self):
+        torneo = self.crear_torneo(nombre='Nombre de torneo suficientemente largo para ocupar más de dos líneas en una tarjeta compacta')
+        torneo.confirmados = 1
+        for caso, banner, logo, tipo, estado in (
+            ('banner', 'torneos/banner-prueba.png', 'videojuegos/logo-prueba.png', Torneo.Tipo.PUBLICO, Torneo.Estado.INSCRIPCIONES_ABIERTAS),
+            ('logo', '', 'videojuegos/logo-prueba.png', Torneo.Tipo.OFICIAL, Torneo.Estado.EN_CURSO),
+            ('sin_imagen', '', '', Torneo.Tipo.PUBLICO, Torneo.Estado.PROXIMAMENTE),
+        ):
+            with self.subTest(caso=caso):
+                torneo.imagen_banner = banner
+                torneo.videojuego.imagen = logo
+                torneo.tipo = tipo
+                torneo.estado = estado
+                tarjeta = render_to_string('components/torneo_card.html', {'torneo': torneo, 'variant': 'catalogue'})
+                home = render_to_string('components/torneo_card.html', {'torneo': torneo})
+                self.assertIn('rk-tournament-card--catalogue', tarjeta)
+                self.assertIn('rk-card-banner-badges', tarjeta)
+                self.assertIn(torneo.get_tipo_display(), tarjeta)
+                self.assertIn(torneo.get_estado_display(), tarjeta)
+                self.assertIn(f'title="{torneo.nombre}"', tarjeta)
+                self.assertIn('1/2 participantes', tarjeta)
+                self.assertNotIn('rk-card-status', tarjeta)
+                self.assertNotIn('rk-tournament-card--catalogue', home)
+                self.assertNotIn('rk-card-banner-badges', home)
+                self.assertIn('rk-card-status', home)
+                if banner:
+                    self.assertIn('/media/' + banner, tarjeta)
+                    self.assertNotIn('rk-card-media--fallback', tarjeta)
+                elif logo:
+                    self.assertIn('rk-card-banner-label', tarjeta)
+                    self.assertIn('rk-card-game-image', tarjeta)
+                else:
+                    self.assertIn('rk-card-media-fallback', tarjeta)
 
     def test_ficha_privada_y_borrador_protegidos_y_organizador_accede(self):
         privado = self.crear_torneo(nombre='Privado', tipo=Torneo.Tipo.PRIVADO, publicado=False)

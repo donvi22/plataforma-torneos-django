@@ -1,12 +1,16 @@
 {% load static %}
-<article class="rk-tournament-card">
-    <div class="rk-card-media">
+<article class="rk-tournament-card{% if variant == 'catalogue' %} rk-tournament-card--catalogue{% endif %}">
+    <div class="rk-card-media{% if variant == 'catalogue' and not torneo.imagen_banner %} rk-card-media--fallback{% endif %}">
         {% if torneo.imagen_banner %}<img src="{{ torneo.imagen_banner.url }}" alt="" loading="lazy">{% elif torneo.videojuego.imagen %}<img class="rk-card-game-image" src="{{ torneo.videojuego.imagen.url }}" alt="" loading="lazy">{% else %}<div class="rk-card-media-fallback"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#trophy"></use></svg><span>{{ torneo.videojuego.nombre }}</span></div>{% endif %}
+        {% if variant == 'catalogue' %}
+            {% if not torneo.imagen_banner and torneo.videojuego.imagen %}<span class="rk-card-banner-label" aria-hidden="true">{{ torneo.videojuego.nombre }}</span>{% endif %}
+            <div class="rk-card-banner-badges"><span class="rk-badge{% if torneo.tipo == 'OFICIAL' %} rk-badge--official{% endif %}">{{ torneo.get_tipo_display }}</span><span class="rk-badge rk-badge--state" data-state="{{ torneo.estado }}">{{ torneo.get_estado_display }}</span></div>
+        {% endif %}
     </div>
     <div class="rk-card-body">
-        <div class="rk-metadata rk-card-meta"><span>{{ torneo.videojuego.nombre }}</span><span class="rk-badge{% if torneo.tipo == 'OFICIAL' %} rk-badge--official{% endif %}">{{ torneo.get_tipo_display }}</span></div>
-        <h3><a href="{% url 'ficha-torneo' torneo.pk %}">{{ torneo.nombre }}</a></h3>
-        <div class="rk-metadata rk-card-status"><span class="rk-status-dot" data-state="{{ torneo.estado }}" aria-hidden="true"></span>{{ torneo.get_estado_display }}</div>
+        <div class="rk-metadata rk-card-meta"><span{% if variant == 'catalogue' %} class="rk-card-game-caption"{% endif %}>{% if variant == 'catalogue' and torneo.videojuego.imagen %}<img src="{{ torneo.videojuego.imagen.url }}" alt="" loading="lazy">{% endif %}<span class="rk-card-game-name">{{ torneo.videojuego.nombre }}</span></span>{% if variant != 'catalogue' %}<span class="rk-badge{% if torneo.tipo == 'OFICIAL' %} rk-badge--official{% endif %}">{{ torneo.get_tipo_display }}</span>{% endif %}</div>
+        <h3><a href="{% url 'ficha-torneo' torneo.pk %}"{% if variant == 'catalogue' %} title="{{ torneo.nombre }}"{% endif %}>{{ torneo.nombre }}</a></h3>
+        {% if variant != 'catalogue' %}<div class="rk-metadata rk-card-status"><span class="rk-status-dot" data-state="{{ torneo.estado }}" aria-hidden="true"></span>{{ torneo.get_estado_display }}</div>{% endif %}
         <div class="rk-card-facts"><span class="rk-metadata"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#users"></use></svg>{{ torneo.confirmados }}/{{ torneo.max_participantes }} participantes</span>{% if torneo.fecha_inicio_prevista %}<span class="rk-metadata"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#calendar-days"></use></svg><time datetime="{{ torneo.fecha_inicio_prevista|date:'c' }}">{{ torneo.fecha_inicio_prevista|date:'j M · H:i' }}</time></span>{% endif %}</div>
         <a class="rk-card-link" href="{% url 'ficha-torneo' torneo.pk %}">Ver torneo<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-up-right"></use></svg></a>
     </div>
