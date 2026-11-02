@@ -1,8 +1,17 @@
+from copy import copy
+
 from django import template
 from django.urls import reverse
 from django.utils.html import format_html
 
 register = template.Library()
+
+
+@register.simple_tag
+def avatar_widget(field):
+    widget = copy(field.field.widget)
+    widget.template_name = 'usuarios/widgets/avatar.html'
+    return field.as_widget(widget=widget)
 
 
 @register.simple_tag

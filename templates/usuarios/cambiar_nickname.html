@@ -1,18 +1,21 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Cambiar nickname · Arena provisional{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-management.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-create.css' %}">
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+{% endblock %}
 {% block content %}
-<section class="form-panel">
-    <p class="eyebrow">Identidad pública</p>
-    <h1>Cambiar nickname</h1>
-    <p class="muted">Puedes cambiar tu nickname una vez cada 30 días. Las inscripciones y resultados anteriores conservan su nickname histórico.</p>
-    <form method="post" class="stack-form" novalidate>
+<article class="rk-dashboard rk-create-tournament rk-profile-page">
+    <header class="rk-profile-page-header"><p class="rk-kicker">Identidad pública</p><h1>Cambiar nickname</h1><p class="rk-description">Puedes cambiar tu nickname una vez cada 30 días. Las inscripciones y resultados anteriores conservan su nickname histórico.</p></header>
+    {% include 'components/profile_navigation.html' with active_section='preferencias' %}
+    <form method="post" class="rk-guided-form rk-profile-form" novalidate>
         {% csrf_token %}
-        {{ form.non_field_errors }}
-        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
-        {{ form.username }}
-        {% for error in form.username.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-        <button class="button" type="submit">Guardar nickname</button>
-        <a class="text-link" href="{% url 'editar-perfil' %}">Cancelar</a>
+        {% include 'components/profile_form_errors.html' %}
+        {% include 'components/form_field.html' with field=form.username only %}
+        <div class="rk-actions"><button class="rk-btn rk-btn--primary" type="submit">Guardar nickname</button><a class="rk-btn rk-btn--secondary" href="{% url 'editar-perfil' %}">Cancelar</a></div>
     </form>
-</section>
+</article>
 {% endblock %}

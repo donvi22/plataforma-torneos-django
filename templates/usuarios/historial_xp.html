@@ -1,5 +1,13 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Historial de XP · Arena provisional{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-management.css' %}">
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+{% endblock %}
 {% block content %}
-<section class="profile-panel"><p class="eyebrow">Progresión privada</p><h1>Historial de XP</h1>{% if movimientos %}<ul class="participant-list">{% for movimiento in movimientos %}<li><strong>+{{ movimiento.xp_concedida }} XP</strong> · {{ movimiento.torneo.nombre }} · Posición {{ movimiento.posicion_final }} · Nivel {{ movimiento.nivel_anterior }} a {{ movimiento.nivel_posterior }} · {{ movimiento.fecha|date:'j/m/Y H:i' }}</li>{% endfor %}</ul>{% else %}<p class="muted">Todavía no tienes recompensas de XP.</p>{% endif %}</section>
+<article class="rk-dashboard rk-profile-page"><header class="rk-profile-page-header"><p class="rk-kicker">Progresión privada</p><h1>Historial de XP</h1></header>{% include 'components/profile_navigation.html' with active_section='xp' %}
+{% if movimientos %}<ul class="rk-profile-ledger">{% for movimiento in movimientos %}<li><div class="rk-profile-ledger-copy"><strong>{{ movimiento.torneo.nombre }}</strong><p class="rk-metadata">Posición {{ movimiento.posicion_final }} · Nivel {{ movimiento.nivel_anterior }} a {{ movimiento.nivel_posterior }}</p><time class="rk-metadata" datetime="{{ movimiento.fecha|date:'c' }}">{{ movimiento.fecha|date:'j/m/Y H:i' }}</time></div><span class="rk-badge">+{{ movimiento.xp_concedida }} XP</span></li>{% endfor %}</ul>{% else %}<section class="rk-profile-section"><p class="rk-description">Todavía no tienes recompensas de XP.</p></section>{% endif %}
+</article>
 {% endblock %}

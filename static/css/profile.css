@@ -1,0 +1,78 @@
+.rk-profile-page { overflow-wrap: anywhere; }
+body:has(.rk-profile-page) .messages { font: 13px/1.6 'Segoe UI', sans-serif; max-width: 1280px; }
+body:has(.rk-profile-page) .message { background: #1B1B22; border: 1px solid #2A2A34; border-left: 3px solid #8B5CF6; border-radius: 4px; color: #F2F2F5; }
+.rk-profile-hero { align-items: center; border-bottom: 1px solid var(--rk-border); display: flex; flex-wrap: wrap; gap: 20px; padding: 18px 0 26px; }
+.rk-profile-page .rk-profile-avatar-large { flex: 0 0 84px; font-size: 30px; height: 84px; width: 84px; }
+.rk-profile-heading-copy { display: grid; flex: 1 1 300px; gap: 10px; min-width: 0; }
+.rk-profile-heading-copy h1 { font-size: 30px; }
+.rk-profile-heading-copy .rk-badge { justify-self: start; }
+.rk-profile-heading-copy [data-available='true'] { background: #302141; border-color: #5B3A80; color: #DBC9FF; }
+.rk-profile-metrics { border-bottom: 1px solid var(--rk-border); display: grid; gap: 24px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: 24px 0; }
+.rk-profile-metrics dt { color: var(--rk-muted); font-size: 12px; }
+.rk-profile-metrics dd { font-size: 26px; font-weight: 600; margin: 8px 0 0; }
+.rk-profile-section { border-bottom: 1px solid var(--rk-border); min-width: 0; padding: 26px 0; }
+.rk-profile-section > .rk-kicker { margin-bottom: 6px; }
+.rk-profile-section > .rk-section-link { margin-top: 12px; }
+.rk-profile-section progress { accent-color: var(--rk-purple-hover); background: var(--rk-card); border: 0; border-radius: 4px; display: block; height: 7px; margin-top: 20px; max-width: 460px; overflow: hidden; width: 100%; }
+.rk-profile-section progress::-webkit-progress-bar { background: var(--rk-card); }
+.rk-profile-section progress::-webkit-progress-value { background: var(--rk-purple-hover); }
+.rk-profile-section progress::-moz-progress-bar { background: var(--rk-purple-hover); }
+.rk-profile-columns { display: grid; gap: 32px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rk-profile-presence { color: var(--rk-muted); font-size: 12px; padding-top: 16px; }
+.rk-profile-game-grid { display: grid; gap: 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rk-profile-game { background: var(--rk-card); border: 1px solid var(--rk-border); border-radius: 6px; display: flex; flex-direction: column; min-width: 0; padding: 18px; }
+.rk-profile-game-heading { align-items: center; display: flex; gap: 12px; }
+.rk-profile-game .rk-row-logo { display: flex; flex-basis: 40px; height: 40px; width: 40px; }
+.rk-profile-game h3 { font-size: 16px; min-width: 0; }
+.rk-profile-game dl { display: grid; gap: 14px; margin: 20px 0; }
+.rk-profile-game dt { color: var(--rk-muted); font-size: 11px; }
+.rk-profile-game dd { font-size: 13px; line-height: 1.6; margin: 5px 0 0; }
+.rk-profile-game .rk-section-link { margin-top: auto; }
+.rk-profile-private > p:not(.rk-kicker) { font-size: 13px; margin-top: 12px; }
+.rk-profile-page-header { border-bottom: 1px solid var(--rk-border); padding: 8px 0 24px; }
+.rk-profile-page-header h1 { font-size: 28px; margin-top: 8px; }
+.rk-profile-form { margin-top: 26px; max-width: 780px; }
+.rk-profile-form .rk-field-group + .rk-field-group { margin-top: 20px; }
+.rk-profile-form > .rk-actions { margin-top: 24px; }
+.rk-profile-form .rk-field-group input[type='checkbox'] { accent-color: var(--rk-purple); height: 18px; min-height: 18px; padding: 0; width: 18px; }
+.rk-profile-form .rk-field-group:has(input[type='file']) { display: block; }
+.rk-profile-form .rk-field-group:has(input[type='file']) > label:first-child { margin-bottom: 8px; }
+.rk-profile-form .rk-field-group input[type='checkbox'] + label { display: inline; margin-left: 6px; }
+.rk-profile-form .rk-field-group input[type='file'] { margin-top: 8px; }
+.rk-profile-toggle { align-items: center; display: flex; gap: 12px; padding: 16px 0; }
+.rk-profile-toggle { color: var(--rk-text); font-size: 13px; line-height: 1.6; }
+.rk-profile-toggle input { accent-color: var(--rk-purple); flex: 0 0 18px; height: 18px; width: 18px; }
+.rk-profile-current-avatar { align-items: center; display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 20px; }
+.rk-profile-avatar-clear { align-items: center; display: flex; gap: 8px; margin: 12px 0; }
+.rk-profile-avatar-clear input { flex: 0 0 18px; }
+.rk-profile-page .rk-profile-public-name { font-size: 26px; font-weight: 650; margin-top: 8px; }
+.rk-profile-risk { border-left: 2px solid #80505B; margin-top: 26px; padding: 4px 0 4px 20px; }
+.rk-profile-risk h2 { font-size: 18px; }
+.rk-profile-page .rk-btn--danger { background: transparent; border-color: #80505B; color: #F0BAC2; }
+.rk-profile-page .rk-btn--danger:hover { background: #382326; border-color: #BE6476; }
+.rk-profile-risk .rk-section-link { color: #F0BAC2; margin-top: 14px; }
+.rk-profile-ledger { list-style: none; margin: 24px 0 0; padding: 0; }
+.rk-profile-ledger li { align-items: start; border-bottom: 1px solid var(--rk-border); display: grid; gap: 12px 24px; grid-template-columns: minmax(0, 1fr) auto; padding: 18px 0; }
+.rk-profile-ledger-copy { display: grid; gap: 8px; min-width: 0; }
+.rk-profile-ledger strong { font-size: 15px; }
+.rk-profile-ledger .rk-metadata { font-size: 12px; }
+.rk-profile-page :is(h1, h2, h3) { scroll-margin-top: calc(var(--rk-topbar-height, 76px) + 18px); }
+@media (max-width: 1100px) {
+    .rk-profile-game-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+    .rk-profile-hero { align-items: flex-start; gap: 16px; }
+    .rk-profile-page .rk-profile-avatar-large { flex-basis: 64px; height: 64px; width: 64px; }
+    .rk-profile-heading-copy { flex-basis: calc(100% - 80px); }
+    .rk-profile-heading-copy h1 { font-size: 26px; }
+    .rk-profile-hero > .rk-btn { width: 100%; }
+    .rk-profile-columns, .rk-profile-game-grid { gap: 0; grid-template-columns: minmax(0, 1fr); }
+    .rk-profile-game-grid { gap: 14px; }
+    .rk-profile-metrics { gap: 18px; grid-template-columns: minmax(0, 1fr); }
+    .rk-profile-metrics > div { align-items: baseline; display: flex; gap: 16px; justify-content: space-between; }
+    .rk-profile-metrics dd { font-size: 22px; margin: 0; }
+    .rk-profile-page-header h1 { font-size: 26px; }
+    .rk-profile-ledger li { grid-template-columns: minmax(0, 1fr); }
+    .rk-profile-form > .rk-actions > * { width: 100%; }
+    .rk-profile-activity .rk-actions > * { width: 100%; }
+}

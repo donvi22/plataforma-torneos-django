@@ -1,20 +1,22 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Eliminar cuenta · Arena provisional{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-management.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-create.css' %}">
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+{% endblock %}
 {% block content %}
-<section class="form-panel account-close-panel">
-    <p class="eyebrow">Cierre irreversible</p>
-    <h1>Eliminar mi cuenta</h1>
-    <p class="muted">Tu cuenta se anonimizará y no podrás volver a iniciar sesión. Se conservarán inscripciones, resultados, clasificaciones e historiales necesarios para explicar competiciones pasadas.</p>
-    <form method="post" class="stack-form" novalidate>
+<article class="rk-dashboard rk-create-tournament rk-profile-page">
+    <header class="rk-profile-page-header"><p class="rk-kicker">Cierre irreversible</p><h1>Eliminar mi cuenta</h1><p class="rk-description">Tu cuenta se anonimizará y no podrás volver a iniciar sesión. Se conservarán inscripciones, resultados, clasificaciones e historiales necesarios para explicar competiciones pasadas.</p></header>
+    {% include 'components/profile_navigation.html' with active_section='preferencias' %}
+    <form method="post" class="rk-guided-form rk-profile-form" novalidate>
         {% csrf_token %}
-        {{ form.non_field_errors }}
-        {% for field in form %}
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-        {% endfor %}
-        <button class="button" type="submit">Confirmar eliminación</button>
-        <a class="text-link" href="{% url 'editar-perfil' %}">Cancelar</a>
+        {% include 'components/profile_form_errors.html' %}
+        {% for field in form %}{% include 'components/form_field.html' with field=field only %}{% endfor %}
+        <div class="rk-actions"><a class="rk-btn rk-btn--secondary" href="{% url 'editar-perfil' %}">Cancelar</a></div>
+        <div class="rk-profile-risk"><button class="rk-btn rk-btn--danger" type="submit">Confirmar eliminación</button></div>
     </form>
-</section>
+</article>
 {% endblock %}

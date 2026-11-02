@@ -1,25 +1,23 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Historial de Karma · Arena provisional{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-management.css' %}">
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+{% endblock %}
 {% block content %}
-<section class="profile-panel">
-    <p class="eyebrow">Reputación privada</p>
-    <h1>Historial de Karma</h1>
+<article class="rk-dashboard rk-profile-page"><header class="rk-profile-page-header"><p class="rk-kicker">Reputación privada</p><h1>Historial de Karma</h1></header>{% include 'components/profile_navigation.html' with active_section='karma' %}
     {% if movimientos %}
-        <ul class="participant-list">
+        <ul class="rk-profile-ledger">
             {% for movimiento in movimientos %}
-                <li>
-                    <strong>{% if movimiento.cantidad > 0 %}+{% endif %}{{ movimiento.cantidad }} Karma</strong>
-                    · {{ movimiento.get_tipo_display }}
-                    · {{ movimiento.motivo }}
-                    {% if movimiento.torneo %}· {{ movimiento.torneo.nombre }}{% endif %}
-                    {% if movimiento.partida %}· {{ movimiento.partida }}{% endif %}
-                    · Saldo: {{ movimiento.karma_despues }}
-                    · {{ movimiento.fecha|date:'j/m/Y H:i' }}
+                <li><div class="rk-profile-ledger-copy"><strong>{{ movimiento.get_tipo_display }}</strong><p class="rk-description">{{ movimiento.motivo }}</p><p class="rk-metadata">{% if movimiento.torneo %}{{ movimiento.torneo.nombre }} · {% endif %}{% if movimiento.partida %}{{ movimiento.partida }} · {% endif %}Saldo: {{ movimiento.karma_despues }}</p><time class="rk-metadata" datetime="{{ movimiento.fecha|date:'c' }}">{{ movimiento.fecha|date:'j/m/Y H:i' }}</time></div>
+                    <span class="rk-badge">{% if movimiento.cantidad > 0 %}+{% endif %}{{ movimiento.cantidad }} Karma</span>
                 </li>
             {% endfor %}
         </ul>
     {% else %}
-        <p class="muted">Todavía no tienes movimientos de Karma.</p>
+        <section class="rk-profile-section"><p class="rk-description">Todavía no tienes movimientos de Karma.</p></section>
     {% endif %}
-</section>
+</article>
 {% endblock %}

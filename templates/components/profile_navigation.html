@@ -1,0 +1,6 @@
+<nav class="rk-management-nav" aria-label="Mi perfil">
+    <a href="{% url 'perfil' user.pk %}"{% if active_section == 'perfil' %} aria-current="page"{% endif %}>Perfil</a>
+    <a href="{% url 'editar-perfil' %}"{% if active_section == 'preferencias' %} aria-current="page"{% endif %}>Preferencias</a>
+    <a href="{% url 'historial-xp' %}"{% if active_section == 'xp' %} aria-current="page"{% endif %}>Historial de XP</a>
+    <a href="{% url 'historial-karma' %}"{% if active_section == 'karma' %} aria-current="page"{% endif %}>Historial de Karma</a>
+</nav>

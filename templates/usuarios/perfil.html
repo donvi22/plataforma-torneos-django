@@ -1,35 +1,45 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Perfil de {{ perfil.username }} · Arena provisional{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-management.css' %}">
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+{% endblock %}
 {% block content %}
-<section class="profile-panel">
-    <div class="profile-heading">
-        {% if perfil.avatar %}<img class="avatar" src="{{ perfil.avatar.url }}" alt="Avatar de {{ perfil.username }}">{% else %}<div class="avatar avatar-fallback" aria-hidden="true">{{ perfil.username|first|upper }}</div>{% endif %}
-        <div><p class="eyebrow">Perfil de jugador</p><h1>{{ perfil.username }}</h1><p class="muted">En la plataforma desde {{ perfil.date_joined|date:'j \d\e F \d\e Y' }}</p></div>
-    </div>
-    <div class="stat-grid">
-        <div><span>Nivel</span><strong>{{ perfil.nivel }}</strong></div>
-        <div><span>XP total</span><strong>{{ perfil.xp_total }}</strong></div>
-        <div><span>Karma</span><strong>{{ perfil.karma_total }}</strong></div>
-        <div><span>Arbitraje</span><strong>{% if perfil.disponible_para_arbitrar %}Disponible{% else %}No disponible{% endif %}</strong></div>
-    </div>
-    {% if es_propietario %}<section class="profile-panel"><p class="eyebrow">Progresión</p><h2>Nivel {{ progreso_xp.nivel }}</h2><p>{{ progreso_xp.xp_en_nivel }} XP de {{ progreso_xp.xp_para_siguiente }} XP para el siguiente nivel.</p><progress value="{{ progreso_xp.xp_en_nivel }}" max="{{ progreso_xp.xp_para_siguiente }}">{{ progreso_xp.xp_en_nivel }}/{{ progreso_xp.xp_para_siguiente }}</progress><p class="muted">Faltan {{ progreso_xp.xp_restante }} XP para el nivel {{ progreso_xp.nivel|add:1 }}.</p><a class="text-link" href="{% url 'historial-xp' %}">Ver historial de XP</a></section><section class="profile-panel"><p class="eyebrow">Reputación</p><h2>{{ perfil.karma_total }} Karma</h2><p class="muted">El Karma refleja fiabilidad y cumplimiento de responsabilidades, no habilidad competitiva.</p><a class="text-link" href="{% url 'historial-karma' %}">Ver historial de Karma</a></section>{% endif %}
-    {% if perfil.mostrar_ultima_conexion and not es_propietario %}<p class="private-line">Última conexión: {{ perfil.last_login|date:'j/m/Y H:i'|default:'No disponible' }}</p>{% endif %}
-    {% if perfil.mostrar_estado_online and not es_propietario %}<p class="private-line"><span class="status-dot status-unknown"></span> Estado online no disponible todavía</p>{% endif %}
-    {% if es_propietario %}
-        <div class="owner-note"><strong>Datos privados</strong><span>{{ perfil.email }}</span><a href="{% url 'editar-perfil' %}">Editar preferencias</a></div>
-    {% endif %}
-</section>
-<section class="profile-panel profile-games">
-    <div class="section-heading"><p class="eyebrow">Identidades de juego</p><h2>Mis videojuegos</h2></div>
+<article class="rk-dashboard rk-profile-page">
+<header class="rk-profile-hero">
+    <div class="rk-profile-avatar-large rk-profile-avatar">{% if perfil.avatar %}<img src="{{ perfil.avatar.url }}" alt="Avatar de {{ perfil.username }}">{% else %}<span aria-hidden="true">{{ perfil.username|first|upper }}</span>{% endif %}</div>
+    <div class="rk-profile-heading-copy"><p class="rk-kicker">Perfil de jugador</p><h1>{{ perfil.username }}</h1><p class="rk-metadata">En la plataforma desde {{ perfil.date_joined|date:'j/m/Y' }}</p><span class="rk-badge" data-available="{{ perfil.disponible_para_arbitrar|yesno:'true,false' }}">{% if perfil.disponible_para_arbitrar %}Disponible para arbitrar{% else %}No disponible para arbitrar{% endif %}</span></div>
+    {% if es_propietario %}<a class="rk-btn rk-btn--primary" href="{% url 'editar-perfil' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#pencil"></use></svg>Editar perfil</a>{% endif %}
+</header>
+{% if es_propietario %}{% include 'components/profile_navigation.html' with active_section='perfil' %}{% endif %}
+<dl class="rk-profile-metrics"><div><dt>Nivel</dt><dd>{{ perfil.nivel }}</dd></div><div><dt>XP total</dt><dd>{{ perfil.xp_total }}</dd></div><div><dt>Karma</dt><dd>{{ perfil.karma_total }}</dd></div></dl>
+{% if es_propietario %}
+<div class="rk-profile-columns">
+    <section class="rk-profile-section" aria-labelledby="progress-title"><p class="rk-kicker">Progresión</p><h2 id="progress-title">Nivel {{ progreso_xp.nivel }}</h2><p class="rk-description">{{ progreso_xp.xp_en_nivel }} XP de {{ progreso_xp.xp_para_siguiente }} XP para el siguiente nivel.</p><progress aria-label="Progreso del nivel" value="{{ progreso_xp.xp_en_nivel }}" max="{{ progreso_xp.xp_para_siguiente }}">{{ progreso_xp.xp_en_nivel }}/{{ progreso_xp.xp_para_siguiente }}</progress><p class="rk-description">Faltan {{ progreso_xp.xp_restante }} XP para el nivel {{ progreso_xp.nivel|add:1 }}.</p><a class="rk-section-link" href="{% url 'historial-xp' %}">Ver historial de XP</a></section>
+    <section class="rk-profile-section" aria-labelledby="karma-title"><p class="rk-kicker">Reputación</p><h2 id="karma-title">{{ perfil.karma_total }} Karma</h2><p class="rk-description">El Karma refleja fiabilidad y cumplimiento de responsabilidades, no habilidad competitiva.</p><a class="rk-section-link" href="{% url 'historial-karma' %}">Ver historial de Karma</a></section>
+</div>
+{% endif %}
+{% if perfil.mostrar_ultima_conexion and not es_propietario %}<p class="rk-profile-presence">Última conexión: {{ perfil.last_login|date:'j/m/Y H:i'|default:'No disponible' }}</p>{% endif %}
+{% if perfil.mostrar_estado_online and not es_propietario %}<p class="rk-profile-presence">Estado online no disponible todavía</p>{% endif %}
+<section class="rk-profile-section" aria-labelledby="games-title">
+    <div class="rk-section-heading"><div><p class="rk-kicker">Identidades de juego</p><h2 id="games-title">{% if es_propietario %}Mis videojuegos{% else %}Videojuegos{% endif %}</h2></div></div>
     {% if perfiles_videojuego %}
-        <div class="game-profile-grid">
+        <div class="rk-profile-game-grid">
             {% for perfil_juego in perfiles_videojuego %}
-                <article class="game-profile-card">
-                    {% if perfil_juego.videojuego.imagen %}<img src="{{ perfil_juego.videojuego.imagen.url }}" alt="Imagen de {{ perfil_juego.videojuego.nombre }}">{% else %}<div class="game-thumb game-thumb-fallback" aria-hidden="true">{{ perfil_juego.videojuego.nombre|first|upper }}</div>{% endif %}
-                    <div><h3>{{ perfil_juego.videojuego.nombre }}</h3><p class="muted">{{ perfil_juego.nick_en_juego }}</p><p>{% if perfil_juego.rango_declarado %}Rango: {{ perfil_juego.rango_declarado.nombre }}{% else %}Sin rango declarado{% endif %}</p>{% if es_propietario %}<a class="text-link" href="{% url 'editar-perfil-videojuego' perfil_juego.videojuego.pk %}">Editar perfil de juego</a>{% endif %}</div>
+                <article class="rk-profile-game">
+                    <div class="rk-profile-game-heading"><div class="rk-row-logo">{% if perfil_juego.videojuego.imagen %}<img src="{{ perfil_juego.videojuego.imagen.url }}" alt="" loading="lazy">{% else %}<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#gamepad-2"></use></svg>{% endif %}</div><h3>{{ perfil_juego.videojuego.nombre }}</h3></div>
+                    <dl><div><dt>Nick en el juego</dt><dd>{{ perfil_juego.nick_en_juego }}</dd></div><div><dt>Rango</dt><dd>{% if perfil_juego.rango_declarado %}{{ perfil_juego.rango_declarado.nombre }}{% else %}Sin rango declarado{% endif %}</dd></div>{% if perfil_juego.videojuego.plataformas.all %}<div><dt>Plataformas del juego</dt><dd>{% for plataforma in perfil_juego.videojuego.plataformas.all %}{{ plataforma.nombre }}{% if not forloop.last %} · {% endif %}{% endfor %}</dd></div>{% endif %}</dl>
+                    {% if es_propietario %}<a class="rk-section-link" href="{% url 'editar-perfil-videojuego' perfil_juego.videojuego.pk %}">Editar perfil de juego<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-up-right"></use></svg></a>{% endif %}
                 </article>
             {% endfor %}
         </div>
-    {% else %}<p class="muted">Todavía no hay perfiles de videojuegos visibles.</p>{% endif %}
+    {% else %}<p class="rk-description">Todavía no hay perfiles de videojuegos visibles.</p>{% endif %}
 </section>
+{% if es_propietario %}
+<section class="rk-profile-section rk-profile-activity" aria-labelledby="activity-title"><div class="rk-section-heading"><h2 id="activity-title">Actividad competitiva</h2></div><div class="rk-actions"><a class="rk-btn rk-btn--secondary" href="{% url 'mis-participaciones' %}">Mis participaciones</a><a class="rk-btn rk-btn--secondary" href="{% url 'mis-partidas' %}">Mis partidas</a><a class="rk-btn rk-btn--secondary" href="{% url 'centro-arbitraje' %}">Arbitraje</a></div></section>
+<section class="rk-profile-section rk-profile-private" aria-label="Datos privados"><p class="rk-kicker">Datos privados</p><p>{{ perfil.email }}</p><a class="rk-section-link" href="{% url 'editar-perfil' %}">Editar preferencias</a></section>
+{% endif %}
+</article>
 {% endblock %}

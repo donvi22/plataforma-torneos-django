@@ -1,11 +1,13 @@
 from io import BytesIO
 from datetime import timedelta
+from tempfile import TemporaryDirectory
 
 from PIL import Image
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import strip_tags
 
 from .models import Usuario
 
@@ -140,6 +142,152 @@ class UsuarioViewsTests(TestCase):
         respuesta = self.client.post(reverse('logout'))
         self.assertRedirects(respuesta, reverse('inicio'))
         self.assertNotIn('_auth_user_id', self.client.session)
+
+    def test_presentacion_perfil_propio_publico_juegos_y_progreso(self):
+        from videojuegos.models import PerfilVideojuegoUsuario, Plataforma, RangoVideojuego, Videojuego
+
+        usuario = self.crear_usuario(
+            username='JugadorConNicknameLargo' * 5, avatar='avatars/perfil-visual.png',
+            nivel=2, xp_total=150, karma_total=250, disponible_para_arbitrar=True,
+            mostrar_ultima_conexion=True, mostrar_estado_online=True,
+        )
+        juego = Videojuego.objects.create(nombre='Juego competitivo de nombre largo', genero='Competitivo')
+        plataforma = Plataforma.objects.create(nombre='PC')
+        juego.plataformas.add(plataforma)
+        rango = RangoVideojuego.objects.create(videojuego=juego, nombre='Diamante', posicion=1)
+        PerfilVideojuegoUsuario.objects.create(usuario=usuario, videojuego=juego, nick_en_juego='NicknameDentroDelJuego' * 6, rango_declarado=rango)
+        segundo = Videojuego.objects.create(nombre='Segundo juego', genero='Estrategia')
+        PerfilVideojuegoUsuario.objects.create(usuario=usuario, videojuego=segundo, nick_en_juego='SinRango')
+        oculto = Videojuego.objects.create(nombre='Juego no visible', genero='Acción', activo=False)
+        PerfilVideojuegoUsuario.objects.create(usuario=usuario, videojuego=oculto, nick_en_juego='NickNoVisible')
+        self.client.force_login(usuario)
+        propio = self.client.get(reverse('perfil', args=[usuario.pk]))
+        self.assertContains(propio, 'aria-label="Mi perfil"')
+        self.assertContains(propio, 'id="activity-title"')
+        self.assertContains(propio, usuario.email)
+        self.assertContains(propio, 'aria-label="Progreso del nivel" value="50" max="300"')
+        self.assertContains(propio, 'Disponible para arbitrar')
+        self.assertContains(propio, 'Editar perfil de juego', count=2)
+        self.assertContains(propio, 'Sin rango declarado')
+        self.assertContains(propio, 'Plataformas del juego')
+        self.assertContains(propio, 'Diamante')
+        self.assertNotContains(propio, 'NickNoVisible')
+        self.assertNotContains(propio, 'Última conexión')
+        visitante = self.crear_usuario(username='visitante_visual', email='visitante_visual@example.com')
+        self.client.force_login(visitante)
+        publico = self.client.get(reverse('perfil', args=[usuario.pk]))
+        self.assertNotContains(publico, usuario.email)
+        self.assertNotContains(publico, 'aria-label="Mi perfil"')
+        self.assertNotContains(publico, '<progress')
+        self.assertNotContains(publico, 'Editar perfil de juego')
+        self.assertNotContains(publico, 'Datos privados')
+        self.assertNotContains(publico, 'id="activity-title"')
+        self.assertContains(publico, 'Última conexión')
+        self.assertContains(publico, 'Estado online no disponible todavía')
+        self.assertContains(publico, '/media/avatars/perfil-visual.png')
+        Usuario.objects.filter(pk=usuario.pk).update(avatar='', mostrar_ultima_conexion=False, mostrar_estado_online=False, disponible_para_arbitrar=False, karma_total=10, nivel=1, xp_total=0)
+        fallback = self.client.get(reverse('perfil', args=[usuario.pk]))
+        self.assertContains(fallback, 'rk-profile-avatar-large rk-profile-avatar"><span aria-hidden="true">J</span>')
+        self.assertNotContains(fallback, 'Última conexión')
+        self.assertNotContains(fallback, 'Estado online')
+        self.assertContains(fallback, 'No disponible para arbitrar')
+
+    def test_presentacion_edicion_errores_y_limite_nickname(self):
+        from .forms import EditarPerfilForm
+
+        usuario = self.crear_usuario(fecha_ultimo_cambio_nick=timezone.now(), avatar='avatars/perfil-visual.png')
+        self.client.force_login(usuario)
+        edicion = self.client.get(reverse('editar-perfil'))
+        for campo in EditarPerfilForm.Meta.fields:
+            self.assertContains(edicion, f'name="{campo}"', count=1)
+        self.assertContains(edicion, 'enctype="multipart/form-data"')
+        self.assertContains(edicion, 'name="csrfmiddlewaretoken"')
+        self.assertContains(edicion, 'Zona de riesgo')
+        self.assertContains(edicion, 'Avatar actual de jugador')
+        error = self.client.post(reverse('editar-perfil'), {'avatar': SimpleUploadedFile('incorrecto.txt', b'no es una imagen'), 'mostrar_estado_online': 'on'})
+        self.assertContains(error, 'role="alert"')
+        self.assertContains(error, 'id="id_avatar_error"')
+        self.assertTrue(error.context['form']['mostrar_estado_online'].value())
+        nickname = self.client.post(reverse('cambiar-nickname'), {'username': 'NuevoNickNoPermitido'})
+        self.assertContains(nickname, 'días')
+        self.assertContains(nickname, 'value="NuevoNickNoPermitido"')
+        self.assertContains(nickname, 'id="id_username_error"')
+        cierre = self.client.post(reverse('eliminar-cuenta'), {'password': 'incorrecta', 'confirmacion': 'NO'})
+        self.assertContains(cierre, 'role="alert"')
+        self.assertContains(cierre, 'id="id_confirmacion_error"')
+        self.assertContains(cierre, 'rk-btn rk-btn--danger')
+        usuario.refresh_from_db()
+        self.assertEqual(usuario.username, 'jugador')
+        self.assertTrue(usuario.puede_operar)
+
+    def test_avatar_sin_ruta_visible_y_nickname_protagonista(self):
+        from .forms import EditarPerfilForm
+        from .templatetags.usuarios_extras import avatar_widget
+
+        usuario = self.crear_usuario(username='NicknameLargoDePerfil' * 6, avatar='avatars/archivo-interno-actual.png')
+        self.client.force_login(usuario)
+        respuesta = self.client.get(reverse('editar-perfil'))
+        visible = strip_tags(respuesta.content.decode())
+        self.assertNotIn('Currently', visible)
+        self.assertNotIn('archivo-interno-actual.png', visible)
+        self.assertNotIn('avatars/', visible)
+        self.assertContains(respuesta, 'src="/media/avatars/archivo-interno-actual.png"')
+        self.assertContains(respuesta, 'name="avatar"', count=1)
+        self.assertContains(respuesta, 'name="avatar-clear"', count=1)
+        self.assertContains(respuesta, 'id="avatar-clear_id"')
+        self.assertContains(respuesta, 'Eliminar avatar actual')
+        self.assertContains(respuesta, f'<h2 class="rk-profile-public-name">{usuario.username}</h2>')
+        self.assertNotContains(respuesta, '<h2>Nickname</h2>')
+        self.assertContains(respuesta, 'Cambiar nickname')
+        form = EditarPerfilForm(instance=usuario)
+        original = form.fields['avatar'].widget.template_name
+        form.fields['avatar'].disabled = True
+        self.assertIn('disabled', avatar_widget(form['avatar']))
+        self.assertEqual(form.fields['avatar'].widget.template_name, original)
+
+    def test_avatar_conserva_limpieza_subida_y_error_de_contradiccion(self):
+        usuario = self.crear_usuario(avatar='avatars/actual.png')
+        self.client.force_login(usuario)
+        url = reverse('editar-perfil')
+        with TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            limpieza = self.client.post(url, {'avatar-clear': 'on'})
+            self.assertEqual(limpieza.status_code, 302)
+            usuario.refresh_from_db()
+            self.assertFalse(usuario.avatar)
+            sin_avatar = self.client.get(url)
+            self.assertNotContains(sin_avatar, 'name="avatar-clear"')
+            self.assertContains(sin_avatar, 'name="avatar"', count=1)
+            subida = self.client.post(url, {'avatar': self.crear_imagen()})
+            self.assertEqual(subida.status_code, 302)
+            usuario.refresh_from_db()
+            self.assertTrue(usuario.avatar)
+            anterior = usuario.avatar.name
+            contradiccion = self.client.post(url, {'avatar': self.crear_imagen(), 'avatar-clear': 'on'})
+            self.assertEqual(contradiccion.status_code, 200)
+            self.assertIn('avatar', contradiccion.context['form'].errors)
+            self.assertContains(contradiccion, 'id="id_avatar_error"')
+            self.assertContains(contradiccion, 'name="avatar-clear" id="avatar-clear_id" checked')
+            usuario.refresh_from_db()
+            self.assertEqual(usuario.avatar.name, anterior)
+
+    def test_presentacion_historiales_privados_y_perfil_eliminado_neutral(self):
+        usuario = self.crear_usuario()
+        self.client.force_login(usuario)
+        self.assertContains(self.client.get(reverse('perfil', args=[usuario.pk])), 'Todavía no hay perfiles de videojuegos visibles.')
+        for nombre in ('historial-xp', 'historial-karma'):
+            respuesta = self.client.get(reverse(nombre))
+            self.assertContains(respuesta, 'aria-label="Mi perfil"')
+            self.assertContains(respuesta, 'aria-current="page"')
+            self.assertContains(respuesta, 'css/profile.css')
+        self.client.logout()
+        for nombre in ('historial-xp', 'historial-karma'):
+            self.assertEqual(self.client.get(reverse(nombre)).status_code, 302)
+        Usuario.objects.filter(pk=usuario.pk).update(estado_cuenta=Usuario.EstadoCuenta.ELIMINADA, is_active=False)
+        respuesta = self.client.get(reverse('perfil', args=[usuario.pk]))
+        self.assertEqual(respuesta.status_code, 404)
+        self.assertContains(respuesta, 'Este usuario ya no está disponible.', status_code=404)
+        self.assertNotContains(respuesta, usuario.email, status_code=404)
+        self.assertNotContains(respuesta, 'aria-label="Mi perfil"', status_code=404)
 
     def test_perfil_publico_oculta_email_y_respetas_preferencias(self):
         perfil = self.crear_usuario(mostrar_ultima_conexion=False, mostrar_estado_online=False)

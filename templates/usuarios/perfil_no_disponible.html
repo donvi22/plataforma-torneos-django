@@ -1,5 +1,10 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Perfil no disponible · Arena provisional{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/profile.css' %}">
+{% endblock %}
 {% block content %}
-<section class="empty-panel"><p class="eyebrow">Perfil no disponible</p><h1>Este usuario ya no está disponible.</h1><p class="muted">La información pública de esta cuenta ya no está disponible.</p></section>
+<div class="rk-dashboard rk-profile-page"><section class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#user-round"></use></svg><p class="rk-kicker">Perfil no disponible</p><h1>Este usuario ya no está disponible.</h1><p>La información pública de esta cuenta ya no está disponible.</p></section></div>
 {% endblock %}
