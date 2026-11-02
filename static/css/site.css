@@ -154,8 +154,14 @@ h1 { font-size: clamp(2.3rem, 6vw, 5rem); line-height: .98; margin: 0 0 20px; ma
 .check-label { align-items: center; display: flex; font-weight: 400 !important; }
 .field-error, .errorlist { color: #a33128; font-family: Arial, sans-serif; font-size: .82rem; margin: 0; }
 .errorlist { list-style: none; padding: 0; }
-.messages { font-family: Arial, sans-serif; margin: 0 auto 20px; max-width: 800px; }
-.message { background: #e5f1ea; border-left: 4px solid var(--teal); padding: 12px 15px; }
+.messages { display: grid; font: 13px/1.6 'Segoe UI', sans-serif; gap: 8px; margin: 0 auto 20px; max-width: 1280px; min-width: 0; }
+.message { --message-accent: #9FBAD9; align-items: flex-start; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--message-accent); border-radius: 6px; color: var(--ink); display: flex; gap: 10px; margin: 0; min-width: 0; padding: 10px 12px; }
+.message.success { --message-accent: #8EBC9D; }
+.message.info { --message-accent: #9FBAD9; }
+.message.warning { --message-accent: #D4B078; }
+.message.error { --message-accent: #D69B9B; }
+.message > svg { color: var(--message-accent); fill: none; flex: 0 0 18px; height: 18px; margin-top: 1px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.75; width: 18px; }
+.message-text { min-width: 0; overflow-wrap: anywhere; }
 .profile-heading { align-items: center; display: flex; gap: 24px; margin-bottom: 38px; }
 .avatar { background: var(--teal); border-radius: 50%; height: 112px; object-fit: cover; width: 112px; }
 .avatar-fallback { align-items: center; color: white; display: flex; font-size: 3rem; justify-content: center; }

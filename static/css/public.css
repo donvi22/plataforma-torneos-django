@@ -36,8 +36,6 @@ body.rk-public {
 .rk-public-nav svg { fill: none; height: 16px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; width: 16px; }
 .rk-public-actions { align-items: center; display: flex; flex: 0 0 auto; gap: 10px; }
 .rk-public .page-shell { flex: 1 0 auto; margin: 0 auto; max-width: 1344px; min-width: 0; padding: 32px; width: 100%; }
-.rk-public .messages { font: 13px/1.7 'Segoe UI', sans-serif; max-width: 1280px; }
-.rk-public .message { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent-dark); border-radius: 4px; color: var(--ink); }
 .rk-public-footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 .rk-public-footer > div { align-items: center; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; margin: 0 auto; max-width: 1344px; padding: 22px 32px; }
 .rk-public-footer-brand { color: var(--ink); font-weight: 600; text-decoration: none; }

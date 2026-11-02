@@ -92,7 +92,20 @@
     <main class="page-shell" id="main-content" tabindex="-1">
         {% if messages %}
             <div class="messages" aria-live="polite">
-                {% for message in messages %}<p class="message">{{ message }}</p>{% endfor %}
+                {% for message in messages %}
+                    <p class="message{% if message.tags %} {{ message.tags }}{% endif %}">
+                        {% if message.level == DEFAULT_MESSAGE_LEVELS.SUCCESS %}
+                            <svg viewBox="0 0 24 24" role="img" aria-label="Éxito"><use href="{% static 'img/lucide.svg' %}#circle-check"></use></svg>
+                        {% elif message.level == DEFAULT_MESSAGE_LEVELS.WARNING %}
+                            <svg viewBox="0 0 24 24" role="img" aria-label="Advertencia"><use href="{% static 'img/lucide.svg' %}#triangle-alert"></use></svg>
+                        {% elif message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}
+                            <svg viewBox="0 0 24 24" role="img" aria-label="Error"><use href="{% static 'img/lucide.svg' %}#circle-alert"></use></svg>
+                        {% else %}
+                            <svg viewBox="0 0 24 24" role="img" aria-label="Información"><use href="{% static 'img/lucide.svg' %}#info"></use></svg>
+                        {% endif %}
+                        <span class="message-text">{{ message }}</span>
+                    </p>
+                {% endfor %}
             </div>
         {% endif %}
         {% block content %}{% endblock %}
