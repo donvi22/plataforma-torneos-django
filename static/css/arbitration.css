@@ -1,0 +1,69 @@
+.rk-arbitration { overflow-wrap: anywhere; }
+body:has(.rk-arbitration) .messages { font: 13px/1.6 'Segoe UI', sans-serif; max-width: 1280px; }
+body:has(.rk-arbitration) .message { background: #1B1B22; border: 1px solid #2A2A34; border-left: 3px solid #8B5CF6; border-radius: 4px; color: #F2F2F5; }
+.rk-referee-heading { border-bottom: 1px solid var(--rk-border); padding: 6px 0 24px; }
+.rk-referee-heading h1 { margin-top: 6px; }
+.rk-referee-availability { align-items: center; border-bottom: 1px solid var(--rk-border); display: flex; flex-wrap: wrap; gap: 18px 28px; justify-content: space-between; padding: 22px 0; }
+.rk-referee-availability-copy { flex: 1 1 400px; min-width: 0; }
+.rk-referee-availability-copy h2 { font-size: 16px; }
+.rk-referee-availability-copy .rk-badge { margin-bottom: 10px; }
+.rk-arbitration .rk-btn:disabled { cursor: not-allowed; opacity: .5; }
+.rk-referee-section { border-bottom: 1px solid var(--rk-border); min-width: 0; padding: 26px 0; }
+.rk-referee-section > .rk-kicker, .rk-referee-section .rk-section-heading .rk-kicker { margin-bottom: 6px; }
+.rk-referee-group { margin-top: 24px; min-width: 0; }
+.rk-referee-group .rk-section-heading { margin-bottom: 0; }
+.rk-arbitration :is(h2, h3) { scroll-margin-top: calc(var(--rk-topbar-height, 76px) + 18px); }
+.rk-referee-list { list-style: none; margin: 0; padding: 0; }
+.rk-referee-row { align-items: center; border-bottom: 1px solid var(--rk-border); display: grid; gap: 18px 24px; grid-template-columns: minmax(0, 1fr) auto; min-width: 0; padding: 18px 0; }
+.rk-referee-list > .rk-referee-row:last-child { border-bottom: 0; }
+.rk-referee-copy { display: grid; gap: 8px; min-width: 0; }
+.rk-referee-copy h3 .text-link { color: var(--rk-text); }
+.rk-referee-person { align-items: center; display: flex; gap: 10px; min-width: 0; }
+.rk-referee-person h3 { min-width: 0; }
+.rk-referee-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; }
+.rk-referee-actions form { margin: 0; }
+.rk-referee-load { color: var(--rk-muted); font-size: 12px; }
+.rk-referee-load strong { color: var(--rk-text); }
+.rk-referee-invitation-state[data-state='ACEPTADA'], .rk-referee-availability [data-available='true'] { background: #302141; border-color: #5B3A80; color: #DBC9FF; }
+.rk-referee-invitation-state[data-state='PENDIENTE'] { border-color: #5B477A; }
+.rk-referee-empty { color: var(--rk-muted); font-size: 13px; line-height: 1.7; padding: 16px 0 4px; }
+.rk-referee-invite-form { align-items: end; display: grid; gap: 10px 12px; grid-template-columns: minmax(0, 1fr) auto; margin-top: 20px; max-width: 760px; }
+.rk-referee-invite-form label { font-size: 12px; font-weight: 600; grid-column: 1 / -1; }
+.rk-referee-invite-form input { background: var(--rk-surface); border: 1px solid var(--rk-border); border-radius: 5px; color: var(--rk-text); font: 13px/1.5 'Segoe UI', sans-serif; min-height: 42px; min-width: 0; padding: 10px 12px; width: 100%; }
+.rk-referee-invite-form input:focus-visible { outline: 2px solid var(--rk-purple-hover); outline-offset: 2px; }
+.rk-arbitration .pagination { color: var(--rk-muted); flex-wrap: wrap; font: 12px/1.6 'Segoe UI', sans-serif; gap: 12px; margin: 18px 0 0; }
+.rk-arbitration .pagination a { color: #C4B5FD; min-height: 36px; padding: 8px; }
+.rk-referee-columns { display: grid; gap: 28px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rk-referee-columns .rk-referee-row { grid-template-columns: minmax(0, 1fr); }
+.rk-referee-columns .rk-referee-actions { justify-content: flex-start; }
+.rk-referee-match[data-state='PENDIENTE_VALIDACION'], .rk-referee-match[data-state='INCIDENCIA'] { border-left: 2px solid var(--rk-purple-hover); padding-left: 16px; }
+.rk-referee-match .rk-badge[data-state='EN_CURSO'], .rk-referee-match .rk-badge[data-state='CHECK_IN'] { background: #302141; border-color: #5B3A80; color: #DBC9FF; }
+.rk-referee-match-badges { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.rk-referee-match-players { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 14px; min-width: 0; }
+.rk-arbitration .player-identity { align-items: flex-start; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rk-arbitration .player-nick { font-size: 14px; }
+.rk-arbitration .player-account { color: var(--rk-muted); font-size: 11px; }
+.rk-referee-match-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.rk-referee-match-meta .rk-metadata { font-size: 11px; }
+.rk-referee-tournament { align-items: center; display: flex; gap: 12px; min-width: 0; }
+.rk-referee-tournament .rk-management-thumbnail { flex-basis: 48px; height: 48px; width: 48px; }
+.rk-referee-tournament > div:last-child { min-width: 0; }
+.rk-referee-archive { margin-top: 18px; }
+.rk-referee-archive summary { color: var(--rk-muted); cursor: pointer; font-size: 13px; font-weight: 600; min-height: 42px; padding: 10px 0; }
+.rk-referee-archive summary:focus-visible { outline: 2px solid #A78BFA; outline-offset: 3px; }
+.rk-referee-history { opacity: .9; }
+@media (max-width: 1050px) {
+    .rk-referee-columns { gap: 0; grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 650px) {
+    .rk-referee-heading h1 { font-size: 26px; }
+    .rk-referee-row { gap: 14px; grid-template-columns: minmax(0, 1fr); }
+    .rk-referee-availability { align-items: stretch; flex-direction: column; }
+    .rk-referee-availability-copy { flex: auto; }
+    .rk-referee-availability form, .rk-referee-availability .rk-btn { width: 100%; }
+    .rk-referee-actions { align-items: stretch; flex-direction: column; width: 100%; }
+    .rk-referee-actions :is(form, .rk-btn) { width: 100%; }
+    .rk-referee-actions .rk-section-link { justify-content: center; }
+    .rk-referee-invite-form { grid-template-columns: minmax(0, 1fr); }
+    .rk-arbitration .rk-section-heading { align-items: baseline; flex-wrap: wrap; }
+}

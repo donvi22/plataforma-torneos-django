@@ -209,7 +209,7 @@ class HomeDashboardTests(TestCase):
         self.assertContains(respuesta, 'Rival por determinar')
         self.assertContains(respuesta, 'css/dashboard.css')
         self.assertContains(self.client.get(reverse('catalogo-torneos')), 'css/dashboard.css')
-        self.assertNotContains(self.client.get(reverse('ficha-torneo', args=[partida.torneo_id])), 'css/dashboard.css')
+        self.assertContains(self.client.get(reverse('ficha-torneo', args=[partida.torneo_id])), 'css/dashboard.css')
 
     def test_consultas_no_crecen_por_tarjeta_o_participante(self):
         self.partida('Primera')

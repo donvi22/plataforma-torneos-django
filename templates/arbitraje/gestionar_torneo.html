@@ -1,45 +1,63 @@
 {% extends 'base.html' %}
-{% load usuarios_extras %}
+{% load static usuarios_extras %}
 {% block title %}Árbitros de {{ torneo.nombre }} · Arena provisional{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-management.css' %}">
+<link rel="stylesheet" href="{% static 'css/arbitration.css' %}">
+{% endblock %}
 {% block content %}
-<section class="catalogue-header">
-    <p class="eyebrow">Gestión autorizada · {{ torneo.get_tipo_display }}</p>
-    <h1>Árbitros de {{ torneo.nombre }}</h1>
-    <p class="lead">Las invitaciones y requisitos se validan mediante el servicio de arbitraje.</p>
-</section>
+<article class="rk-dashboard rk-tournament-management rk-arbitration">
+{% include 'components/tournament_management_header.html' with active_section='arbitraje' %}
 
-{% if puede_invitar %}
-<section class="profile-panel referee-section">
-    <div class="section-heading"><p class="eyebrow">Invitar</p><h2>Buscar por nombre de usuario</h2></div>
-    <form class="referee-invite-form" method="post">
+{% if bloqueo_invitaciones %}
+<section class="rk-referee-section" aria-label="Estado de las invitaciones"><p class="rk-management-note" role="status">{% if bloqueo_invitaciones == 'torneo_cerrado' %}Este torneo ya no admite nuevas invitaciones de arbitraje.{% elif bloqueo_invitaciones == 'limite_pendientes' %}Has alcanzado el límite de invitaciones pendientes. Cuando alguna sea aceptada, rechazada o cancelada podrás enviar nuevas invitaciones.{% endif %}</p></section>
+{% elif puede_invitar %}
+<section class="rk-referee-section" aria-labelledby="invite-title">
+    <p class="rk-kicker">Invitar</p><h2 id="invite-title">Buscar por nombre de usuario</h2>
+    <form class="rk-referee-invite-form" method="post">
         {% csrf_token %}
         <label for="referee-username">Nombre de usuario</label>
         <input id="referee-username" name="username" type="text" autocomplete="off" required maxlength="150">
-        <button class="button" type="submit">Enviar invitación</button>
+        <button class="rk-btn rk-btn--primary" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#send"></use></svg>Enviar invitación</button>
     </form>
 </section>
 {% elif torneo.tipo == 'OFICIAL' %}
-<section class="profile-panel"><p class="muted">Solo un administrador autorizado puede invitar árbitros a torneos oficiales.</p></section>
+<section class="rk-referee-section"><p class="rk-description">Solo un administrador autorizado puede invitar árbitros a torneos oficiales.</p></section>
 {% endif %}
 
-<section class="profile-panel referee-section">
-    <div class="section-heading"><p class="eyebrow">Asignación</p><h2>Invitaciones y carga</h2></div>
+{% if puede_invitar and not bloqueo_invitaciones %}
+<section class="rk-referee-section" aria-labelledby="available-title">
+    <div class="rk-section-heading"><div><p class="rk-kicker">Descubrir</p><h2 id="available-title">Árbitros disponibles</h2></div><span class="rk-metadata">{{ disponibles_page.paginator.count }}</span></div>
+    {% if disponibles_page %}<ul class="rk-referee-list">
+        {% for candidato in disponibles_page %}<li class="rk-referee-row">
+            <div class="rk-referee-copy"><div class="rk-referee-person"><span class="rk-profile-avatar" aria-hidden="true">{% if candidato.avatar %}<img src="{{ candidato.avatar.url }}" alt="" loading="lazy">{% else %}<span>{{ candidato.username|first|upper }}</span>{% endif %}</span><h3>{% enlace_usuario candidato %}</h3></div><p class="rk-metadata">Karma {{ candidato.karma_total }} · Nivel {{ candidato.nivel }}</p></div>
+            <form class="rk-referee-actions" method="post">{% csrf_token %}<input type="hidden" name="username" value="{{ candidato.username }}"><button class="rk-btn rk-btn--primary" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#send"></use></svg>Invitar</button></form>
+        </li>{% endfor %}
+    </ul>{% else %}<p class="rk-referee-empty">No hay árbitros disponibles actualmente para este torneo. Puedes seguir utilizando la búsqueda manual.</p>{% endif %}
+    {% include 'components/arbitration_pagination.html' with page=disponibles_page parameter='disponibles_page' label='Páginas de árbitros disponibles' only %}
+</section>
+{% endif %}
+
+<section class="rk-referee-section" aria-labelledby="team-title">
+    <div class="rk-section-heading"><div><p class="rk-kicker">Equipo arbitral</p><h2 id="team-title">Árbitros invitados</h2></div><span class="rk-metadata">{{ arbitros_page.paginator.count }} registros</span></div>
     {% if arbitros_page %}
-        <ul class="referee-list">
+        <ul class="rk-referee-list">
             {% for arbitro in arbitros_page %}
-                <li class="referee-entry">
-                    <div class="referee-copy">
-                        <h3>{% enlace_usuario arbitro.usuario %}</h3>
-                        <p>Invitación {{ arbitro.fecha_invitacion|date:'j/m/Y H:i' }}{% if arbitro.fecha_respuesta %} · Respuesta {{ arbitro.fecha_respuesta|date:'j/m/Y H:i' }}{% endif %}</p>
-                        <p>Partidas activas asignadas: {{ arbitro.partidas_activas }}</p>
+                <li class="rk-referee-row">
+                    <div class="rk-referee-copy">
+                        <div class="rk-referee-person">{% if arbitro.usuario.puede_operar and arbitro.usuario.avatar %}<img class="rk-management-avatar" src="{{ arbitro.usuario.avatar.url }}" alt="" loading="lazy">{% endif %}<h3>{% enlace_usuario arbitro.usuario %}</h3></div>
+                        <p class="rk-metadata">Invitación {{ arbitro.fecha_invitacion|date:'j/m/Y H:i' }}{% if arbitro.fecha_respuesta %} · Respuesta {{ arbitro.fecha_respuesta|date:'j/m/Y H:i' }}{% endif %}</p>
+                        <p class="rk-metadata">Disponibilidad general: {% if arbitro.usuario.disponible_para_arbitrar %}Activa{% else %}Inactiva{% endif %}</p>
+                        <p class="rk-referee-load">Partidas activas asignadas: <strong>{{ arbitro.partidas_activas }}</strong></p>
                     </div>
-                    <span class="referee-status status-{{ arbitro.estado_invitacion|lower }}">{{ arbitro.get_estado_invitacion_display }}{% if arbitro.estado_invitacion == 'ACEPTADA' and not arbitro.activo_en_torneo %} · Inactivo{% endif %}</span>
+                    <span class="rk-badge rk-referee-invitation-state" data-state="{{ arbitro.estado_invitacion }}">{{ arbitro.get_estado_invitacion_display }}{% if arbitro.estado_invitacion == 'ACEPTADA' and not arbitro.activo_en_torneo %} · Inactivo{% endif %}</span>
                 </li>
             {% endfor %}
         </ul>
-    {% else %}<p class="muted">Todavía no hay invitaciones arbitrales.</p>{% endif %}
+    {% else %}<p class="rk-referee-empty">Todavía no hay invitaciones arbitrales.</p>{% endif %}
     {% if arbitros_page.has_other_pages %}<nav class="pagination" aria-label="Páginas de árbitros">{% if arbitros_page.has_previous %}<a href="?page={{ arbitros_page.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ arbitros_page.number }} de {{ arbitros_page.paginator.num_pages }}</span>{% if arbitros_page.has_next %}<a href="?page={{ arbitros_page.next_page_number }}">Siguiente</a>{% endif %}</nav>{% endif %}
-    <p class="muted">No se pueden cancelar invitaciones pendientes desde la web porque el servicio actual no ofrece esa operación.</p>
+    <p class="rk-description">No se pueden cancelar invitaciones pendientes desde la web porque el servicio actual no ofrece esa operación.</p>
 </section>
-<p><a class="text-link" href="{% url 'ficha-torneo' torneo.pk %}">Volver al torneo</a></p>
+</article>
 {% endblock %}

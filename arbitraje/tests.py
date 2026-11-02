@@ -1,9 +1,13 @@
+from unittest.mock import patch
+
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
-from partidas.models import Partida, ParticipantePartida
+from partidas.models import CheckInPartida, Partida, ParticipantePartida, ResultadoPartida
 from partidas.services import ResultadoError, validar_resultado
 from torneos.models import FormatoCompetitivo, InscripcionTorneo, Torneo
 from torneos.services import InscripcionError, inscribir_usuario
@@ -15,6 +19,7 @@ from .models import ArbitroTorneo, HistorialAsignacionArbitro
 from .services import (
 	ArbitrajeError,
 	aceptar_invitacion,
+	arbitros_disponibles_para_invitar,
 	asignar_arbitro,
 	asignar_arbitros_pendientes,
 	invitar_arbitro,
@@ -317,6 +322,268 @@ class ArbitrajeWebTests(TestCase):
 		arbitro = arbitro or self.arbitro
 		invitacion = self.invitar(arbitro=arbitro)
 		return aceptar_invitacion(invitacion, arbitro)
+
+	def test_presentacion_centro_separa_invitaciones_compromisos_y_partidas(self):
+		pendiente = self.invitar()
+		aceptado_sin_partidas = self.crear_torneo(nombre='Compromiso sin partidas')
+		ArbitroTorneo.objects.create(
+			torneo=aceptado_sin_partidas, usuario=self.arbitro,
+			estado_invitacion=ArbitroTorneo.EstadoInvitacion.ACEPTADA, activo_en_torneo=True,
+		)
+		con_partidas = self.crear_torneo(nombre='Torneo con asignaciones')
+		asignado = ArbitroTorneo.objects.create(
+			torneo=con_partidas, usuario=self.arbitro,
+			estado_invitacion=ArbitroTorneo.EstadoInvitacion.ACEPTADA, activo_en_torneo=True,
+		)
+		for estado in (ArbitroTorneo.EstadoInvitacion.RECHAZADA, ArbitroTorneo.EstadoInvitacion.CANCELADA):
+			ArbitroTorneo.objects.create(
+				torneo=self.crear_torneo(nombre=f'Invitación {estado}'), usuario=self.arbitro,
+				estado_invitacion=estado,
+			)
+		partidas = []
+		for numero, estado in enumerate((Partida.Estado.CHECK_IN, Partida.Estado.EN_CURSO, Partida.Estado.PROGRAMADA, Partida.Estado.PENDIENTE_VALIDACION, Partida.Estado.FINALIZADA), start=1):
+			partidas.append(Partida.objects.create(
+				torneo=con_partidas, numero_ronda=1, numero_orden=numero, estado=estado,
+				arbitro_asignado=asignado, fecha_hora_programada=timezone.now(),
+				codigo_lobby='LOBBY-RESERVADO', contrasena_lobby='CLAVE-RESERVADA',
+				instrucciones_lobby='INSTRUCCIONES-RESERVADAS',
+			))
+		inscripciones = []
+		for indice in range(2):
+			usuario = self.crear_usuario(f'visual_jugador_{indice}')
+			perfil = PerfilVideojuegoUsuario.objects.create(usuario=usuario, videojuego=self.videojuego, nick_en_juego=usuario.username)
+			inscripcion = InscripcionTorneo.objects.create(
+				torneo=con_partidas, usuario=usuario, perfil_videojuego=perfil,
+				nick_historico=f'NickHistoricoLargo{indice}' * 5,
+			)
+			inscripciones.append(inscripcion)
+			for partida in (partidas[0], partidas[-1]):
+				ParticipantePartida.objects.create(partida=partida, inscripcion=inscripcion, posicion=indice + 1)
+		CheckInPartida.objects.create(partida=partidas[0], usuario=self.arbitro, tipo=CheckInPartida.Tipo.ARBITRO, confirmado=True)
+		ResultadoPartida.objects.create(partida=partidas[-1], ganador=inscripciones[0], resultado='2-1')
+		self.client.force_login(self.arbitro)
+		estructura = list(Partida.objects.values('pk', 'estado', 'arbitro_asignado_id'))
+		respuesta = self.client.get(reverse('centro-arbitraje'))
+		self.assertContains(respuesta, 'data-available="true"')
+		self.assertContains(respuesta, 'Desactivar disponibilidad')
+		self.assertContains(respuesta, 'Compromiso sin partidas')
+		self.assertContains(respuesta, 'Check-in confirmado: 1 de 3')
+		self.assertContains(respuesta, 'NickHistoricoLargo0')
+		self.assertContains(respuesta, 'Rechazada')
+		self.assertContains(respuesta, 'Cancelada')
+		self.assertContains(respuesta, '2-1')
+		self.assertContains(respuesta, reverse('responder-invitacion-arbitral', args=(pendiente.pk, 'aceptar')))
+		for partida in partidas:
+			self.assertContains(respuesta, reverse('detalle-partida', args=[partida.pk]))
+		for reservado in ('LOBBY-RESERVADO', 'CLAVE-RESERVADA', 'INSTRUCCIONES-RESERVADAS', self.arbitro.email):
+			self.assertNotContains(respuesta, reservado)
+		contenido = respuesta.content.decode()
+		self.assertLess(contenido.index('id="review-title"'), contenido.index('id="active-title"'))
+		self.assertLess(contenido.index('id="active-title"'), contenido.index('id="upcoming-title"'))
+		self.assertLess(contenido.index('id="upcoming-title"'), contenido.index('id="history-title"'))
+		self.assertEqual(list(Partida.objects.values('pk', 'estado', 'arbitro_asignado_id')), estructura)
+		Usuario.objects.filter(pk=self.arbitro.pk).update(disponible_para_arbitrar=False)
+		inactiva = self.client.get(reverse('centro-arbitraje'))
+		self.assertContains(inactiva, 'data-available="false"')
+		self.assertContains(inactiva, 'Activar disponibilidad')
+		self.assertContains(inactiva, reverse('detalle-partida', args=[partidas[0].pk]))
+
+	def test_presentacion_centro_vacio_y_disponibilidad_no_habilitable(self):
+		Usuario.objects.filter(pk=self.otro_arbitro.pk).update(disponible_para_arbitrar=False, karma_total=149)
+		self.client.force_login(self.otro_arbitro)
+		respuesta = self.client.get(reverse('centro-arbitraje'))
+		for texto in ('Todavía no tienes partidas asignadas.', 'No tienes invitaciones pendientes.', 'Todavía no has aceptado torneos.', 'Todavía no hay partidas arbitradas en tu historial.'):
+			self.assertContains(respuesta, texto)
+		self.assertContains(respuesta, 'type="submit" disabled>Activar disponibilidad')
+		self.assertNotContains(respuesta, 'class="rk-referee-match"')
+		self.assertContains(respuesta, '150 puntos de Karma')
+
+	def test_presentacion_torneo_aceptado_sin_asignacion_no_muestra_partidas(self):
+		self.aceptar_como(self.otro_arbitro)
+		self.client.force_login(self.otro_arbitro)
+		respuesta = self.client.get(reverse('centro-arbitraje'))
+		self.assertContains(respuesta, 'Compromiso aceptado con el torneo')
+		self.assertContains(respuesta, 'Todavía no tienes partidas asignadas.')
+		self.assertNotContains(respuesta, 'rk-referee-row rk-referee-match')
+		self.assertNotContains(respuesta, '>Ver partida</a>')
+		self.assertEqual(len(respuesta.context['torneos_aceptados']), 1)
+
+	def test_presentacion_gestion_separa_disponibilidad_estado_y_carga(self):
+		invitacion = self.aceptar_como()
+		Partida.objects.create(torneo=self.torneo, numero_ronda=1, numero_orden=1, arbitro_asignado=invitacion, estado=Partida.Estado.EN_CURSO)
+		for estado, usuario in ((ArbitroTorneo.EstadoInvitacion.PENDIENTE, self.otro_arbitro), (ArbitroTorneo.EstadoInvitacion.RECHAZADA, self.jugador), (ArbitroTorneo.EstadoInvitacion.CANCELADA, self.crear_usuario('visual_cancelado', disponible=False))):
+			ArbitroTorneo.objects.create(torneo=self.torneo, usuario=usuario, estado_invitacion=estado)
+		self.client.force_login(self.organizador)
+		respuesta = self.client.get(reverse('gestionar-arbitros-torneo', args=[self.torneo.pk]))
+		self.assertContains(respuesta, 'aria-current="page">Árbitros y asignaciones')
+		for estado in ArbitroTorneo.EstadoInvitacion.values:
+			self.assertContains(respuesta, f'data-state="{estado}"')
+		self.assertContains(respuesta, 'Disponibilidad general: Activa')
+		self.assertContains(respuesta, 'Disponibilidad general: Inactiva')
+		self.assertContains(respuesta, 'Partidas activas asignadas: <strong>1</strong>')
+		self.assertContains(respuesta, 'name="username"')
+		self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
+		self.assertNotContains(respuesta, self.arbitro.email)
+		self.assertNotContains(respuesta, 'Asignar automáticamente')
+
+	def test_descubrimiento_filtra_cuenta_disponibilidad_karma_e_inscripciones(self):
+		excluidos = [self.crear_usuario('no_disponible', disponible=False), self.crear_usuario('karma_insuficiente', karma=149)]
+		for estado in (Usuario.EstadoCuenta.SUSPENDIDA, Usuario.EstadoCuenta.BLOQUEADA, Usuario.EstadoCuenta.ELIMINADA):
+			usuario = self.crear_usuario(f'cuenta_{estado}')
+			Usuario.objects.filter(pk=usuario.pk).update(estado_cuenta=estado)
+			excluidos.append(usuario)
+		inactivo = self.crear_usuario('cuenta_inactiva')
+		Usuario.objects.filter(pk=inactivo.pk).update(is_active=False)
+		excluidos.extend((inactivo, self.jugador))
+		for usuario, estado in ((self.jugador, InscripcionTorneo.Estado.CONFIRMADA), (self.otro_arbitro, InscripcionTorneo.Estado.CANCELADA)):
+			perfil = PerfilVideojuegoUsuario.objects.create(usuario=usuario, videojuego=self.videojuego, nick_en_juego=usuario.username)
+			inscripcion = InscripcionTorneo.objects.create(torneo=self.torneo, usuario=usuario, perfil_videojuego=perfil, nick_historico=usuario.username, estado=estado)
+			if estado == InscripcionTorneo.Estado.CANCELADA:
+				partida = Partida.objects.create(torneo=self.torneo, numero_ronda=1, numero_orden=1)
+				ParticipantePartida.objects.create(partida=partida, inscripcion=inscripcion, posicion=1)
+		self.client.force_login(self.organizador)
+		respuesta = self.client.get(reverse('gestionar-arbitros-torneo', args=[self.torneo.pk]))
+		visibles = {usuario.pk for usuario in respuesta.context['disponibles_page']}
+		self.assertIn(self.arbitro.pk, visibles)
+		self.assertIn(self.otro_arbitro.pk, visibles)
+		self.assertTrue(visibles.isdisjoint(usuario.pk for usuario in excluidos))
+		for usuario in respuesta.context['disponibles_page']:
+			self.assertNotContains(respuesta, usuario.email)
+		self.assertContains(respuesta, 'Karma 150 · Nivel 1')
+		self.assertContains(respuesta, 'id="referee-username"', count=1)
+
+	def test_descubrimiento_orden_karma_desempate_y_paginacion(self):
+		usuarios = [Usuario(username=f'candidato_{indice:02d}', email=f'candidato_{indice}@example.com', password='!', karma_total=1000 + indice, disponible_para_arbitrar=True) for indice in range(22)]
+		usuarios.extend(Usuario(username=nombre, email=f'{nombre}@example.com', password='!', karma_total=2000, disponible_para_arbitrar=True) for nombre in ('empate_beta', 'empate_alpha'))
+		Usuario.objects.bulk_create(usuarios)
+		self.client.force_login(self.organizador)
+		url = reverse('gestionar-arbitros-torneo', args=[self.torneo.pk])
+		primera = self.client.get(url)
+		segunda = self.client.get(url, {'disponibles_page': 2})
+		self.assertEqual(len(primera.context['disponibles_page']), 20)
+		self.assertEqual(primera.context['disponibles_page'].paginator.count, 28)
+		self.assertEqual(len(segunda.context['disponibles_page']), 8)
+		filas = list(primera.context['disponibles_page']) + list(segunda.context['disponibles_page'])
+		self.assertEqual([usuario.username for usuario in filas[:2]], ['empate_alpha', 'empate_beta'])
+		self.assertEqual(filas, sorted(filas, key=lambda usuario: (-usuario.karma_total, usuario.username, usuario.pk)))
+		self.assertContains(primera, 'href="?disponibles_page=2"')
+		self.assertEqual(len({usuario.pk for usuario in filas}), 28)
+
+	def test_descubrimiento_invita_con_el_post_actual_y_excluye_invitados(self):
+		invitados = [self.arbitro, self.otro_arbitro, self.jugador, self.crear_usuario('ya_cancelado')]
+		for usuario, estado in zip(invitados, ArbitroTorneo.EstadoInvitacion.values):
+			ArbitroTorneo.objects.create(torneo=self.torneo, usuario=usuario, estado_invitacion=estado)
+		candidato = self.crear_usuario('descubrible', karma=250)
+		self.client.force_login(self.organizador)
+		url = reverse('gestionar-arbitros-torneo', args=[self.torneo.pk])
+		antes = self.client.get(url)
+		visibles = {usuario.pk for usuario in antes.context['disponibles_page']}
+		self.assertTrue(visibles.isdisjoint(usuario.pk for usuario in invitados))
+		self.assertContains(antes, 'type="hidden" name="username" value="descubrible"')
+		with patch('arbitraje.views.invitar_arbitro', wraps=invitar_arbitro) as servicio:
+			respuesta = self.client.post(url, {'username': candidato.username}, follow=True)
+			servicio.assert_called_once()
+			self.assertEqual(servicio.call_args.args[1].pk, candidato.pk)
+			self.assertEqual(servicio.call_args.args[2].pk, self.organizador.pk)
+		self.assertTrue(Notificacion.objects.filter(destinatario=candidato, tipo=Notificacion.Tipo.INVITACION_ARBITRAL).exists())
+		self.assertNotIn(candidato.pk, [usuario.pk for usuario in respuesta.context['disponibles_page']])
+		self.client.post(url, {'username': candidato.username})
+		self.assertEqual(ArbitroTorneo.objects.filter(torneo=self.torneo, usuario=candidato).count(), 1)
+		self.client.post(url, {'username': f'  {self.jugador.username.upper()}  '})
+		self.assertEqual(ArbitroTorneo.objects.get(torneo=self.torneo, usuario=self.jugador).estado_invitacion, ArbitroTorneo.EstadoInvitacion.PENDIENTE)
+
+	def test_descubrimiento_permisos_y_reglas_oficiales(self):
+		url = reverse('gestionar-arbitros-torneo', args=[self.torneo.pk])
+		self.assertEqual(self.client.get(url).status_code, 302)
+		self.client.force_login(self.arbitro)
+		self.assertEqual(self.client.get(url).status_code, 404)
+		with self.assertRaises(ArbitrajeError):
+			arbitros_disponibles_para_invitar(self.torneo, self.arbitro)
+		Usuario.objects.filter(pk=self.organizador.pk).update(estado_cuenta=Usuario.EstadoCuenta.SUSPENDIDA)
+		self.client.force_login(self.organizador)
+		self.assertEqual(self.client.get(url).status_code, 404)
+		Usuario.objects.filter(pk=self.organizador.pk).update(estado_cuenta=Usuario.EstadoCuenta.ACTIVA)
+		oficial = self.crear_torneo(Torneo.Tipo.OFICIAL, 'Oficial descubrimiento')
+		url_oficial = reverse('gestionar-arbitros-torneo', args=[oficial.pk])
+		propietario = self.client.get(url_oficial)
+		self.assertEqual(propietario.status_code, 200)
+		self.assertEqual(propietario.context['disponibles_page'].paginator.count, 0)
+		self.assertNotContains(propietario, 'id="available-title"')
+		candidato = self.crear_usuario('oficial_karma_bajo', karma=100)
+		no_disponible = self.crear_usuario('oficial_no_disponible', karma=100, disponible=False)
+		self.client.force_login(self.admin)
+		publico = self.client.get(url)
+		self.assertNotIn(candidato.pk, [usuario.pk for usuario in publico.context['disponibles_page']])
+		respuesta = self.client.get(url_oficial)
+		visibles = {usuario.pk for usuario in respuesta.context['disponibles_page']}
+		self.assertIn(candidato.pk, visibles)
+		self.assertNotIn(no_disponible.pk, visibles)
+		self.client.post(url_oficial, {'username': no_disponible.username})
+		self.assertTrue(ArbitroTorneo.objects.filter(torneo=oficial, usuario=no_disponible).exists())
+
+	def test_descubrimiento_respeta_limite_terminales_y_validacion_post(self):
+		self.client.force_login(self.organizador)
+		url = reverse('gestionar-arbitros-torneo', args=[self.torneo.pk])
+		for estado in (Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO):
+			Torneo.objects.filter(pk=self.torneo.pk).update(estado=estado)
+			respuesta = self.client.get(url)
+			self.assertEqual(respuesta.context['disponibles_page'].paginator.count, 0)
+			self.assertEqual(respuesta.context['bloqueo_invitaciones'], 'torneo_cerrado')
+			self.assertContains(respuesta, 'Este torneo ya no admite nuevas invitaciones de arbitraje.')
+			self.assertNotContains(respuesta, 'id="referee-username"')
+			self.assertNotContains(respuesta, 'id="available-title"')
+			self.assertNotContains(respuesta, 'No hay árbitros disponibles')
+			self.assertNotContains(respuesta, '<button class="rk-btn rk-btn--primary"')
+			self.client.post(url, {'username': self.arbitro.username})
+			self.assertFalse(ArbitroTorneo.objects.filter(torneo=self.torneo, usuario=self.arbitro).exists())
+		Torneo.objects.filter(pk=self.torneo.pk).update(estado=Torneo.Estado.INSCRIPCIONES_ABIERTAS)
+		pendientes = []
+		for indice in range(4):
+			pendientes.append(ArbitroTorneo.objects.create(torneo=self.torneo, usuario=self.crear_usuario(f'limite_{indice}')))
+		candidato = self.crear_usuario('fuera_del_limite')
+		respuesta = self.client.get(url)
+		self.assertEqual(respuesta.context['disponibles_page'].paginator.count, 0)
+		self.assertEqual(respuesta.context['bloqueo_invitaciones'], 'limite_pendientes')
+		self.assertContains(respuesta, 'Has alcanzado el límite de invitaciones pendientes. Cuando alguna sea aceptada, rechazada o cancelada podrás enviar nuevas invitaciones.')
+		self.assertNotContains(respuesta, 'id="referee-username"')
+		self.assertNotContains(respuesta, 'id="available-title"')
+		self.assertNotContains(respuesta, 'No hay árbitros disponibles')
+		self.assertNotContains(respuesta, '<button class="rk-btn rk-btn--primary"')
+		self.client.post(url, {'username': candidato.username})
+		self.assertFalse(ArbitroTorneo.objects.filter(torneo=self.torneo, usuario=candidato).exists())
+		ArbitroTorneo.objects.filter(pk=pendientes[0].pk).update(estado_invitacion=ArbitroTorneo.EstadoInvitacion.RECHAZADA)
+		liberado = self.client.get(url)
+		self.assertIn(candidato.pk, [usuario.pk for usuario in liberado.context['disponibles_page']])
+		self.assertEqual(liberado.context['bloqueo_invitaciones'], '')
+		self.assertContains(liberado, 'id="referee-username"')
+		self.assertContains(liberado, 'type="hidden" name="username"')
+		Usuario.objects.filter(pk=candidato.pk).update(estado_cuenta=Usuario.EstadoCuenta.BLOQUEADA)
+		self.client.post(url, {'username': candidato.username})
+		self.assertFalse(ArbitroTorneo.objects.filter(torneo=self.torneo, usuario=candidato).exists())
+
+	def test_descubrimiento_vacio_permite_busqueda_manual_sin_mensaje_de_bloqueo(self):
+		Usuario.objects.update(disponible_para_arbitrar=False)
+		self.client.force_login(self.organizador)
+		respuesta = self.client.get(reverse('gestionar-arbitros-torneo', args=[self.torneo.pk]))
+		self.assertTrue(respuesta.context['puede_invitar'])
+		self.assertEqual(respuesta.context['bloqueo_invitaciones'], '')
+		self.assertEqual(respuesta.context['disponibles_page'].paginator.count, 0)
+		self.assertContains(respuesta, 'No hay árbitros disponibles actualmente para este torneo. Puedes seguir utilizando la búsqueda manual.')
+		self.assertContains(respuesta, 'id="referee-username"')
+		self.assertContains(respuesta, 'Enviar invitación')
+		self.assertNotContains(respuesta, 'Este torneo ya no admite')
+		self.assertNotContains(respuesta, 'Has alcanzado el límite')
+
+	def test_descubrimiento_no_anade_consultas_por_candidato(self):
+		self.client.force_login(self.organizador)
+		url = reverse('gestionar-arbitros-torneo', args=[self.torneo.pk])
+		with CaptureQueriesContext(connection) as inicial:
+			self.client.get(url)
+		Usuario.objects.bulk_create([Usuario(username=f'consulta_{indice}', email=f'consulta_{indice}@example.com', password='!', karma_total=200, disponible_para_arbitrar=True) for indice in range(25)])
+		with CaptureQueriesContext(connection) as poblado:
+			respuesta = self.client.get(url)
+		self.assertEqual(len(respuesta.context['disponibles_page']), 20)
+		self.assertEqual(len(inicial), len(poblado))
 
 	def test_panel_exige_login_y_lista_solo_invitaciones_propias(self):
 		invitacion_propia = self.invitar()

@@ -16,6 +16,7 @@ from django.utils import timezone
 
 from torneos.models import InscripcionTorneo, Torneo
 from torneos.services import _es_administrador_autorizado
+from usuarios.models import Usuario
 
 from .models import ArbitroTorneo, HistorialAsignacionArbitro
 
@@ -64,14 +65,36 @@ def _torneo_admite_arbitraje(torneo):
 	return torneo.estado not in (Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO)
 
 
-def _requisitos_publicos(torneo, usuario):
-    if not usuario.puede_operar:
-        raise ArbitrajeError('La cuenta del árbitro no está activa.')
+def _criterios_requisitos_arbitrales(torneo):
+    requisitos = [
+        ('is_active', 'exact', True, 'La cuenta del árbitro no está activa.'),
+        ('estado_cuenta', 'exact', Usuario.EstadoCuenta.ACTIVA, 'La cuenta del árbitro no está activa.'),
+    ]
     if torneo.tipo == Torneo.Tipo.PUBLICO:
-        if not usuario.disponible_para_arbitrar:
-            raise ArbitrajeError('El usuario no está disponible para arbitrar.')
-        if usuario.karma_total < 150:
-            raise ArbitrajeError('El árbitro necesita al menos 150 puntos de Karma.')
+        requisitos.extend((
+            ('disponible_para_arbitrar', 'exact', True, 'El usuario no está disponible para arbitrar.'),
+            ('karma_total', 'gte', 150, 'El árbitro necesita al menos 150 puntos de Karma.'),
+        ))
+    return requisitos
+
+
+def _requisitos_publicos(torneo, usuario):
+    for campo, comparacion, esperado, mensaje in _criterios_requisitos_arbitrales(torneo):
+        actual = getattr(usuario, campo)
+        cumple = actual >= esperado if comparacion == 'gte' else actual == esperado
+        if not cumple:
+            raise ArbitrajeError(mensaje)
+
+
+def _validar_limite_invitaciones_pendientes(torneo):
+    if torneo.tipo == Torneo.Tipo.PUBLICO:
+        limite = plazas_arbitrales_necesarias(torneo.max_participantes) * 2
+        pendientes = ArbitroTorneo.objects.filter(
+            torneo=torneo,
+            estado_invitacion=ArbitroTorneo.EstadoInvitacion.PENDIENTE,
+        ).count()
+        if pendientes >= limite:
+            raise ArbitrajeError('Se alcanzó el límite de invitaciones arbitrales pendientes.')
 
 
 def cambiar_disponibilidad(usuario, disponible):
@@ -102,6 +125,32 @@ def _participa_activamente(torneo, usuario):
     return _inscripciones_incompatibles_con_arbitraje(torneo).filter(usuario=usuario).exists()
 
 
+def arbitros_disponibles_para_invitar(torneo, actor):
+    if not getattr(actor, 'is_authenticated', False) or not _autorizado_torneo(torneo, actor):
+        raise ArbitrajeError('Solo el organizador o un administrador puede consultar árbitros disponibles.')
+    if (
+        torneo.tipo == Torneo.Tipo.PRIVADO
+        or not _torneo_admite_arbitraje(torneo)
+        or (torneo.tipo == Torneo.Tipo.OFICIAL and not _es_administrador_autorizado(actor))
+    ):
+        return Usuario.objects.none()
+    try:
+        _validar_limite_invitaciones_pendientes(torneo)
+    except ArbitrajeError:
+        return Usuario.objects.none()
+    filtros = {
+        f'{campo}__{comparacion}': esperado
+        for campo, comparacion, esperado, _ in _criterios_requisitos_arbitrales(torneo)
+    }
+    return Usuario.objects.filter(disponible_para_arbitrar=True).filter(**filtros).exclude(
+        pk__in=_inscripciones_incompatibles_con_arbitraje(torneo).values('usuario_id'),
+    ).exclude(
+        pk__in=ArbitroTorneo.objects.filter(torneo=torneo).values('usuario_id'),
+    ).only('pk', 'username', 'avatar', 'karma_total', 'nivel', 'is_active', 'estado_cuenta').order_by(
+        '-karma_total', 'username', 'pk',
+    )
+
+
 def invitar_arbitro(torneo, usuario, actor):
     if torneo.tipo == Torneo.Tipo.PRIVADO:
         raise ArbitrajeError('Los torneos privados no utilizan arbitraje formal.')
@@ -122,14 +171,7 @@ def invitar_arbitro(torneo, usuario, actor):
             ArbitroTorneo.EstadoInvitacion.ACEPTADA,
         ):
             raise ArbitrajeError('Ya existe una invitación activa para este usuario.')
-        if torneo.tipo == Torneo.Tipo.PUBLICO:
-            limite_pendientes = plazas_arbitrales_necesarias(torneo.max_participantes) * 2
-            pendientes = ArbitroTorneo.objects.filter(
-                torneo=torneo,
-                estado_invitacion=ArbitroTorneo.EstadoInvitacion.PENDIENTE,
-            ).count()
-            if pendientes >= limite_pendientes:
-                raise ArbitrajeError('Se alcanzó el límite de invitaciones arbitrales pendientes.')
+        _validar_limite_invitaciones_pendientes(torneo)
         ahora = timezone.now()
         if existente:
             existente.estado_invitacion = ArbitroTorneo.EstadoInvitacion.PENDIENTE

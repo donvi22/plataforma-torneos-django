@@ -1,0 +1,10 @@
+{% load usuarios_extras %}
+<li class="rk-referee-row rk-referee-match" data-state="{{ partida.estado }}">
+    <div class="rk-referee-copy">
+        <div class="rk-referee-match-badges"><span class="rk-badge" data-state="{{ partida.estado }}">{{ partida.get_estado_display }}</span><span class="rk-metadata">Ronda {{ partida.numero_ronda }}</span>{% if review and partida.estado == 'PENDIENTE_VALIDACION' %}<span class="rk-badge">Requiere validación</span>{% endif %}</div>
+        <h3>{{ partida.torneo.nombre }}</h3><p class="rk-metadata">{{ partida.torneo.videojuego.nombre }}</p>
+        <div class="rk-referee-match-players">{% if partida.nicks_participantes %}{% for ins in partida.inscripciones_participantes %}{% identidad_competitiva ins.usuario ins.nick_historico %}{% if not forloop.last %}<span class="rk-metadata">vs</span>{% endif %}{% endfor %}{% else %}<span class="rk-metadata">Rivales por determinar</span>{% endif %}</div>
+        <div class="rk-referee-match-meta"><p class="rk-metadata">Horario: {{ partida.fecha_hora_programada|date:'j/m/Y H:i'|default:schedule_default }}</p>{% if show_checkins %}<p class="rk-metadata">Check-in confirmado: {{ partida.checkins_confirmados }} de {{ partida.checkins_totales }}</p>{% endif %}</div>
+    </div>
+    <div class="rk-referee-actions"><a class="rk-btn rk-btn--primary" href="{% url 'detalle-partida' partida.pk %}">Ver partida</a>{% if show_tournament %}<a class="rk-section-link" href="{% url 'ficha-torneo' partida.torneo_id %}">Ver torneo</a>{% endif %}</div>
+</li>

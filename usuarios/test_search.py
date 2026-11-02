@@ -155,7 +155,7 @@ class EnlacesPerfilTests(TestCase):
             html = self.client.get(reverse(nombre, args=args)).content.decode()
             self.assertNotIn('<a', _anclas_anidadas(html))
         html = self.client.get(reverse('bracket-torneo', args=[torneo.pk])).content.decode()
-        self.assertIn(f'<a class="match-link" href="{reverse("detalle-partida", args=[partida.pk])}">Partida {partida.numero_orden}</a>', html)
+        self.assertIn(f'<a class="match-link" href="{reverse("detalle-partida", args=[partida.pk])}" aria-label="Abrir partida {partida.numero_orden},', html)
 
     def test_organizador_eliminado_se_muestra_neutral(self):
         torneo = self._ejecutar()

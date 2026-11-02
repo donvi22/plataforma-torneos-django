@@ -14,7 +14,10 @@ from .models import ArbitroTorneo, HistorialAsignacionArbitro
 from .services import (
 	ArbitrajeError,
 	_autorizado_torneo,
+	_torneo_admite_arbitraje,
+	_validar_limite_invitaciones_pendientes,
 	aceptar_invitacion,
+	arbitros_disponibles_para_invitar,
 	cambiar_disponibilidad,
 	invitar_arbitro,
 	rechazar_invitacion,
@@ -221,6 +224,15 @@ def gestionar_torneo(request, pk):
 		return redirect('gestionar-arbitros-torneo', pk=torneo.pk)
 	if request.method != 'GET':
 		return HttpResponseNotAllowed(['GET', 'POST'])
+	puede_invitar = torneo.tipo == Torneo.Tipo.PUBLICO or _es_administrador_autorizado(request.user)
+	bloqueo_invitaciones = ''
+	if not _torneo_admite_arbitraje(torneo):
+		bloqueo_invitaciones = 'torneo_cerrado'
+	elif puede_invitar:
+		try:
+			_validar_limite_invitaciones_pendientes(torneo)
+		except ArbitrajeError:
+			bloqueo_invitaciones = 'limite_pendientes'
 	arbitros_page = Paginator(ArbitroTorneo.objects.filter(torneo=torneo).select_related('usuario').annotate(
 		partidas_activas=Count(
 			'partidas_asignadas',
@@ -230,8 +242,13 @@ def gestionar_torneo(request, pk):
 	).order_by('estado_invitacion', 'usuario__username'), ELEMENTOS_POR_PAGINA).get_page(
 		request.GET.get('page'),
 	)
+	disponibles_page = Paginator(
+		arbitros_disponibles_para_invitar(torneo, request.user), ELEMENTOS_POR_PAGINA,
+	).get_page(request.GET.get('disponibles_page'))
 	return render(request, 'arbitraje/gestionar_torneo.html', {
 		'torneo': torneo,
 		'arbitros_page': arbitros_page,
-		'puede_invitar': torneo.tipo == Torneo.Tipo.PUBLICO or _es_administrador_autorizado(request.user),
+		'disponibles_page': disponibles_page,
+		'puede_invitar': puede_invitar,
+		'bloqueo_invitaciones': bloqueo_invitaciones,
 	})
