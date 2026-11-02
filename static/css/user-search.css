@@ -1,0 +1,20 @@
+.rk-user-search { overflow-wrap: anywhere; }
+.rk-user-search .rk-user-search-form { grid-template-columns: minmax(0, 1fr) auto; }
+.rk-user-query { border-bottom: 1px solid var(--rk-border); margin: 0 !important; padding: 22px 0; }
+.rk-user-query strong { color: var(--rk-text); font-weight: 500; }
+.rk-user-results { list-style: none; margin: 0; padding: 0; }
+.rk-user-search .rk-user-result { align-items: center; display: grid; gap: 16px; grid-template-columns: 44px minmax(0, 1fr) 36px; padding: 18px 0; }
+.rk-user-result .rk-profile-avatar { background: var(--rk-card); border-color: var(--rk-border); color: var(--rk-text); flex-basis: 44px; font-size: 18px; height: 44px; width: 44px; }
+.rk-user-result .rk-row-copy { gap: 8px; }
+.rk-user-result h2 { font-size: 16px; line-height: 1.5; }
+.rk-user-result h2 a { color: var(--rk-text); text-decoration: none; }
+.rk-user-result h2 a:hover { color: #C4B5FD; }
+.rk-user-metrics { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 14px; }
+.rk-user-metrics .rk-metadata { font-size: 12px; }
+.rk-user-search-empty { align-items: start; color: var(--rk-muted); display: grid; font-size: 13px; gap: 12px; line-height: 1.7; padding: 28px 0; }
+.rk-user-search-empty svg { height: 24px; width: 24px; }
+@media (max-width: 650px) {
+    .rk-user-search .rk-user-search-form { grid-template-columns: minmax(0, 1fr); }
+    .rk-user-search .rk-user-result { gap: 12px; grid-template-columns: 36px minmax(0, 1fr) 34px; }
+    .rk-user-result .rk-profile-avatar { flex-basis: 36px; font-size: 16px; height: 36px; width: 36px; }
+}
