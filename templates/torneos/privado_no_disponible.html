@@ -1,5 +1,10 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Enlace no disponible · Arena provisional{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/private-tournaments.css' %}">
+{% endblock %}
 {% block content %}
-<section class="empty-panel"><h2>Enlace no disponible</h2><p class="muted">Este enlace de invitación no es válido o ya no está disponible.</p><a class="text-link" href="{% url 'inicio' %}">Volver al inicio</a></section>
+<article class="rk-dashboard rk-private-status"><section class="rk-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#link-2-off"></use></svg><h1>Enlace no disponible</h1><p>Este enlace de invitación no es válido o ya no está disponible.</p><a class="rk-btn rk-btn--secondary" href="{% url 'inicio' %}">Volver al inicio</a></section></article>
 {% endblock %}
