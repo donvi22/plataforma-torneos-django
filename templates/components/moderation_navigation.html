@@ -1,0 +1,4 @@
+<nav class="rk-management-nav" aria-label="{% if administrativa %}Moderación administrativa{% else %}Seguimiento de denuncias{% endif %}">
+    {% if administrativa %}<a href="{% url 'centro-moderacion' %}"{% if active_section == 'lista' %} aria-current="page"{% endif %}>Centro de moderación</a>{% else %}<a href="{% url 'mis-denuncias' %}"{% if active_section == 'lista' %} aria-current="page"{% endif %}>Mis denuncias</a>{% endif %}
+    {% if denuncia %}<a href="{% url 'detalle-denuncia' denuncia.pk %}" aria-current="page">{% if administrativa %}Revisión del caso{% else %}Seguimiento{% endif %}</a>{% endif %}
+</nav>

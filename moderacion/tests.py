@@ -78,6 +78,94 @@ class ModeracionTests(TestCase):
 	def tomar(self, denuncia, admin=None):
 		return tomar_en_revision(denuncia, admin or self.admin)
 
+	def test_presentacion_formularios_conserva_campos_errores_y_contexto(self):
+		self.client.force_login(self.reporter)
+		for nombre, objetivo in (('denunciar-torneo', self.torneo), ('denunciar-partida', self.partida)):
+			url = reverse(nombre, args=[objetivo.pk])
+			respuesta = self.client.get(url)
+			for campo in ('categoria', 'usuario_denunciado', 'descripcion'):
+				self.assertContains(respuesta, f'name="{campo}"', count=1)
+			self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
+			self.assertContains(respuesta, self.torneo.nombre)
+			self.assertNotContains(respuesta, 'Moderación administrativa')
+			invalida = self.client.post(url, {'categoria': Denuncia.Categoria.TRAMPA, 'descripcion': ''})
+			self.assertContains(invalida, 'role="alert"')
+			self.assertContains(invalida, 'id="id_descripcion_error"')
+			self.assertContains(invalida, 'aria-invalid="true"')
+		self.assertFalse(Denuncia.objects.exists())
+
+	def test_presentacion_estados_sancion_privacidad_y_revision_exclusiva(self):
+		self.partida.codigo_lobby = 'CODIGO-LOBBY-PRIVADO'
+		self.partida.contrasena_lobby = 'CLAVE-LOBBY-PRIVADA'
+		self.partida.save(update_fields=('codigo_lobby', 'contrasena_lobby'))
+		abierta = self.crear(partida=self.partida, acusado=self.acusado, descripcion='DescripcionLargaSinEspacios' * 40)
+		revision = self.crear(partida=self.partida, acusado=self.acusado, categoria=Denuncia.Categoria.PROBLEMA_ARBITRAJE)
+		self.tomar(revision)
+		resuelta = self.crear(partida=self.partida, acusado=self.acusado, categoria=Denuncia.Categoria.TRAMPA)
+		self.tomar(resuelta)
+		resolver_denuncia(resuelta, self.admin, estado=Denuncia.Estado.RESUELTA, resolucion='Resolución pública con medida.', notas_internas='NOTA-INTERNA-RESERVADA', tipo_sancion=Denuncia.TipoSancion.LEVE)
+		desestimada = self.crear(torneo=self.torneo, categoria=Denuncia.Categoria.OTRO)
+		self.tomar(desestimada)
+		resolver_denuncia(desestimada, self.admin, estado=Denuncia.Estado.DESESTIMADA, resolucion='Caso desestimado tras revisión.')
+		for denuncia in (abierta, revision, resuelta, desestimada):
+			denuncia.refresh_from_db()
+		self.client.force_login(self.reporter)
+		lista = self.client.get(reverse('mis-denuncias'))
+		self.assertEqual([caso.pk for caso in lista.context['page_obj']], [desestimada.pk, resuelta.pk, revision.pk, abierta.pk])
+		for denuncia in (abierta, revision, resuelta, desestimada):
+			respuesta = self.client.get(reverse('detalle-denuncia', args=[denuncia.pk]))
+			self.assertContains(respuesta, f'data-state="{denuncia.estado}"')
+			for reservado in ('NOTA-INTERNA-RESERVADA', 'Historial administrativo', 'name="notas_internas"', 'name="tipo_sancion"', 'CODIGO-LOBBY-PRIVADO', 'CLAVE-LOBBY-PRIVADA', self.admin.email, self.acusado.email):
+				self.assertNotContains(respuesta, reservado)
+			self.assertNotContains(respuesta, 'aria-label="Moderación administrativa"')
+		visible = self.client.get(reverse('detalle-denuncia', args=[resuelta.pk]))
+		self.assertContains(visible, 'Resolución pública con medida.')
+		self.assertContains(visible, '-5 Karma')
+		self.client.force_login(self.admin)
+		for denuncia in (abierta, revision, resuelta, desestimada):
+			respuesta = self.client.get(reverse('detalle-denuncia', args=[denuncia.pk]))
+			self.assertContains(respuesta, 'aria-label="Moderación administrativa"')
+			self.assertContains(respuesta, 'Historial administrativo')
+			self.assertNotContains(respuesta, 'CODIGO-LOBBY-PRIVADO')
+			self.assertNotContains(respuesta, 'CLAVE-LOBBY-PRIVADA')
+			if denuncia.pk == abierta.pk:
+				self.assertContains(respuesta, reverse('tomar-denuncia-en-revision', args=[denuncia.pk]))
+			elif denuncia.pk == revision.pk:
+				for campo in ('estado', 'resolucion', 'notas_internas', 'tipo_sancion'):
+					self.assertContains(respuesta, f'name="{campo}"', count=1)
+				invalida = self.client.post(reverse('resolver-denuncia', args=[denuncia.pk]), {'estado': Denuncia.Estado.DESESTIMADA, 'resolucion': 'Texto conservado.', 'tipo_sancion': Denuncia.TipoSancion.GRAVE})
+				self.assertContains(invalida, 'role="alert"')
+				self.assertContains(invalida, 'Texto conservado.')
+				self.assertContains(invalida, 'id="id_tipo_sancion_error"')
+			elif denuncia.pk == resuelta.pk:
+				self.assertContains(respuesta, 'NOTA-INTERNA-RESERVADA')
+				self.assertContains(respuesta, '-5 Karma aplicado')
+		self.client.force_login(self.otro_admin)
+		otro = self.client.get(reverse('detalle-denuncia', args=[revision.pk]))
+		self.assertContains(otro, 'no puede ser sobrescrita')
+		self.assertNotContains(otro, 'name="tipo_sancion"')
+		self.client.force_login(self.acusado)
+		self.assertEqual(self.client.get(reverse('detalle-denuncia', args=[resuelta.pk])).status_code, 404)
+
+	def test_presentacion_listas_vacias_filtros_y_paginacion_existentes(self):
+		self.client.force_login(self.reporter)
+		self.assertContains(self.client.get(reverse('mis-denuncias')), 'No tienes denuncias')
+		self.client.force_login(self.admin)
+		self.assertContains(self.client.get(reverse('centro-moderacion')), 'No hay denuncias')
+		Denuncia.objects.bulk_create([Denuncia(denunciante=self.reporter, torneo=self.torneo, categoria=Denuncia.Categoria.OTRO, descripcion=f'Caso visual {indice}') for indice in range(21)])
+		admin = self.client.get(reverse('centro-moderacion'), {'estado': Denuncia.Estado.ABIERTA, 'categoria': Denuncia.Categoria.OTRO, 'torneo': str(self.torneo.pk)})
+		self.assertEqual(len(admin.context['page_obj']), 20)
+		self.assertContains(admin, f'?estado=ABIERTA&categoria=OTRO&torneo={self.torneo.pk}&page=2')
+		for campo in ('estado', 'categoria', 'torneo'):
+			self.assertContains(admin, f'name="{campo}"', count=1)
+		self.client.force_login(self.reporter)
+		primera = self.client.get(reverse('mis-denuncias'))
+		segunda = self.client.get(reverse('mis-denuncias'), {'page': 2})
+		self.assertEqual(len(primera.context['page_obj']), 20)
+		self.assertEqual(len(segunda.context['page_obj']), 1)
+		self.assertContains(primera, 'href="?page=2"')
+		self.assertNotContains(primera, 'Denunciante reporter')
+
 	def test_creacion_valida_desde_torneo_y_partida_por_post(self):
 		self.client.force_login(self.reporter)
 		respuesta_torneo = self.client.post(reverse('denunciar-torneo', args=(self.torneo.pk,)), {
