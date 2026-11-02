@@ -7,7 +7,7 @@ from partidas.services import generar_bracket
 from usuarios.models import Usuario
 from videojuegos.models import Videojuego
 
-from .models import FormatoCompetitivo, InscripcionTorneo, Torneo
+from .models import ClasificacionTorneo, FormatoCompetitivo, InscripcionTorneo, Torneo
 
 
 class BracketViewsTests(TestCase):
@@ -86,3 +86,66 @@ class BracketViewsTests(TestCase):
         respuesta = self.client.get(reverse('bracket-torneo', args=[torneo.pk]))
         self.assertContains(respuesta, 'Nick histórico 0')
         self.assertContains(respuesta, 'Campeón')
+
+    def test_presentacion_estados_horario_y_datos_reservados(self):
+        torneo = self.crear_torneo(max_participantes=2)
+        self._crear_inscripciones(torneo, 2)
+        generar_bracket(torneo)
+        partida = torneo.partidas.get()
+        partida.codigo_lobby = 'CODIGO-RESERVADO'
+        partida.contrasena_lobby = 'CLAVE-RESERVADA'
+        partida.instrucciones_lobby = 'INSTRUCCIONES-RESERVADAS'
+        partida.fecha_hora_programada = timezone.now()
+        partida.save(update_fields=('codigo_lobby', 'contrasena_lobby', 'instrucciones_lobby', 'fecha_hora_programada'))
+        for estado in Partida.Estado.values:
+            with self.subTest(estado=estado):
+                Partida.objects.filter(pk=partida.pk).update(estado=estado)
+                respuesta = self.client.get(reverse('bracket-torneo', args=[torneo.pk]))
+                self.assertContains(respuesta, f'data-state="{estado}"')
+                self.assertContains(respuesta, '2/2 participantes')
+                self.assertContains(respuesta, 'Volver al torneo')
+                self.assertContains(respuesta, '<time>')
+                self.assertContains(respuesta, 'tabindex="0" role="region" aria-label="Rondas del bracket"')
+                for reservado in ('CODIGO-RESERVADO', 'CLAVE-RESERVADA', 'INSTRUCCIONES-RESERVADAS', self.organizador.email):
+                    self.assertNotContains(respuesta, reservado)
+                self.assertNotContains(respuesta, 'method="post"')
+                partida.refresh_from_db()
+                self.assertEqual(partida.estado, estado)
+
+    def test_placeholders_del_backend_y_enlaces_sin_modificar_relaciones(self):
+        torneo = self.crear_torneo(max_participantes=4)
+        self._crear_inscripciones(torneo, 4)
+        generar_bracket(torneo)
+        alimentadora = torneo.partidas.filter(numero_ronda=1).first()
+        ResultadoPartida.objects.create(
+            partida=alimentadora, ganador=None,
+            tipo_resultado=ResultadoPartida.TipoResultado.DOBLE_INCOMPARECENCIA,
+        )
+        estructura = list(torneo.partidas.values('pk', 'estado', 'siguiente_partida_id', 'posicion_en_siguiente_partida'))
+        respuesta = self.client.get(reverse('bracket-torneo', args=[torneo.pk]))
+        self.assertContains(respuesta, 'Por determinar')
+        self.assertContains(respuesta, 'Sin participante')
+        self.assertContains(respuesta, 'Sin marcador')
+        for partida in torneo.partidas.all():
+            self.assertContains(respuesta, f'href="{reverse("detalle-partida", args=[partida.pk])}"', count=1)
+        self.assertEqual(list(torneo.partidas.values('pk', 'estado', 'siguiente_partida_id', 'posicion_en_siguiente_partida')), estructura)
+
+    def test_campeon_y_clasificacion_despues_del_cuadro(self):
+        torneo = self.crear_torneo(max_participantes=2)
+        self._crear_inscripciones(torneo, 2)
+        generar_bracket(torneo)
+        ganador = torneo.inscripciones.first()
+        ResultadoPartida.objects.create(
+            partida=torneo.partidas.get(), ganador=ganador,
+            tipo_resultado=ResultadoPartida.TipoResultado.NORMAL, resultado='2-1',
+        )
+        ClasificacionTorneo.objects.create(torneo=torneo, inscripcion=ganador, posicion=1, es_campeon=True)
+        Torneo.objects.filter(pk=torneo.pk).update(estado=Torneo.Estado.FINALIZADO)
+        respuesta = self.client.get(reverse('bracket-torneo', args=[torneo.pk]))
+        self.assertContains(respuesta, 'Marcador: <strong>2-1</strong>')
+        self.assertContains(respuesta, 'Clasificación final')
+        contenido = respuesta.content.decode()
+        self.assertLess(contenido.index('class="bracket-scroll"'), contenido.index('class="rk-bracket-champion"'))
+        self.assertLess(contenido.index('class="rk-bracket-champion"'), contenido.index('id="standings-title"'))
+        self.assertEqual(respuesta.context['campeon'], ganador.nick_historico)
+        self.assertEqual(respuesta.context['clasificacion'].count(), 1)

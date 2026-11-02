@@ -1,0 +1,55 @@
+.rk-bracket { overflow-wrap: anywhere; }
+.rk-bracket-header { border-bottom: 1px solid var(--rk-border); padding-bottom: 22px; }
+.rk-bracket-heading { align-items: center; display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
+.rk-bracket-heading-copy { flex: 1 1 300px; min-width: 0; }
+.rk-bracket-heading-copy h1 { font-size: 28px; margin: 4px 0 10px; }
+.rk-bracket-thumbnail { border: 1px solid var(--rk-border); border-radius: 6px; flex: 0 0 64px; height: 64px; width: 64px; }
+.rk-bracket-thumbnail .rk-card-media-fallback { padding: 8px; }
+.rk-bracket-thumbnail .rk-card-media-fallback span { display: none; }
+.rk-bracket-badges { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.rk-bracket-badges .rk-badge { font-size: 11px; }
+.rk-bracket .bracket-scroll { border-bottom: 1px solid var(--rk-border); max-width: 100%; min-width: 0; overflow-x: auto; overscroll-behavior-x: contain; padding: 4px 4px 22px; scrollbar-color: #494454 var(--rk-surface); scrollbar-width: thin; }
+.rk-bracket .bracket-scroll:focus-visible { outline: 2px solid #A78BFA; outline-offset: 3px; }
+.rk-bracket .bracket-board { align-items: stretch; gap: 28px; min-width: max-content; }
+.rk-bracket .bracket-round { flex: 0 0 280px; gap: 0; justify-content: flex-start; min-height: 0; min-width: 280px; width: 280px; }
+.rk-round-heading { border-bottom: 1px solid var(--rk-border); min-height: 64px; padding: 4px 0 14px; }
+.rk-round-heading .rk-kicker { margin-bottom: 4px; }
+.rk-round-matches { display: flex; flex: 1; flex-direction: column; gap: 18px; justify-content: space-around; padding: 18px 0; }
+.rk-bracket .match-card { background: var(--rk-card); border: 1px solid var(--rk-border); border-radius: 6px; box-shadow: none; min-height: 0; padding: 0; }
+.rk-bracket .match-card:focus-within { border-color: #8B5CF6; }
+.rk-bracket .match-card :is(header, footer) { color: var(--rk-muted); font: 12px/1.5 'Segoe UI', sans-serif; }
+.rk-match-heading { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; padding: 10px 12px; }
+.rk-bracket .match-card .match-link { align-items: center; color: var(--rk-text); display: inline-flex; gap: 6px; min-height: 28px; }
+.rk-bracket .match-link:hover { color: #C4B5FD; }
+.rk-bracket .match-link svg { height: 14px; width: 14px; }
+.rk-match-heading .rk-badge { font-size: 10px; max-width: 100%; }
+.rk-match-heading [data-state='EN_CURSO'], .rk-match-heading [data-state='CHECK_IN'], .rk-match-heading [data-state='LISTA_PARA_COMENZAR'] { background: #302141; border-color: #5B3A80; color: #DBC9FF; }
+.rk-match-heading [data-state='FINALIZADA'] { border-color: #5B477A; }
+.rk-bracket .match-slot { align-items: center; border: 0; border-left: 3px solid transparent; gap: 10px; justify-content: flex-start; margin: 0; min-height: 58px; padding: 10px 12px 10px 9px; }
+.rk-bracket .match-slot + .match-slot { border-top: 1px solid var(--rk-border); }
+.rk-bracket .match-slot:not(.winner) { color: var(--rk-text); }
+.rk-bracket .match-slot.winner { background: #7C3AED12; border-left-color: var(--rk-purple-hover); color: var(--rk-text); }
+.rk-bracket .match-slot b { color: #DBC9FF; flex: 0 0 auto; font: 600 9px/1.4 'Segoe UI', sans-serif; margin-left: auto; }
+.rk-bracket .player-identity { align-items: flex-start; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rk-bracket .player-nick { font-size: 14px; font-weight: 600; }
+.rk-bracket .player-account { color: var(--rk-muted); font-size: 11px; font-weight: 400; }
+.rk-bracket-placeholder { color: var(--rk-muted); font-size: 13px; }
+.rk-bracket-avatar { border-radius: 50%; flex: 0 0 28px; height: 28px; object-fit: cover; width: 28px; }
+.rk-match-result { border-top: 1px solid var(--rk-border); color: var(--rk-muted); display: grid; font-size: 11px; gap: 6px; line-height: 1.5; padding: 10px 12px; }
+.rk-match-result strong { color: var(--rk-text); font-size: 13px; }
+.rk-bracket .match-card footer { align-items: center; border-top: 1px solid var(--rk-border); display: flex; gap: 7px; padding: 10px 12px; }
+.rk-bracket .match-card footer svg { height: 14px; width: 14px; }
+.rk-bracket-champion { align-items: center; align-self: center; border-left: 2px solid var(--rk-purple); display: flex; flex: 0 0 220px; flex-direction: column; gap: 14px; min-width: 220px; padding: 24px; text-align: center; width: 220px; }
+.rk-bracket-champion > svg { color: #C4B5FD; height: 28px; width: 28px; }
+.rk-bracket-champion .rk-bracket-avatar { height: 48px; width: 48px; }
+.rk-bracket-champion .player-identity { align-items: center; }
+.rk-bracket-champion .player-nick { font-size: 18px; }
+@media (max-width: 700px) {
+    .rk-bracket-heading { align-items: flex-start; gap: 12px; }
+    .rk-bracket-heading-copy { flex-basis: calc(100% - 76px); }
+    .rk-bracket-heading-copy h1 { font-size: 24px; }
+    .rk-bracket-thumbnail { flex-basis: 52px; height: 52px; width: 52px; }
+    .rk-bracket .bracket-board { gap: 20px; }
+    .rk-bracket .bracket-round { flex-basis: 280px; min-width: 280px; width: 280px; }
+    .rk-bracket .rk-section-heading { align-items: baseline; flex-wrap: wrap; }
+}

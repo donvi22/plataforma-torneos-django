@@ -1,0 +1,9 @@
+{% load static %}
+<header class="rk-bracket-header">
+    <a class="rk-section-link" href="{% url 'ficha-torneo' torneo.pk %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-left"></use></svg>Volver al torneo</a>
+    <div class="rk-bracket-heading">
+        <div class="rk-card-media rk-bracket-thumbnail{% if not torneo.imagen_banner %} rk-card-media--fallback{% endif %}" aria-hidden="true">{% include 'components/torneo_media.html' %}</div>
+        <div class="rk-bracket-heading-copy"><p class="rk-kicker">Bracket</p><h1>{{ torneo.nombre }}</h1><p class="rk-metadata">{{ torneo.videojuego.nombre }} · {{ torneo.formato_competitivo.nombre }} · {{ torneo.participantes_confirmados }}/{{ torneo.max_participantes }} participantes</p></div>
+        <div class="rk-bracket-badges"><span class="rk-badge{% if torneo.tipo == 'OFICIAL' %} rk-badge--official{% endif %}">{{ torneo.get_tipo_display }}</span><span class="rk-badge" data-state="{{ torneo.estado }}">{{ torneo.get_estado_display }}</span></div>
+    </div>
+</header>

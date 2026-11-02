@@ -1,30 +1,38 @@
 {% extends 'base.html' %}
-{% load usuarios_extras %}
+{% load static usuarios_extras %}
 {% block title %}Bracket · {{ torneo.nombre }}{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-detail.css' %}">
+<link rel="stylesheet" href="{% static 'css/bracket.css' %}">
+{% endblock %}
 {% block content %}
-<section class="catalogue-header">
-    <p class="eyebrow">Cuadro de eliminación</p>
-    <h1>{{ torneo.nombre }}</h1>
-    <p class="lead">Consulta las rondas y el estado de cada enfrentamiento.</p>
-</section>
-{% if campeon %}<section class="champion-panel"><span class="eyebrow">Campeón</span><strong>{% identidad_competitiva campeon_usuario campeon %}</strong></section>{% endif %}
-{% if clasificacion %}<section class="profile-panel"><p class="eyebrow">Resultado final</p><h2>Clasificación final</h2><ol class="participant-list">{% for fila in clasificacion %}<li><strong>{{ fila.posicion }}.</strong> {% identidad_competitiva fila.inscripcion.usuario fila.inscripcion.nick_historico %}{% if fila.es_campeon %} · Campeón{% endif %}</li>{% endfor %}</ol></section>{% endif %}
-<div class="bracket-scroll"><div class="bracket-board">
+<article class="rk-dashboard rk-bracket">
+{% include 'components/bracket_header.html' %}
+<section class="rk-section" aria-labelledby="bracket-title">
+<div class="rk-section-heading"><h2 id="bracket-title">Cuadro de eliminación</h2><span class="rk-metadata">{{ rondas|length }} rondas</span></div>
+<div class="bracket-scroll" tabindex="0" role="region" aria-label="Rondas del bracket"><div class="bracket-board">
 {% for ronda in rondas %}
-<section class="bracket-round">
-    <h2>{{ ronda.nombre }}</h2>
+<section class="bracket-round" aria-labelledby="round-{{ ronda.numero }}">
+    <header class="rk-round-heading"><p class="rk-kicker">Ronda {{ ronda.numero }}</p><h3 id="round-{{ ronda.numero }}">{{ ronda.nombre }}</h3></header>
+    <div class="rk-round-matches">
     {% for item in ronda.partidas %}
     <article class="match-card">
-        <header><a class="match-link" href="{% url 'detalle-partida' item.partida.pk %}">Partida {{ item.partida.numero_orden }}</a> · <span>{{ item.partida.get_estado_display }}</span></header>
-        <div>
-            <p class="match-slot {% if item.slot_1.ganador %}winner{% endif %}">{% if item.slot_1.participante %}{% identidad_competitiva item.slot_1.usuario item.slot_1.texto %}{% else %}{{ item.slot_1.texto }}{% endif %}{% if item.slot_1.ganador %}<b>Ganador</b>{% endif %}</p>
-            <p class="match-slot {% if item.slot_2.ganador %}winner{% endif %}">{% if item.slot_2.participante %}{% identidad_competitiva item.slot_2.usuario item.slot_2.texto %}{% else %}{{ item.slot_2.texto }}{% endif %}{% if item.slot_2.ganador %}<b>Ganador</b>{% endif %}</p>
+        <header class="rk-match-heading"><a class="match-link" href="{% url 'detalle-partida' item.partida.pk %}" aria-label="Abrir partida {{ item.partida.numero_orden }}, {{ ronda.nombre }}">Partida {{ item.partida.numero_orden }}<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-up-right"></use></svg></a><span class="rk-badge" data-state="{{ item.partida.estado }}">{{ item.partida.get_estado_display }}</span></header>
+        <div class="rk-bracket-slots">
+            {% include 'components/bracket_slot.html' with slot=item.slot_1 only %}
+            {% include 'components/bracket_slot.html' with slot=item.slot_2 only %}
         </div>
-        {% if item.resultado %}<p class="match-result">Marcador: {{ item.resultado.resultado|default:'Sin marcador' }}</p><p class="match-result">{{ item.tipo_resultado }}{% if item.ganador %} · {{ item.ganador }}{% endif %}</p>{% endif %}
-        {% if item.partida.fecha_hora_programada %}<footer>{{ item.partida.fecha_hora_programada|date:'j/m/Y H:i' }}</footer>{% endif %}
+        {% if item.resultado %}<div class="rk-match-result"><p>Marcador: <strong>{{ item.resultado.resultado|default:'Sin marcador' }}</strong></p><p>{{ item.tipo_resultado }}{% if item.ganador %} · {{ item.ganador }}{% endif %}</p></div>{% endif %}
+        {% if item.partida.fecha_hora_programada %}<footer><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#clock"></use></svg><time>{{ item.partida.fecha_hora_programada|date:'j/m/Y H:i' }}</time></footer>{% endif %}
     </article>
     {% endfor %}
+    </div>
 </section>
 {% endfor %}
+{% if campeon %}<section class="rk-bracket-champion" aria-label="Campeón"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#crown"></use></svg><p class="rk-kicker">Campeón</p>{% if campeon_usuario.puede_operar and campeon_usuario.avatar %}<img class="rk-bracket-avatar" src="{{ campeon_usuario.avatar.url }}" alt="" loading="lazy">{% endif %}{% identidad_competitiva campeon_usuario campeon %}</section>{% endif %}
 </div></div>
+</section>
+{% if clasificacion %}<section class="rk-detail-section" aria-labelledby="standings-title"><p class="rk-kicker">Resultado final</p><h2 id="standings-title">Clasificación final</h2><div class="rk-detail-roster" tabindex="0" role="region" aria-label="Clasificación final"><ol class="rk-detail-ranking">{% for fila in clasificacion %}<li><strong>{{ fila.posicion }}.</strong> {% identidad_competitiva fila.inscripcion.usuario fila.inscripcion.nick_historico %}<span class="rk-metadata">{% if fila.es_campeon %}Campeón{% endif %}</span></li>{% endfor %}</ol></div></section>{% endif %}
+</article>
 {% endblock %}

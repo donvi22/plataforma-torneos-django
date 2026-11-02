@@ -1,0 +1,8 @@
+{% load usuarios_extras %}
+<div class="match-slot{% if slot.ganador %} winner{% endif %}">
+    {% if slot.participante %}
+        {% if slot.usuario.puede_operar and slot.usuario.avatar %}<img class="rk-bracket-avatar" src="{{ slot.usuario.avatar.url }}" alt="" loading="lazy">{% endif %}
+        {% identidad_competitiva slot.usuario slot.texto %}
+    {% else %}<span class="rk-bracket-placeholder">{{ slot.texto }}</span>{% endif %}
+    {% if slot.ganador %}<b>Ganador</b>{% endif %}
+</div>
