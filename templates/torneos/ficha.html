@@ -1,16 +1,111 @@
 {% extends 'base.html' %}
-{% load usuarios_extras %}
-{% block title %}{{ torneo.nombre }} · Arena provisional{% endblock %}
+{% load static usuarios_extras %}
+{% block title %}{{ torneo.nombre }}{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-detail.css' %}">
+{% endblock %}
 {% block content %}
-{% if user.is_authenticated %}<section class="profile-panel moderation-report-link"><a class="text-link" href="{% url 'denunciar-torneo' torneo.pk %}">Reportar problema</a></section>{% endif %}
-{% if puede_gestionar_arbitraje %}<section class="profile-panel"><p class="eyebrow">Organización</p><a class="text-link" href="{% url 'gestionar-arbitros-torneo' torneo.pk %}">Gestionar árbitros y asignaciones</a>{% if torneo.tipo == 'OFICIAL' %} <a class="text-link" href="{% url 'calendario-partidas' torneo.pk %}">Calendario de partidas</a>{% endif %}</section>{% endif %}
-<section class="tournament-detail-panel">{% if torneo.imagen_banner %}<img class="tournament-detail-image" src="{{ torneo.imagen_banner.url }}" alt="Banner de {{ torneo.nombre }}">{% else %}<div class="tournament-detail-image tournament-thumb" aria-hidden="true">{{ torneo.nombre|first|upper }}</div>{% endif %}<div><div class="card-meta"><span>{% if torneo.tipo == 'PRIVADO' %}Torneo privado{% else %}{{ torneo.get_tipo_display }}{% endif %}</span><span>{{ estado_presentacion }}</span></div><p class="eyebrow">{{ torneo.videojuego.nombre }}</p><h1>{{ torneo.nombre }}</h1><p>Organiza {% enlace_usuario torneo.organizador %}</p><p class="muted">{{ torneo.confirmados }}/{{ torneo.max_participantes }} participantes confirmados</p>{% if torneo.tipo == 'PRIVADO' %}<p class="muted">Plazas disponibles: {{ plazas_disponibles }}</p>{% endif %}</div></section>
-{% if es_organizador and torneo.tipo == 'PRIVADO' %}<section class="profile-panel"><p class="eyebrow">Organización</p><a class="text-link" href="{% url 'gestionar-privado' torneo.pk %}">Gestionar invitación y accesos</a></section>{% endif %}
-{% if puede_preparar %}<section class="profile-panel"><form method="post" action="{% url 'preparar-torneo' torneo.pk %}">{% csrf_token %}<button class="button" type="submit">Preparar torneo</button></form></section>{% elif torneo.partidas.exists %}<section class="profile-panel"><a class="button button-quiet" href="{% url 'bracket-torneo' torneo.pk %}">Ver bracket</a>{% if puede_cerrar %}<form method="post" action="{% url 'cerrar-torneo' torneo.pk %}">{% csrf_token %}<button class="button" type="submit">Confirmar cierre del torneo</button></form>{% endif %}</section>{% endif %}
-{% if clasificacion %}<section class="profile-panel"><p class="eyebrow">Resultado final</p><h2>Clasificación final</h2><ol class="participant-list">{% for fila in clasificacion %}<li><strong>{{ fila.posicion }}.</strong> {% identidad_competitiva fila.inscripcion.usuario fila.inscripcion.nick_historico %}{% if fila.es_campeon %} · Campeón{% elif fila.ronda_eliminado %} · Eliminado en ronda {{ fila.ronda_eliminado }}{% endif %}</li>{% endfor %}</ol></section>{% endif %}
-<div class="tournament-info-grid"><section class="profile-panel"><p class="eyebrow">Reglas y requisitos</p><h2>Información del torneo</h2>{% if torneo.reglas %}<p>{{ torneo.reglas|linebreaksbr }}</p>{% endif %}<dl class="detail-list"><dt>Formato</dt><dd>{{ torneo.formato_competitivo.nombre }}</dd>{% if torneo.nivel_minimo %}<dt>Nivel mínimo</dt><dd>{{ torneo.nivel_minimo }}</dd>{% endif %}{% if torneo.rango_minimo %}<dt>Rango mínimo</dt><dd>{{ torneo.rango_minimo.nombre }}</dd>{% endif %}{% if torneo.rango_maximo %}<dt>Rango máximo</dt><dd>{{ torneo.rango_maximo.nombre }}</dd>{% endif %}</dl></section><section class="profile-panel"><p class="eyebrow">Calendario</p><h2>Fechas</h2><dl class="detail-list">{% if torneo.fecha_apertura_inscripciones %}<dt>Apertura</dt><dd>{{ torneo.fecha_apertura_inscripciones|date:'j/m/Y H:i' }}</dd>{% endif %}{% if torneo.fecha_cierre_inscripciones %}<dt>Cierre</dt><dd>{{ torneo.fecha_cierre_inscripciones|date:'j/m/Y H:i' }}</dd>{% endif %}{% if torneo.fecha_inicio_prevista %}<dt>Inicio previsto</dt><dd>{{ torneo.fecha_inicio_prevista|date:'j/m/Y H:i' }}</dd>{% endif %}</dl>{% if estado_presentacion == 'Inscripciones completas' %}<p class="notice">No quedan plazas disponibles.</p>{% elif estado_presentacion == 'Próximamente' %}<p class="notice">Las inscripciones todavía no han abierto.</p>{% elif estado_presentacion == 'Plazo de inscripción vencido' or estado_presentacion == 'Prórroga vencida' %}<p class="notice">El plazo de inscripción ha terminado.</p>{% endif %}</section></div>
-{% if torneo.tipo == 'OFICIAL' and torneo.premios.all %}<section class="profile-panel"><p class="eyebrow">Premios</p><h2>Premios oficiales</h2>{% for premio in torneo.premios.all %}<p>{{ premio.descripcion }}</p>{% endfor %}</section>{% endif %}
-<section class="profile-panel"><p class="eyebrow">Participantes</p><h2>Inscripciones confirmadas</h2>{% if participantes %}<ul class="participant-list">{% for inscripcion in participantes %}<li>{% identidad_competitiva inscripcion.usuario inscripcion.nick_historico %}</li>{% endfor %}</ul>{% else %}<p class="muted">Todavía no hay participantes confirmados.</p>{% endif %}</section>
-{% if user.is_authenticated and torneo.estado != 'BORRADOR' %}<section class="profile-panel enrollment-panel"><p class="eyebrow">Tu participación</p>{% if es_organizador %}<p class="muted">No puedes inscribirte como participante en un torneo que organizas.</p>{% elif inscripcion_usuario %}<p>Estado de tu inscripción: <strong>{{ inscripcion_usuario.get_estado_display }}</strong>.</p>{% if inscripcion_usuario.estado == 'CANCELADA' %}{% if puede_inscribirse %}<form method="post" action="{% url 'inscribirse-privado' torneo.pk %}">{% csrf_token %}<button class="button" type="submit">Volver a inscribirme</button></form>{% else %}<p class="muted">La reinscripción no está disponible.</p>{% endif %}{% elif puede_cancelar_inscripcion %}<form method="post" action="{% url 'cancelar-inscripcion' inscripcion_usuario.pk %}">{% csrf_token %}<button class="button button-quiet" type="submit">Cancelar mi inscripción</button></form>{% endif %}{% elif puede_inscribirse %}<p>Perfil en el juego: <strong>{{ perfil_videojuego.nick_en_juego }}</strong>{% if perfil_videojuego.rango_declarado %} · Rango: {{ perfil_videojuego.rango_declarado.nombre }}{% endif %}</p><form method="post" action="{% if torneo.tipo == 'PRIVADO' %}{% url 'inscribirse-privado' torneo.pk %}{% else %}{% url 'inscribirse-torneo' torneo.pk %}{% endif %}">{% csrf_token %}<button class="button" type="submit">Inscribirme</button></form>{% elif not perfil_videojuego %}<p class="muted">Necesitas un perfil de {{ torneo.videojuego.nombre }} para inscribirte.</p><a class="button" href="{% url 'crear-perfil-videojuego' torneo.videojuego.pk %}">Crear perfil de videojuego</a>{% elif estado_presentacion == 'Inscripciones completas' %}<p class="muted">No quedan plazas disponibles.</p>{% elif estado_presentacion == 'Plazo de inscripción vencido' or estado_presentacion == 'Prórroga vencida' %}<p class="muted">El plazo de inscripción ha terminado.</p>{% else %}<p class="muted">Las inscripciones no están disponibles ahora.</p>{% endif %}</section>{% elif not user.is_authenticated and torneo.tipo != 'PRIVADO' and torneo.estado != 'BORRADOR' %}<section class="profile-panel enrollment-panel"><p class="eyebrow">¿Quieres participar?</p><a class="button" href="{% url 'login' %}?next={{ request.path }}">Inicia sesión para inscribirte</a></section>{% endif %}
-{% if torneo.estado == 'CANCELADO' and torneo.motivo_cancelacion %}<section class="notice notice-danger">Torneo cancelado: {{ torneo.motivo_cancelacion }}</section>{% endif %}
+<article class="rk-dashboard rk-tournament-detail">
+    <header class="rk-detail-hero">
+        <div class="rk-card-media rk-detail-media{% if not torneo.imagen_banner %} rk-card-media--fallback{% endif %}" aria-hidden="true">{% include 'components/torneo_media.html' %}</div>
+        <div class="rk-detail-heading">
+            <div class="rk-detail-badges"><span class="rk-badge{% if torneo.tipo == 'OFICIAL' %} rk-badge--official{% endif %}">{% if torneo.tipo == 'PRIVADO' %}Torneo privado{% else %}{{ torneo.get_tipo_display }}{% endif %}</span><span class="rk-badge rk-badge--state" data-state="{{ torneo.estado }}">{{ estado_presentacion }}</span></div>
+            <h1>{{ torneo.nombre }}</h1>
+            <div class="rk-metadata">
+                <span><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#gamepad-2"></use></svg>{{ torneo.videojuego.nombre }}</span>
+                <span><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#users"></use></svg>{{ torneo.confirmados }}/{{ torneo.max_participantes }} participantes confirmados</span>
+                {% if torneo.fecha_inicio_prevista %}<span><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#calendar-days"></use></svg>{{ torneo.fecha_inicio_prevista|date:'j M Y · H:i' }}</span>{% endif %}
+            </div>
+        </div>
+    </header>
+    <div class="rk-detail-actionbar">
+        {% if user.is_authenticated and torneo.estado != 'BORRADOR' %}
+        <section class="rk-detail-participation" aria-label="Tu participación">
+            {% if es_organizador %}
+                <p class="rk-kicker">Organizas este torneo</p><p class="rk-description">No puedes inscribirte como participante en un torneo que organizas.</p>
+            {% elif inscripcion_usuario %}
+                <p class="rk-kicker">Tu participación</p>
+                {% if inscripcion_usuario.estado == 'CONFIRMADA' %}<p class="rk-detail-confirmed">Estás inscrito en este torneo</p>{% endif %}
+                <p>Estado de tu inscripción: <strong>{{ inscripcion_usuario.get_estado_display }}</strong>.</p>
+                <p class="rk-description">Nick utilizado: <strong>{{ inscripcion_usuario.nick_historico }}</strong></p>
+                {% if inscripcion_usuario.estado == 'CANCELADA' %}
+                    {% if puede_inscribirse %}<form method="post" action="{% url 'inscribirse-privado' torneo.pk %}">{% csrf_token %}<button class="rk-btn rk-btn--primary" type="submit">Volver a inscribirme</button></form>{% else %}<p class="rk-description">La reinscripción no está disponible.</p>{% endif %}
+                {% elif puede_cancelar_inscripcion %}<form method="post" action="{% url 'cancelar-inscripcion' inscripcion_usuario.pk %}">{% csrf_token %}<button class="rk-btn rk-btn--secondary" type="submit">Cancelar mi inscripción</button></form>{% endif %}
+            {% elif puede_inscribirse %}
+                <p class="rk-kicker">Tu participación</p><p>Perfil en el juego: <strong>{{ perfil_videojuego.nick_en_juego }}</strong>{% if perfil_videojuego.rango_declarado %} · Rango: {{ perfil_videojuego.rango_declarado.nombre }}{% endif %}</p>
+                <form method="post" action="{% if torneo.tipo == 'PRIVADO' %}{% url 'inscribirse-privado' torneo.pk %}{% else %}{% url 'inscribirse-torneo' torneo.pk %}{% endif %}">{% csrf_token %}<button class="rk-btn rk-btn--primary" type="submit">Inscribirme</button></form>
+            {% elif not perfil_videojuego %}
+                <p class="rk-description">Necesitas un perfil de {{ torneo.videojuego.nombre }} para inscribirte.</p><a class="rk-btn rk-btn--secondary" href="{% url 'crear-perfil-videojuego' torneo.videojuego.pk %}">Crear perfil de videojuego</a>
+            {% elif estado_presentacion == 'Inscripciones completas' %}<p class="rk-description">No quedan plazas disponibles.</p>
+            {% elif estado_presentacion == 'Plazo de inscripción vencido' or estado_presentacion == 'Prórroga vencida' %}<p class="rk-description">El plazo de inscripción ha terminado.</p>
+            {% else %}<p class="rk-description">Las inscripciones no están disponibles ahora.</p>{% endif %}
+        </section>
+        {% elif not user.is_authenticated and torneo.tipo != 'PRIVADO' and torneo.estado != 'BORRADOR' %}
+        <a class="rk-btn rk-btn--primary" href="{% url 'login' %}?next={{ request.path }}">Inicia sesión para inscribirte</a>
+        {% endif %}
+        <div class="rk-actions rk-detail-competition-actions">
+            {% if puede_preparar %}<form method="post" action="{% url 'preparar-torneo' torneo.pk %}">{% csrf_token %}<button class="rk-btn rk-btn--primary" type="submit">Preparar torneo</button></form>
+            {% elif torneo.partidas.exists %}
+                <a class="rk-btn rk-btn--primary" href="{% url 'bracket-torneo' torneo.pk %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#git-branch"></use></svg>Ver bracket</a>
+                {% if puede_cerrar %}<form method="post" action="{% url 'cerrar-torneo' torneo.pk %}">{% csrf_token %}<button class="rk-btn rk-btn--secondary" type="submit">Confirmar cierre del torneo</button></form>{% endif %}
+            {% endif %}
+            {% if es_organizador and torneo.tipo == 'PRIVADO' %}<a class="rk-btn rk-btn--secondary" href="{% url 'gestionar-privado' torneo.pk %}">Gestionar invitación y accesos</a>{% endif %}
+            {% if puede_gestionar_arbitraje %}
+                <a class="rk-btn rk-btn--secondary" href="{% url 'gestionar-arbitros-torneo' torneo.pk %}">Gestionar árbitros y asignaciones</a>
+                {% if torneo.tipo == 'OFICIAL' %}<a class="rk-btn rk-btn--secondary" href="{% url 'calendario-partidas' torneo.pk %}">Calendario de partidas</a>{% endif %}
+            {% endif %}
+        </div>
+    </div>
+    <section class="rk-detail-section rk-detail-progress" aria-labelledby="progress-title">
+        <h2 id="progress-title">Progreso del torneo</h2>
+        {% if torneo.estado == 'CANCELADO' %}<p class="rk-detail-cancelled">Torneo cancelado{% if torneo.motivo_cancelacion %}: {{ torneo.motivo_cancelacion }}{% endif %}</p>
+        {% elif torneo.estado == 'BORRADOR' %}<p class="rk-description">Borrador</p>
+        {% else %}
+        <ol class="rk-detail-steps">
+            <li{% if torneo.estado == 'PROXIMAMENTE' or torneo.estado == 'INSCRIPCIONES_ABIERTAS' or torneo.estado == 'PRORROGA' %} aria-current="step"{% endif %}><span aria-hidden="true">1</span>Inscripciones</li>
+            <li{% if torneo.estado == 'INSCRIPCIONES_CERRADAS' or torneo.estado == 'PREPARADO' %} aria-current="step"{% endif %}><span aria-hidden="true">2</span>Preparación</li>
+            <li{% if torneo.estado == 'EN_CURSO' %} aria-current="step"{% endif %}><span aria-hidden="true">3</span>En competición</li>
+            <li{% if torneo.estado == 'FINALIZADO' %} aria-current="step"{% endif %}><span aria-hidden="true">4</span>Finalizado</li>
+        </ol>
+        {% endif %}
+    </section>
+    <div class="rk-detail-columns">
+        <section class="rk-detail-section" aria-labelledby="info-title">
+            <p class="rk-kicker">La competición</p><h2 id="info-title">Información del torneo</h2>
+            <dl class="rk-detail-facts">
+                <div><dt>Videojuego</dt><dd>{{ torneo.videojuego.nombre }}</dd></div>
+                <div><dt>Formato</dt><dd>{{ torneo.formato_competitivo.nombre }}</dd></div>
+                <div><dt>Participantes</dt><dd>{{ torneo.confirmados }}/{{ torneo.max_participantes }} confirmados{% if torneo.tipo == 'PRIVADO' %}<small>Plazas disponibles: {{ plazas_disponibles }}</small>{% endif %}</dd></div>
+                {% if torneo.nivel_minimo %}<div><dt>Nivel mínimo</dt><dd>{{ torneo.nivel_minimo }}</dd></div>{% endif %}
+                {% if torneo.rango_minimo %}<div><dt>Rango mínimo</dt><dd>{{ torneo.rango_minimo.nombre }}</dd></div>{% endif %}
+                {% if torneo.rango_maximo %}<div><dt>Rango máximo</dt><dd>{{ torneo.rango_maximo.nombre }}</dd></div>{% endif %}
+            </dl>
+            {% if torneo.reglas %}<div class="rk-detail-rules"><h3>Reglas</h3><p>{{ torneo.reglas|linebreaksbr }}</p></div>{% endif %}
+        </section>
+        <div>
+            <section class="rk-detail-section" aria-labelledby="calendar-title">
+                <p class="rk-kicker">Calendario</p><h2 id="calendar-title">Fechas</h2>
+                <dl class="rk-detail-dates">
+                    {% if torneo.fecha_apertura_inscripciones %}<div><dt>Apertura</dt><dd>{{ torneo.fecha_apertura_inscripciones|date:'j/m/Y H:i' }}</dd></div>{% endif %}
+                    {% if torneo.fecha_cierre_inscripciones %}<div><dt>Cierre</dt><dd>{{ torneo.fecha_cierre_inscripciones|date:'j/m/Y H:i' }}</dd></div>{% endif %}
+                    {% if torneo.fecha_inicio_prevista %}<div><dt>Inicio previsto</dt><dd>{{ torneo.fecha_inicio_prevista|date:'j/m/Y H:i' }}</dd></div>{% endif %}
+                </dl>
+                {% if estado_presentacion == 'Inscripciones completas' %}<p class="rk-description">No quedan plazas disponibles.</p>{% elif estado_presentacion == 'Próximamente' %}<p class="rk-description">Las inscripciones todavía no han abierto.</p>{% elif estado_presentacion == 'Plazo de inscripción vencido' or estado_presentacion == 'Prórroga vencida' %}<p class="rk-description">El plazo de inscripción ha terminado.</p>{% endif %}
+            </section>
+            <section class="rk-detail-section rk-detail-organizer" aria-label="Organizador"><p class="rk-kicker">Organizado por</p><p>{% enlace_usuario torneo.organizador %}</p></section>
+        </div>
+    </div>
+    {% if clasificacion %}
+    <section class="rk-detail-section" aria-labelledby="standings-title"><p class="rk-kicker">Resultado final</p><h2 id="standings-title">Clasificación final</h2>
+        <div class="rk-detail-roster" tabindex="0" role="region" aria-label="Clasificación final"><ol class="rk-detail-ranking">{% for fila in clasificacion %}<li><strong>{{ fila.posicion }}.</strong> {% identidad_competitiva fila.inscripcion.usuario fila.inscripcion.nick_historico %}<span class="rk-metadata">{% if fila.es_campeon %}Campeón{% elif fila.ronda_eliminado %}Eliminado en ronda {{ fila.ronda_eliminado }}{% endif %}</span></li>{% endfor %}</ol></div>
+    </section>
+    {% endif %}
+    {% if torneo.tipo == 'OFICIAL' and torneo.premios.all %}<section class="rk-detail-section" aria-labelledby="prizes-title"><p class="rk-kicker">Premios</p><h2 id="prizes-title">Premios oficiales</h2>{% for premio in torneo.premios.all %}<p class="rk-description">{{ premio.descripcion }}</p>{% endfor %}</section>{% endif %}
+    <section class="rk-detail-section" aria-labelledby="participants-title">
+        <div class="rk-section-heading"><div><p class="rk-kicker">Participantes · {{ torneo.confirmados }}/{{ torneo.max_participantes }}</p><h2 id="participants-title">Inscripciones confirmadas</h2></div></div>
+        {% if participantes %}<div class="rk-detail-roster" tabindex="0" role="region" aria-label="Participantes confirmados"><ul class="rk-detail-players">{% for inscripcion in participantes %}<li>{% identidad_competitiva inscripcion.usuario inscripcion.nick_historico %}</li>{% endfor %}</ul></div>{% else %}<p class="rk-description">Todavía no hay participantes confirmados.</p>{% endif %}
+    </section>
+    {% if user.is_authenticated %}<footer class="rk-detail-footer"><a class="rk-section-link" href="{% url 'denunciar-torneo' torneo.pk %}">Reportar problema</a></footer>{% endif %}
+</article>
 {% endblock %}

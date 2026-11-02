@@ -1,0 +1,74 @@
+.rk-tournament-detail { overflow-wrap: anywhere; }
+.rk-detail-hero { background: var(--rk-surface); isolation: isolate; min-height: 238px; position: relative; }
+.rk-detail-media { border: 0; border-radius: 0; height: 100%; inset: 0; position: absolute; z-index: -1; }
+.rk-detail-media::after { background: linear-gradient(0deg, #0D0D0FF5, #0D0D0F45); content: ''; inset: 0; position: absolute; }
+.rk-detail-media > .rk-card-game-image { height: 120px; max-width: 32%; object-fit: contain; padding: 0; position: absolute; right: 28px; top: 16px; width: 150px; }
+.rk-detail-media .rk-card-media-fallback { justify-content: flex-end; padding: 26px; }
+.rk-detail-media .rk-card-media-fallback > span { display: none; }
+.rk-detail-media .rk-card-media-fallback svg { height: 80px; width: 80px; }
+.rk-detail-heading { display: flex; flex-direction: column; gap: 16px; justify-content: flex-end; min-height: 238px; padding: 28px; }
+.rk-detail-heading h1 { font-size: 32px; max-width: 900px; }
+.rk-detail-heading .rk-metadata { color: var(--rk-text); gap: 10px 24px; }
+.rk-detail-heading .rk-metadata > span { align-items: center; display: inline-flex; gap: 8px; min-width: 0; }
+.rk-detail-badges { display: flex; flex-wrap: wrap; gap: 8px; }
+.rk-detail-badges .rk-badge { background: #15151AF2; font-size: 11px; padding: 5px 9px; }
+.rk-detail-badges .rk-badge--official { background: #302141F5; color: #DBC9FF; }
+.rk-detail-badges [data-state='INSCRIPCIONES_ABIERTAS'], .rk-detail-badges [data-state='PRORROGA'] { color: #87E3BA; }
+.rk-detail-actionbar { align-items: center; border-bottom: 1px solid var(--rk-border); display: flex; flex-wrap: wrap; gap: 20px 28px; justify-content: space-between; padding: 22px 0; }
+.rk-detail-actionbar:not(:has(a, button, .rk-detail-participation)), .rk-detail-competition-actions:not(:has(a, button)) { display: none; }
+.rk-detail-participation { flex: 1 1 360px; font-size: 14px; min-width: 0; }
+.rk-detail-participation > * + * { margin-top: 8px; }
+.rk-detail-participation .rk-description { margin-top: 6px; }
+.rk-detail-participation :is(form, .rk-btn) { margin-top: 12px; }
+.rk-detail-confirmed { color: #87E3BA; font-weight: 600; }
+.rk-detail-competition-actions { flex: 0 1 480px; }
+.rk-detail-section { border-bottom: 1px solid var(--rk-border); min-width: 0; padding: 24px 0; }
+.rk-detail-section > .rk-kicker { margin-bottom: 5px; }
+.rk-detail-progress h2 { font-size: 16px; }
+.rk-detail-steps { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; margin: 20px 0 0; padding: 0; }
+.rk-detail-steps li { align-items: center; border-top: 2px solid var(--rk-border); color: var(--rk-muted); display: flex; font-size: 13px; gap: 8px; padding-top: 12px; }
+.rk-detail-steps li > span { align-items: center; background: var(--rk-card); border-radius: 50%; display: inline-flex; flex: 0 0 26px; height: 26px; justify-content: center; }
+.rk-detail-steps [aria-current='step'] { border-color: var(--rk-purple-hover); color: var(--rk-text); font-weight: 600; }
+.rk-detail-steps [aria-current='step'] > span { background: var(--rk-purple); color: #fff; }
+.rk-detail-cancelled { color: #FDA4AF; font-size: 14px; margin-top: 12px !important; }
+.rk-detail-columns { display: grid; gap: 32px; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); }
+.rk-detail-facts { display: grid; gap: 22px 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 24px 0 0; }
+.rk-tournament-detail :is(dt, small) { color: var(--rk-muted); font-size: 12px; font-weight: 400; }
+.rk-tournament-detail dd { font-size: 14px; line-height: 1.6; margin: 5px 0 0; }
+.rk-detail-facts small { display: block; }
+.rk-detail-rules { border-top: 1px solid var(--rk-border); margin-top: 24px; padding-top: 20px; }
+.rk-detail-rules p { color: var(--rk-muted); font-size: 14px; line-height: 1.75; margin-top: 10px; white-space: normal; }
+.rk-detail-dates { display: grid; gap: 14px; margin: 22px 0 0; }
+.rk-detail-dates > div { align-items: baseline; display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: space-between; }
+.rk-detail-dates dd { margin: 0; }
+.rk-detail-organizer { display: grid; gap: 8px; }
+.rk-detail-organizer .text-link { color: var(--rk-text); font-size: 16px; }
+.rk-detail-roster { margin-top: 18px; max-height: 330px; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.rk-detail-roster:focus-visible { outline: 2px solid #A78BFA; outline-offset: 3px; }
+.rk-detail-players { display: grid; gap: 0 24px; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0; }
+.rk-detail-players li, .rk-detail-ranking li { border-bottom: 1px solid var(--rk-border); min-width: 0; padding: 12px 0; }
+.rk-detail-roster .player-identity { align-items: flex-start; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rk-detail-roster .player-nick { font-size: 14px; }
+.rk-detail-roster .player-account { color: var(--rk-muted); font-size: 12px; }
+.rk-detail-ranking { list-style: none; margin: 0; padding: 0; }
+.rk-detail-ranking li { align-items: center; display: grid; gap: 12px; grid-template-columns: 30px minmax(0, 1fr) minmax(0, 1fr); }
+.rk-detail-ranking li > strong { color: #C4B5FD; }
+.rk-detail-footer { display: flex; justify-content: flex-end; padding-top: 16px; }
+@media (max-width: 1050px) {
+    .rk-detail-columns { gap: 24px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .rk-detail-players { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .rk-detail-steps { gap: 10px; }
+}
+@media (max-width: 700px) {
+    .rk-detail-heading { min-height: 230px; padding: 22px 18px; }
+    .rk-detail-heading h1 { font-size: 28px; }
+    .rk-detail-columns { display: block; }
+    .rk-detail-actionbar { align-items: stretch; flex-direction: column; }
+    .rk-detail-participation, .rk-detail-competition-actions { flex: auto; width: 100%; }
+    .rk-detail-actionbar :is(form, .rk-btn) { width: 100%; }
+    .rk-detail-steps { gap: 12px; grid-template-columns: minmax(0, 1fr); }
+    .rk-detail-players { grid-template-columns: minmax(0, 1fr); }
+    .rk-detail-facts { gap: 18px; grid-template-columns: minmax(0, 1fr); }
+    .rk-detail-ranking li { grid-template-columns: 24px minmax(0, 1fr); }
+    .rk-detail-ranking li > .rk-metadata { grid-column: 2; }
+}

@@ -250,3 +250,71 @@ class TorneosPublicosViewsTests(TestCase):
         self.assertContains(respuesta, 'Plazo de inscripción vencido')
         torneo.refresh_from_db()
         self.assertEqual(torneo.estado, Torneo.Estado.INSCRIPCIONES_ABIERTAS)
+
+    def test_ficha_fases_solo_presentacion_y_estados_terminales(self):
+        torneo = self.crear_torneo()
+        self.client.force_login(self.organizador)
+        fases = {
+            Torneo.Estado.PROXIMAMENTE: 'Inscripciones',
+            Torneo.Estado.INSCRIPCIONES_ABIERTAS: 'Inscripciones',
+            Torneo.Estado.PRORROGA: 'Inscripciones',
+            Torneo.Estado.INSCRIPCIONES_CERRADAS: 'Preparación',
+            Torneo.Estado.PREPARADO: 'Preparación',
+            Torneo.Estado.EN_CURSO: 'En competición',
+            Torneo.Estado.FINALIZADO: 'Finalizado',
+        }
+        for estado in Torneo.Estado.values:
+            with self.subTest(estado=estado):
+                Torneo.objects.filter(pk=torneo.pk).update(estado=estado)
+                respuesta = self.client.get(reverse('ficha-torneo', args=[torneo.pk]))
+                self.assertEqual(respuesta.status_code, 200)
+                if estado in fases:
+                    self.assertContains(respuesta, 'aria-current="step"', count=1)
+                    numero = ('Inscripciones', 'Preparación', 'En competición', 'Finalizado').index(fases[estado]) + 1
+                    self.assertContains(respuesta, f'aria-current="step"><span aria-hidden="true">{numero}</span>{fases[estado]}</li>')
+                else:
+                    self.assertNotContains(respuesta, 'aria-current="step"')
+                torneo.refresh_from_db()
+                self.assertEqual(torneo.estado, estado)
+
+    def test_ficha_participacion_confirmada_cancelada_y_descalificada(self):
+        torneo = self.crear_torneo(estado=Torneo.Estado.INSCRIPCIONES_ABIERTAS)
+        Torneo.objects.filter(pk=torneo.pk).update(fecha_apertura_inscripciones=timezone.now() - timedelta(hours=1))
+        perfil = PerfilVideojuegoUsuario.objects.create(
+            usuario=self.visitante, videojuego=self.videojuego, nick_en_juego='Nick actual',
+        )
+        inscripcion = InscripcionTorneo.objects.create(
+            torneo=torneo, usuario=self.visitante, perfil_videojuego=perfil,
+            nick_historico='Nick del torneo', estado=InscripcionTorneo.Estado.CONFIRMADA,
+        )
+        self.client.force_login(self.visitante)
+        for estado in InscripcionTorneo.Estado.values:
+            with self.subTest(estado=estado):
+                inscripcion.estado = estado
+                inscripcion.save(update_fields=('estado',))
+                respuesta = self.client.get(reverse('ficha-torneo', args=[torneo.pk]))
+                self.assertContains(respuesta, 'Nick utilizado: <strong>Nick del torneo</strong>')
+                self.assertContains(respuesta, f'Estado de tu inscripción: <strong>{inscripcion.get_estado_display()}</strong>')
+                if estado == InscripcionTorneo.Estado.CONFIRMADA:
+                    self.assertContains(respuesta, 'Estás inscrito en este torneo')
+                    self.assertContains(respuesta, f'action="{reverse("cancelar-inscripcion", args=[inscripcion.pk])}"')
+                    self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
+                else:
+                    self.assertNotContains(respuesta, 'Estás inscrito en este torneo')
+                    self.assertNotContains(respuesta, 'Cancelar mi inscripción')
+                    self.assertNotContains(respuesta, 'Volver a inscribirme')
+
+    def test_ficha_gestion_oficial_y_privada_conservan_visibilidad(self):
+        oficial = self.crear_torneo(tipo=Torneo.Tipo.OFICIAL)
+        privado = self.crear_torneo(tipo=Torneo.Tipo.PRIVADO)
+        self.client.force_login(self.organizador)
+        respuesta = self.client.get(reverse('ficha-torneo', args=[oficial.pk]))
+        self.assertContains(respuesta, reverse('gestionar-arbitros-torneo', args=[oficial.pk]))
+        self.assertContains(respuesta, reverse('calendario-partidas', args=[oficial.pk]))
+        respuesta = self.client.get(reverse('ficha-torneo', args=[privado.pk]))
+        self.assertContains(respuesta, reverse('gestionar-privado', args=[privado.pk]))
+        self.assertNotContains(respuesta, reverse('gestionar-arbitros-torneo', args=[privado.pk]))
+        self.client.force_login(self.visitante)
+        respuesta = self.client.get(reverse('ficha-torneo', args=[oficial.pk]))
+        self.assertNotContains(respuesta, reverse('gestionar-arbitros-torneo', args=[oficial.pk]))
+        self.assertNotContains(respuesta, reverse('calendario-partidas', args=[oficial.pk]))
