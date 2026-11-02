@@ -10,5 +10,5 @@
 <nav class="rk-management-nav" aria-label="Gestión del torneo">
     {% if torneo.estado == 'BORRADOR' %}<a href="{% url 'editar-borrador-torneo' torneo.pk %}"{% if active_section == 'configuracion' %} aria-current="page"{% endif %}>Configuración</a>{% endif %}
     {% if torneo.tipo == 'PRIVADO' and torneo.organizador_id == user.pk %}<a href="{% url 'gestionar-privado' torneo.pk %}"{% if active_section == 'acceso' %} aria-current="page"{% endif %}>Invitación y accesos</a>{% endif %}
-    {% if torneo.tipo == 'PUBLICO' or torneo.tipo == 'OFICIAL' %}<a href="{% url 'gestionar-arbitros-torneo' torneo.pk %}"{% if active_section == 'arbitraje' %} aria-current="page"{% endif %}>Árbitros y asignaciones</a>{% if torneo.tipo == 'OFICIAL' %}<a href="{% url 'calendario-partidas' torneo.pk %}">Calendario de partidas</a>{% endif %}{% endif %}
+    {% if torneo.tipo == 'PUBLICO' or torneo.tipo == 'OFICIAL' %}<a href="{% url 'gestionar-arbitros-torneo' torneo.pk %}"{% if active_section == 'arbitraje' %} aria-current="page"{% endif %}>Árbitros y asignaciones</a>{% if torneo.tipo == 'OFICIAL' %}<a href="{% url 'calendario-partidas' torneo.pk %}"{% if active_section == 'calendario' %} aria-current="page"{% endif %}>Calendario de partidas</a>{% endif %}{% endif %}
 </nav>

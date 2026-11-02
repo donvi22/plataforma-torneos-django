@@ -1,30 +1,40 @@
 {% extends 'base.html' %}
-{% load usuarios_extras %}
+{% load static usuarios_extras %}
 {% block title %}Calendario de partidas · {{ torneo.nombre }}{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-management.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-create.css' %}">
+<link rel="stylesheet" href="{% static 'css/calendar.css' %}">
+{% endblock %}
 {% block content %}
-<section class="catalogue-header"><p class="eyebrow">Torneo oficial</p><h1>Calendario de partidas</h1><p class="lead">{{ torneo.nombre }} · Hora actual: {{ ahora|date:'j/m/Y H:i' }} ({{ ahora|date:'T' }}){% if sin_programar %} · {{ sin_programar }} sin programar{% endif %}</p></section>
+<article class="rk-dashboard rk-create-tournament rk-tournament-management rk-calendar">
+{% include 'components/tournament_management_header.html' with active_section='calendario' %}
+<header class="rk-calendar-heading"><div><p class="rk-kicker">Programación oficial</p><h2>Calendario de partidas</h2><p class="rk-metadata">Hora actual: {{ ahora|date:'j/m/Y H:i' }} ({{ ahora|date:'T' }})</p></div>{% if sin_programar %}<span class="rk-badge rk-calendar-pending">{{ sin_programar }} sin programar</span>{% endif %}</header>
 {% if filas %}
-<ul class="calendar-list">
+<ul class="rk-calendar-list" aria-label="Partidas del calendario oficial">
     {% for fila in filas %}
-    <li class="calendar-entry">
-        <div class="calendar-copy">
-            <div class="card-meta"><span>Ronda {{ fila.partida.numero_ronda }}</span><span>Partida {{ fila.partida.numero_orden }}</span><span>{{ fila.partida.get_estado_display }}</span></div>
-            <p class="calendar-players">{% if fila.inscripciones %}{% for ins in fila.inscripciones %}{% identidad_competitiva ins.usuario ins.nick_historico %}{% if not forloop.last %} vs {% endif %}{% endfor %}{% else %}Rivales por determinar{% endif %}</p>
-            <p>{% if fila.partida.fecha_hora_programada %}<strong>{{ fila.partida.fecha_hora_programada|date:'j/m/Y H:i' }}</strong>{% else %}<span class="muted">Sin programar</span>{% endif %}</p>
-            <p class="muted">Árbitro: {% if fila.partida.arbitro_asignado %}{% enlace_usuario fila.partida.arbitro_asignado.usuario %}{% else %}Sin asignar{% endif %}</p>
-            <a class="text-link" href="{% url 'detalle-partida' fila.partida.pk %}">Ver partida</a>
+    <li class="rk-calendar-row" data-match-state="{{ fila.partida.estado }}">
+        <div class="rk-calendar-copy">
+            <div class="rk-calendar-meta"><span class="rk-kicker">Ronda {{ fila.partida.numero_ronda }} · Partida {{ fila.partida.numero_orden }}</span><span class="rk-badge rk-calendar-state" data-state="{{ fila.partida.estado }}">{{ fila.partida.get_estado_display }}</span></div>
+            <div class="rk-calendar-players">{% if fila.inscripciones %}{% for ins in fila.inscripciones %}{% identidad_competitiva ins.usuario ins.nick_historico %}{% if not forloop.last %}<span class="rk-metadata">vs</span>{% endif %}{% endfor %}{% if not fila.inscripciones.1 %}<span class="rk-metadata">vs</span><span class="rk-metadata">Por determinar</span>{% endif %}{% else %}<span class="rk-metadata">Rivales por determinar</span>{% endif %}</div>
+            <div class="rk-calendar-current-time"><span class="rk-kicker">{% if fila.partida.fecha_hora_programada %}Horario actual{% else %}Horario{% endif %}</span>{% if fila.partida.fecha_hora_programada %}<time datetime="{{ fila.partida.fecha_hora_programada|date:'c' }}">{{ fila.partida.fecha_hora_programada|date:'j/m/Y H:i' }}</time>{% else %}<span class="rk-calendar-unset">Sin programar</span>{% endif %}</div>
+            <p class="rk-metadata">Árbitro: {% if fila.partida.arbitro_asignado %}{% enlace_usuario fila.partida.arbitro_asignado.usuario %}{% else %}Sin asignar{% endif %}</p>
+            <a class="rk-section-link" href="{% url 'detalle-partida' fila.partida.pk %}">Ver partida<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-up-right"></use></svg></a>
         </div>
         {% if fila.editable %}
-        <form method="post" action="{% url 'programar-partida' fila.partida.pk %}" class="calendar-form">
+        <form method="post" action="{% url 'programar-partida' fila.partida.pk %}" class="rk-guided-form rk-calendar-form">
             {% csrf_token %}
-            <label>{{ fila.form.fecha_hora.label }}{{ fila.form.fecha_hora }}</label>
-            {% if fila.partida.fecha_hora_programada %}<label>{{ fila.form.motivo.label }}{{ fila.form.motivo }}</label>{% endif %}
-            <button class="button button-small" type="submit">{% if fila.partida.fecha_hora_programada %}Reprogramar{% else %}Programar{% endif %}</button>
+            <fieldset><legend>{% if fila.partida.fecha_hora_programada %}Reprogramar{% else %}Programar{% endif %}</legend>
+            <div class="rk-field-group"><label for="{{ fila.form.fecha_hora.auto_id }}-{{ fila.partida.pk }}">{% if fila.partida.fecha_hora_programada %}Nueva fecha y hora{% else %}{{ fila.form.fecha_hora.label }}{% endif %}</label>{% campo_calendario fila.form.fecha_hora fila.partida.pk %}</div>
+            {% if fila.partida.fecha_hora_programada %}<div class="rk-field-group"><label for="{{ fila.form.motivo.auto_id }}-{{ fila.partida.pk }}">{{ fila.form.motivo.label }}</label>{% campo_calendario fila.form.motivo fila.partida.pk %}</div>{% endif %}
+            <button class="rk-btn rk-btn--{% if fila.partida.fecha_hora_programada %}secondary{% else %}primary{% endif %}" type="submit">{% if fila.partida.fecha_hora_programada %}Reprogramar{% else %}Programar{% endif %}</button>
+            </fieldset>
         </form>
-        {% else %}<p class="muted">No se puede modificar la programación.</p>{% endif %}
+        {% else %}<p class="rk-calendar-restriction">No se puede modificar la programación.</p>{% endif %}
     </li>
     {% endfor %}
 </ul>
-{% else %}<section class="empty-panel"><h2>Todavía no hay partidas</h2><p class="muted">Prepara el torneo para generar el bracket.</p></section>{% endif %}
-<div class="action-row"><a class="text-link" href="{% url 'ficha-torneo' torneo.pk %}">Volver al torneo</a></div>
+{% else %}<section class="rk-calendar-empty"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#calendar-days"></use></svg><h2>Todavía no hay partidas</h2><p class="rk-description">Prepara el torneo para generar el bracket.</p></section>{% endif %}
+</article>
 {% endblock %}

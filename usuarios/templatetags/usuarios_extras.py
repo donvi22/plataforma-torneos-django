@@ -15,6 +15,11 @@ def avatar_widget(field):
 
 
 @register.simple_tag
+def campo_calendario(field, partida_pk):
+    return field.as_widget(attrs={'id': f'{field.auto_id}-{partida_pk}'})
+
+
+@register.simple_tag
 def identidad_competitiva(usuario, nick):
     """Nick competitivo del torneo como texto principal y @username de la plataforma como secundario."""
     if usuario is None or usuario.estado_cuenta == usuario.EstadoCuenta.ELIMINADA:
