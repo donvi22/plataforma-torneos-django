@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}404 · Página no encontrada{% endblock %}
+{% block page_styles %}
+{% if user.is_authenticated %}<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">{% endif %}
+<link rel="stylesheet" href="{% static 'css/errors.css' %}">
+{% endblock %}
+{% block content %}
+<section class="rk-dashboard rk-error" aria-label="Página no encontrada">
+    {% include 'components/error_content.html' with code='404' heading='Página no encontrada' description='La página que buscas puede no existir o haber cambiado de dirección.' icon='file-question' explore=True only %}
+</section>
+{% endblock %}

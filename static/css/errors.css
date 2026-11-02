@@ -1,0 +1,19 @@
+.rk-error { display: grid; min-height: calc(100svh - 240px); padding: 32px 0; place-items: center; text-align: center; }
+.rk-app .rk-error { min-height: calc(100svh - 140px); }
+.rk-error-content { max-width: 480px; min-width: 0; width: 100%; }
+.rk-error-brand { align-items: center; color: var(--rk-text); display: inline-flex; font-size: 14px; font-weight: 600; gap: 8px; max-width: 100%; text-decoration: none; }
+.rk-error-brand svg { color: #C4B5FD; height: 22px; width: 22px; }
+.rk-error .rk-error-icon { color: var(--rk-muted); height: 32px; margin: 28px auto 16px; width: 32px; }
+.rk-error .rk-error-code { color: var(--rk-muted); font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+.rk-error h1 { font-size: 26px; line-height: 1.3; }
+.rk-error .rk-error-description { color: var(--rk-muted); font-size: 14px; line-height: 1.7; margin-top: 14px; overflow-wrap: anywhere; }
+.rk-error-actions { justify-content: center; margin-top: 24px; }
+.rk-error-actions .rk-btn { max-width: 100%; overflow-wrap: anywhere; }
+.rk-error .rk-error-help { color: var(--rk-muted); font-size: 12px; line-height: 1.7; margin-top: 20px; }
+.rk-error-help a { color: #C4B5FD; }
+.rk-error-standalone .page-shell { display: grid; place-items: center; }
+@media (max-width: 650px) {
+    .rk-error, .rk-app .rk-error { min-height: calc(100svh - 280px); padding: 24px 0; }
+    .rk-error h1 { font-size: 24px; }
+    .rk-error-actions { align-items: center; flex-direction: column; }
+}

@@ -1,0 +1,13 @@
+{% load static %}
+<div class="rk-error-content">
+    <a class="rk-error-brand" href="/" aria-label="Ranked Kingdom, inicio"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#crown"></use></svg><span>Ranked Kingdom</span></a>
+    <svg class="rk-error-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#{{ icon }}"></use></svg>
+    <p class="rk-error-code">{{ code }}</p>
+    <h1>{{ heading }}</h1>
+    <p class="rk-error-description">{{ description }}</p>
+    <div class="rk-actions rk-error-actions">
+        <a class="rk-btn rk-btn--primary" href="/">Volver al inicio</a>
+        {% if explore %}<a class="rk-btn rk-btn--secondary" href="{% url 'catalogo-torneos' %}">Explorar torneos</a>{% endif %}
+    </div>
+    {% if csrf and not user.is_authenticated %}<p class="rk-error-help">Si tu sesión ha terminado, <a href="{% url 'login' %}">inicia sesión de nuevo</a>.</p>{% endif %}
+</div>

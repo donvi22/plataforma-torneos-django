@@ -1,0 +1,20 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>500 · Ha ocurrido un error | Ranked Kingdom</title>
+    <link rel="stylesheet" href="{% static 'css/site.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/public.css' %}">
+    <link rel="stylesheet" href="{% static 'css/errors.css' %}">
+</head>
+<body class="rk-public rk-error-standalone">
+    <main class="page-shell">
+        <section class="rk-dashboard rk-error" aria-label="Error del servidor">
+            {% include 'components/error_content.html' with code='500' heading='Ha ocurrido un error' description='No hemos podido completar tu solicitud. Puedes volver al inicio e intentarlo más tarde.' icon='server-crash' only %}
+        </section>
+    </main>
+</body>
+</html>

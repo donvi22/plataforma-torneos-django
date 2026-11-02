@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}403 · Formulario no válido{% endblock %}
+{% block page_styles %}
+{% if user.is_authenticated %}<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">{% endif %}
+<link rel="stylesheet" href="{% static 'css/errors.css' %}">
+{% endblock %}
+{% block content %}
+<section class="rk-dashboard rk-error" aria-label="Formulario no válido">
+    {% include 'components/error_content.html' with code='403' heading='No se pudo enviar el formulario' description='La sesión del formulario ha caducado o no es válida. Vuelve a la página del formulario y recárgala antes de intentarlo de nuevo.' icon='refresh-cw' csrf=True user=user only %}
+</section>
+{% endblock %}

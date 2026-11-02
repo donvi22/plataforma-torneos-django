@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}403 · Acceso no permitido{% endblock %}
+{% block page_styles %}
+{% if user.is_authenticated %}<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">{% endif %}
+<link rel="stylesheet" href="{% static 'css/errors.css' %}">
+{% endblock %}
+{% block content %}
+<section class="rk-dashboard rk-error" aria-label="Acceso no permitido">
+    {% include 'components/error_content.html' with code='403' heading='No tienes permiso para acceder' description='Puedes volver al inicio para continuar navegando.' icon='shield-alert' only %}
+</section>
+{% endblock %}
