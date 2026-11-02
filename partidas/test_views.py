@@ -38,6 +38,101 @@ class PartidaViewsTests(TestCase):
         ParticipantePartida.objects.create(partida=self.partida, inscripcion=perfiles[0], posicion=1)
         ParticipantePartida.objects.create(partida=self.partida, inscripcion=perfiles[1], posicion=2)
 
+    def test_presentacion_detalle_estados_y_acciones_por_rol_sin_filtrar_lobby(self):
+        arbitro_usuario = Usuario.objects.create_user(username='arbitro_visual', email='arbitro_visual@example.com', password='test')
+        espectador = Usuario.objects.create_user(username='espectador_visual', email='espectador_visual@example.com', password='test')
+        arbitro = ArbitroTorneo.objects.create(torneo=self.torneo, usuario=arbitro_usuario, estado_invitacion=ArbitroTorneo.EstadoInvitacion.ACEPTADA, activo_en_torneo=True)
+        Partida.objects.filter(pk=self.partida.pk).update(arbitro_asignado=arbitro, fecha_hora_apertura_checkin=timezone.now() - timedelta(minutes=1))
+        url = reverse('detalle-partida', args=[self.partida.pk])
+        for estado in Partida.Estado.values:
+            Partida.objects.filter(pk=self.partida.pk).update(estado=estado)
+            self.client.logout()
+            publica = self.client.get(url)
+            self.assertContains(publica, f'data-state="{estado}"')
+            self.assertNotContains(publica, 'NO-DEBE-SALIR')
+            self.assertNotContains(publica, 'SECRETO')
+            self.assertNotContains(publica, 'id="lobby-title"')
+            self.assertNotContains(publica, 'method="post"')
+        for estado in (Partida.Estado.CHECK_IN, Partida.Estado.EN_CURSO):
+            Partida.objects.filter(pk=self.partida.pk).update(estado=estado)
+            for usuario in (self.jugador, self.visitante, arbitro_usuario, self.organizador, espectador):
+                with self.subTest(estado=estado, usuario=usuario.username):
+                    self.client.force_login(usuario)
+                    respuesta = self.client.get(url)
+                    puede_confirmar = estado == Partida.Estado.CHECK_IN and usuario in (self.jugador, self.visitante, arbitro_usuario)
+                    puede_declarar = estado == Partida.Estado.EN_CURSO and usuario in (self.jugador, self.visitante)
+                    puede_validar = estado == Partida.Estado.EN_CURSO and usuario in (arbitro_usuario, self.organizador)
+                    for accion, visible in (('confirmar-checkin-partida', puede_confirmar), ('declarar-resultado-partida', puede_declarar), ('validar-resultado-partida', puede_validar), ('editar-lobby-partida', usuario == self.organizador)):
+                        objetivo = f'action="{reverse(accion, args=[self.partida.pk])}"'
+                        if visible:
+                            self.assertContains(respuesta, objetivo, count=1)
+                            self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
+                        else:
+                            self.assertNotContains(respuesta, objetivo)
+                    if usuario == espectador:
+                        self.assertNotContains(respuesta, 'NO-DEBE-SALIR')
+                        self.assertNotContains(respuesta, 'SECRETO')
+                    else:
+                        self.assertContains(respuesta, 'NO-DEBE-SALIR')
+                        self.assertContains(respuesta, 'SECRETO', count=1)
+                        self.assertContains(respuesta, 'data-toggle-password="lobby-password"')
+                    self.assertNotContains(respuesta, self.jugador.email)
+                    self.assertNotContains(respuesta, arbitro_usuario.email)
+        self.partida.refresh_from_db()
+        self.assertEqual(self.partida.estado, Partida.Estado.EN_CURSO)
+        self.assertEqual(self.partida.arbitro_asignado_id, arbitro.pk)
+
+    def test_presentacion_checkin_confirmado_vencido_y_rivales_pendientes(self):
+        url = reverse('detalle-partida', args=[self.partida.pk])
+        ParticipantePartida.objects.filter(partida=self.partida, posicion=2).delete()
+        InscripcionTorneo.objects.filter(torneo=self.torneo, usuario=self.jugador).update(nick_historico='NicknameHistoricoMuyLargo' * 5)
+        self.client.force_login(self.jugador)
+        pendiente = self.client.get(url)
+        self.assertContains(pendiente, 'Por determinar')
+        self.assertContains(pendiente, 'Sin árbitro asignado.')
+        self.assertContains(pendiente, 'El check-in no está disponible para confirmar ahora.')
+        Partida.objects.filter(pk=self.partida.pk).update(estado=Partida.Estado.CHECK_IN, fecha_hora_apertura_checkin=timezone.now() - timedelta(minutes=1))
+        abierta = self.client.get(url)
+        self.assertContains(abierta, 'Confirmar disponibilidad')
+        CheckInPartida.objects.create(partida=self.partida, usuario=self.jugador, tipo=CheckInPartida.Tipo.PARTICIPANTE, confirmado=True, fecha_confirmacion=timezone.now())
+        confirmado = self.client.get(url)
+        self.assertContains(confirmado, 'Disponibilidad confirmada')
+        self.assertNotContains(confirmado, '>Confirmar disponibilidad</button>')
+        CheckInPartida.objects.filter(partida=self.partida).delete()
+        Partida.objects.filter(pk=self.partida.pk).update(fecha_hora_apertura_checkin=timezone.now() - timedelta(days=1))
+        vencida = self.client.get(url)
+        self.assertContains(vencida, 'El plazo de check-in ha finalizado.')
+        self.assertNotContains(vencida, '>Confirmar disponibilidad</button>')
+
+    def test_presentacion_declaracion_y_resultado_oficial_con_ganador(self):
+        from .services import declarar_resultado, validar_resultado
+
+        Partida.objects.filter(pk=self.partida.pk).update(estado=Partida.Estado.EN_CURSO)
+        ganador = self.partida.participantes.get(posicion=1).inscripcion
+        declarar_resultado(self.partida, self.jugador, '2-1', ganador)
+        self.client.force_login(self.jugador)
+        url = reverse('detalle-partida', args=[self.partida.pk])
+        declarada = self.client.get(url)
+        self.assertContains(declarada, 'Tu declaración: <strong>2-1</strong>')
+        self.assertContains(declarada, 'Pendiente de validación')
+        self.assertNotContains(declarada, 'id="official-result-title"')
+        self.assertNotContains(declarada, 'Enviar resultado')
+        self.client.force_login(self.organizador)
+        revision = self.client.get(url)
+        self.assertContains(revision, 'Declaraciones de jugadores')
+        self.assertContains(revision, 'name="motivo"')
+        validar_resultado(self.partida, self.organizador, '2-1', ganador, motivo='Resultado revisado.')
+        self.client.force_login(self.jugador)
+        final = self.client.get(url)
+        self.assertContains(final, 'data-state="FINALIZADA"')
+        self.assertContains(final, 'rk-match-player--winner', count=1)
+        self.assertContains(final, '<strong class="rk-match-score">2-1</strong>')
+        self.assertContains(final, f'Ganador: <strong>{ganador.nick_historico}</strong>')
+        self.assertNotContains(final, 'SECRETO')
+        self.assertNotContains(final, 'NO-DEBE-SALIR')
+        self.assertNotContains(final, 'Validar resultado oficial')
+        self.assertNotContains(final, 'Pendiente de validación')
+
     def test_mis_partidas_solo_muestra_partidas_del_usuario(self):
         self.client.force_login(self.jugador)
         respuesta = self.client.get(reverse('mis-partidas'))

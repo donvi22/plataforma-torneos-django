@@ -1,0 +1,9 @@
+{% load usuarios_extras %}
+<article class="rk-match-player{% if inscripcion and resultado.ganador_id == inscripcion.pk %} rk-match-player--winner{% endif %}">
+    <p class="rk-kicker">Posición {{ posicion }}</p>
+    {% if inscripcion %}
+        <span class="rk-profile-avatar rk-match-player-avatar" aria-hidden="true">{% if inscripcion.usuario.puede_operar and inscripcion.usuario.avatar %}<img src="{{ inscripcion.usuario.avatar.url }}" alt="" loading="lazy">{% endif %}</span>
+        {% identidad_competitiva inscripcion.usuario inscripcion.nick_historico %}
+        {% if resultado.ganador_id == inscripcion.pk %}<span class="rk-badge rk-badge--official">Ganador</span>{% endif %}
+    {% else %}<p class="rk-match-undetermined">Por determinar</p>{% endif %}
+</article>
