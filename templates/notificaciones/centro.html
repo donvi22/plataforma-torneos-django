@@ -1,52 +1,58 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Notificaciones · Arena provisional{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/inbox.css' %}">
+{% endblock %}
 {% block content %}
-<section class="notification-center">
-    <header class="notification-heading">
+<section class="rk-dashboard rk-inbox">
+    <header class="rk-inbox-heading">
         <div>
-            <p class="eyebrow">Actividad de la plataforma</p>
-            <h1>Notificaciones</h1>
-            <p class="muted">Avisos de tus torneos, partidas y arbitrajes.</p>
+            <p class="rk-kicker">Actividad de la plataforma</p>
+            <div class="rk-inbox-title"><h1>Notificaciones</h1>{% if notificaciones_no_leidas %}<span class="rk-badge rk-inbox-count">{{ notificaciones_no_leidas }} sin leer</span>{% endif %}</div>
+            <p class="rk-description">Avisos de tus torneos, partidas y arbitrajes.</p>
         </div>
         {% if notificaciones_no_leidas %}
             <form method="post" action="{% url 'marcar-todas-notificaciones-leidas' %}">
                 {% csrf_token %}
-                <button class="button button-quiet" type="submit">Marcar todas como leídas</button>
+                <button class="rk-btn rk-btn--secondary" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#check-check"></use></svg>Marcar todas como leídas</button>
             </form>
         {% endif %}
     </header>
 
     {% if page_obj.object_list %}
-        <ol class="notification-list">
+        <ol class="rk-inbox-list" aria-label="Tus notificaciones">
             {% for notificacion in page_obj %}
-                <li class="notification-item{% if notificacion.leida %} is-read{% else %} is-unread{% endif %}">
-                    <div class="notification-copy">
-                        <div class="notification-title-row">
+                <li class="rk-inbox-row{% if notificacion.leida %} is-read{% else %} is-unread{% endif %}">
+                    <span class="rk-inbox-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="{% static 'img/lucide.svg' %}#{% if notificacion.tipo == 'INVITACION_ARBITRAL' or notificacion.tipo == 'RESPUESTA_INVITACION' %}scale{% elif notificacion.tipo == 'CAMBIO_HORARIO' %}calendar-days{% elif notificacion.tipo == 'APERTURA_CHECKIN' %}check{% elif notificacion.tipo == 'ASIGNACION_PARTIDA' or notificacion.tipo == 'REASIGNACION_PARTIDA' %}swords{% elif notificacion.tipo == 'RESULTADO_OFICIAL' %}trophy{% elif notificacion.tipo == 'CANCELACION_TORNEO' or notificacion.tipo == 'APERTURA_INSCRIPCIONES' %}flag{% else %}bell{% endif %}"></use></svg></span>
+                    <div class="rk-inbox-copy">
+                        <div class="rk-inbox-row-title">
                             <h2>{{ notificacion.titulo }}</h2>
                             {% if notificacion.leida %}
-                                <span class="notification-state">Leída</span>
+                                <span class="rk-badge">Leída</span>
                             {% else %}
-                                <span class="notification-state">No leída</span>
+                                <span class="rk-badge rk-inbox-unread">No leída</span>
                             {% endif %}
                         </div>
-                        <p>{{ notificacion.mensaje }}</p>
-                        <p class="notification-meta">
+                        <p class="rk-inbox-message">{{ notificacion.mensaje }}</p>
+                        <p class="rk-metadata rk-inbox-meta">
                             {{ notificacion.get_tipo_display }}
                             <span aria-hidden="true">·</span>
-                            <time datetime="{{ notificacion.fecha_creacion|date:'c' }}">{{ notificacion.fecha_creacion|date:'j M Y, H:i' }}</time>
+                            <time datetime="{{ notificacion.fecha_creacion|date:'c' }}">{{ notificacion.fecha_creacion|date:'j/m/Y H:i' }}</time>
                             {% if notificacion.partida %}<span aria-hidden="true">·</span>Partida {{ notificacion.partida_id }}{% endif %}
                             {% if notificacion.torneo %}<span aria-hidden="true">·</span>{{ notificacion.torneo.nombre }}{% endif %}
                         </p>
                     </div>
-                    <div class="notification-actions">
+                    <div class="rk-inbox-actions">
                         <form method="post" action="{% url 'abrir-notificacion' notificacion.pk %}">
                             {% csrf_token %}
-                            <button class="button button-small" type="submit">Abrir</button>
+                            <button class="rk-btn rk-btn--secondary" type="submit">Abrir<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-up-right"></use></svg></button>
                         </form>
                         {% if notificacion.leida == False %}
                             <form method="post" action="{% url 'marcar-notificacion-leida' notificacion.pk %}">
                                 {% csrf_token %}
-                                <button class="link-button" type="submit">Marcar como leída</button>
+                                <button class="rk-section-link rk-inbox-read-action" type="submit">Marcar como leída</button>
                             </form>
                         {% endif %}
                     </div>
@@ -54,19 +60,14 @@
             {% endfor %}
         </ol>
     {% else %}
-        <div class="empty-panel notification-empty">
-            <p class="eyebrow">Todo al día</p>
+        <div class="rk-inbox-empty">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#bell"></use></svg>
+            <p class="rk-kicker">Todo al día</p>
             <h2>No tienes notificaciones</h2>
-            <p class="muted">Los avisos importantes aparecerán aquí.</p>
+            <p class="rk-description">Los avisos importantes aparecerán aquí.</p>
         </div>
     {% endif %}
 
-    {% if page_obj.paginator.num_pages > 1 %}
-        <nav class="pagination" aria-label="Paginación de notificaciones">
-            {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Anterior</a>{% endif %}
-            <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-            {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Siguiente</a>{% endif %}
-        </nav>
-    {% endif %}
+    {% include 'components/arbitration_pagination.html' with page=page_obj parameter='page' label='Paginación de notificaciones' only %}
 </section>
 {% endblock %}

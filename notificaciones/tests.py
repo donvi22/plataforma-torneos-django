@@ -158,6 +158,68 @@ class CentroNotificacionesTests(TestCase):
 			torneo=torneo, partida=partida,
 		)
 
+	def test_presentacion_bandeja_separa_estados_y_no_expone_contexto_privado(self):
+		from moderacion.models import Denuncia
+
+		partida = Partida.objects.create(torneo=self.torneo, numero_ronda=1, numero_orden=1, codigo_lobby='CODIGO-PRIVADO-NOTIF', contrasena_lobby='CLAVE-PRIVADA-NOTIF')
+		denuncia = Denuncia.objects.create(denunciante=self.usuario, usuario_denunciado=self.otro, torneo=self.torneo, categoria=Denuncia.Categoria.OTRO, descripcion='Contexto del caso.', notas_internas='NOTA-INTERNA-NOTIF')
+		primera = self.notificacion(clave='aviso-nuevo', partida=partida)
+		leida = self.notificacion(clave='aviso-leido', torneo=self.torneo)
+		marcar_leida(self.usuario, leida)
+		crear_notificacion(self.usuario, Notificacion.Tipo.INTERVENCION_REQUERIDA, 'TituloLargoSinEspacios' * 8, 'MensajeExtensoSinEspacios' * 30, denuncia=denuncia)
+		self.notificacion(self.otro, clave='OTRO-USUARIO-PRIVADO')
+		self.client.force_login(self.usuario)
+		estados = list(Notificacion.objects.values('pk', 'leida', 'fecha_lectura'))
+		respuesta = self.client.get(reverse('centro-notificaciones'))
+		self.assertContains(respuesta, 'class="rk-inbox-row is-unread"', count=2)
+		self.assertContains(respuesta, 'class="rk-inbox-row is-read"', count=1)
+		self.assertContains(respuesta, 'No leída')
+		self.assertContains(respuesta, '>Leída</span>')
+		self.assertContains(respuesta, '2 sin leer')
+		self.assertContains(respuesta, f'action="{reverse("marcar-notificacion-leida", args=[primera.pk])}"')
+		self.assertNotContains(respuesta, f'action="{reverse("marcar-notificacion-leida", args=[leida.pk])}"')
+		self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
+		for reservado in ('CODIGO-PRIVADO-NOTIF', 'CLAVE-PRIVADA-NOTIF', 'NOTA-INTERNA-NOTIF', 'OTRO-USUARIO-PRIVADO', self.otro.email, self.usuario.email):
+			self.assertNotContains(respuesta, reservado)
+		self.assertEqual(list(Notificacion.objects.values('pk', 'leida', 'fecha_lectura')), estados)
+
+	def test_presentacion_vacia_una_no_leida_y_todas_leidas(self):
+		self.client.force_login(self.usuario)
+		url = reverse('centro-notificaciones')
+		vacia = self.client.get(url)
+		self.assertContains(vacia, 'No tienes notificaciones')
+		self.assertNotContains(vacia, 'class="rk-inbox-row')
+		self.assertNotContains(vacia, f'action="{reverse("marcar-todas-notificaciones-leidas")}"')
+		self.notificacion(clave='unica')
+		una = self.client.get(url)
+		self.assertContains(una, 'class="rk-inbox-row is-unread"', count=1)
+		self.assertContains(una, '1 sin leer')
+		self.assertContains(una, f'action="{reverse("marcar-todas-notificaciones-leidas")}"')
+		marcar_todas_leidas(self.usuario)
+		leidas = self.client.get(url)
+		self.assertContains(leidas, 'class="rk-inbox-row is-read"', count=1)
+		self.assertNotContains(leidas, 'rk-inbox-count')
+		self.assertNotContains(leidas, f'action="{reverse("marcar-todas-notificaciones-leidas")}"')
+		self.assertNotContains(leidas, 'Marcar como leída')
+
+	def test_presentacion_tipos_y_paginacion_reutilizan_componente_actual(self):
+		tipos = list(Notificacion.Tipo.values)
+		for indice in range(21):
+			self.notificacion(clave=f'visual-pagina-{indice}', tipo=tipos[indice % len(tipos)])
+		self.client.force_login(self.usuario)
+		url = reverse('centro-notificaciones')
+		primera = self.client.get(url)
+		segunda = self.client.get(url, {'page': 2})
+		self.assertEqual(len(primera.context['page_obj']), 20)
+		self.assertEqual(len(segunda.context['page_obj']), 1)
+		self.assertTemplateUsed(primera, 'components/arbitration_pagination.html')
+		self.assertContains(primera, 'href="?page=2"')
+		self.assertContains(segunda, 'href="?page=1"')
+		self.assertContains(primera, 'aria-label="Paginación de notificaciones"')
+		for _, etiqueta in Notificacion.Tipo.choices:
+			self.assertContains(primera, etiqueta)
+		self.assertContains(primera, 'viewBox="0 0 24 24"')
+
 	def test_contador_oculto_en_cero_y_cuenta_solo_no_leidas(self):
 		self.client.force_login(self.usuario)
 		url = reverse('centro-notificaciones')

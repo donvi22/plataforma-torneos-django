@@ -1,0 +1,42 @@
+.rk-inbox { overflow-wrap: anywhere; }
+body:has(.rk-inbox) .messages { font: 13px/1.6 'Segoe UI', sans-serif; max-width: 1280px; }
+body:has(.rk-inbox) .message { background: #1B1B22; border: 1px solid #2A2A34; border-left: 3px solid #8B5CF6; border-radius: 4px; color: #F2F2F5; }
+.rk-inbox-heading { align-items: center; border-bottom: 1px solid var(--rk-border); display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; padding: 8px 0 24px; }
+.rk-inbox-heading > div { flex: 1 1 360px; min-width: 0; }
+.rk-inbox-title { align-items: center; display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
+.rk-inbox-title h1 { font-size: 28px; }
+.rk-inbox-count, .rk-inbox-unread { background: #302141; border-color: #5B3A80; color: #DBC9FF; }
+.rk-inbox-list { list-style: none; margin: 0; padding: 0; }
+.rk-inbox-row { align-items: start; border-bottom: 1px solid var(--rk-border); border-left: 2px solid transparent; display: grid; gap: 16px; grid-template-columns: 32px minmax(0, 1fr) auto; padding: 18px 16px; }
+.rk-inbox-row.is-unread { background: var(--rk-surface); border-left-color: var(--rk-purple-hover); }
+.rk-inbox-icon { align-items: center; color: var(--rk-muted); display: flex; height: 32px; justify-content: center; width: 32px; }
+.is-unread .rk-inbox-icon { color: #C4B5FD; }
+.rk-inbox-copy { display: grid; gap: 8px; min-width: 0; }
+.rk-inbox-row-title { align-items: baseline; display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.rk-inbox-row-title h2 { font-size: 15px; font-weight: 600; }
+.rk-inbox-row.is-read h2 { font-weight: 500; }
+.rk-inbox-message { font-size: 13px; line-height: 1.7; }
+.rk-inbox-row.is-read .rk-inbox-message { color: var(--rk-muted); }
+.rk-inbox .rk-inbox-meta { font-size: 11px; gap: 4px 8px; }
+.rk-inbox-actions { align-items: flex-end; display: flex; flex-direction: column; gap: 8px; }
+.rk-inbox-actions form, .rk-inbox-heading form { margin: 0; }
+.rk-inbox .rk-inbox-read-action { background: transparent; border: 0; cursor: pointer; font-family: inherit; margin: 0; padding: 0; }
+.rk-inbox-empty { display: grid; gap: 10px; padding: 36px 0; }
+.rk-inbox-empty > svg { color: var(--rk-muted); height: 24px; width: 24px; }
+.rk-inbox-empty h2 { font-size: 18px; }
+.rk-inbox-empty .rk-description { margin: 0; }
+.rk-inbox .pagination { color: var(--rk-muted); flex-wrap: wrap; font: 12px/1.6 'Segoe UI', sans-serif; gap: 12px; margin: 22px 0 0; }
+.rk-inbox .pagination a { color: #C4B5FD; min-height: 36px; padding: 8px; }
+@media (max-width: 1100px) {
+    .rk-inbox-row { gap: 12px; grid-template-columns: 24px minmax(0, 1fr); }
+    .rk-inbox-icon { width: 24px; }
+    .rk-inbox-actions { align-items: center; flex-direction: row; flex-wrap: wrap; grid-column: 2; gap: 12px 18px; }
+}
+@media (max-width: 650px) {
+    .rk-inbox-title h1 { font-size: 26px; }
+    .rk-inbox-heading form, .rk-inbox-heading .rk-btn { width: 100%; }
+    .rk-inbox-row { gap: 10px; padding: 18px 12px; }
+    .rk-inbox-actions { align-items: stretch; flex-direction: column; gap: 8px; }
+    .rk-inbox-actions form, .rk-inbox-actions .rk-btn { width: 100%; }
+    .rk-inbox-read-action { justify-content: center; width: 100%; }
+}
