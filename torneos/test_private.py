@@ -319,6 +319,55 @@ class InscripcionPrivadaTests(TorneoPrivadoTestBase):
 
 
 class GestionPrivadaTests(TorneoPrivadoTestBase):
+    def test_presentacion_accesos_conserva_revocacion_y_nicks(self):
+        invitado = self.jugador('autorizado_sin_inscripcion')
+        inscrito = self.jugador('participante')
+        revocado = self.jugador('revocado')
+        acceso = AccesoTorneoPrivado.objects.create(torneo=self.torneo, usuario=invitado)
+        protegido = AccesoTorneoPrivado.objects.create(torneo=self.torneo, usuario=inscrito)
+        historico = AccesoTorneoPrivado.objects.create(torneo=self.torneo, usuario=revocado, estado=AccesoTorneoPrivado.Estado.REVOCADO)
+        InscripcionTorneo.objects.create(
+            torneo=self.torneo, usuario=inscrito, perfil_videojuego=inscrito.perfiles_videojuego.get(),
+            nick_historico='Nick histórico conservado',
+        )
+        self.client.force_login(self.organizador)
+        respuesta = self.client.get(reverse('gestionar-privado', args=[self.torneo.pk]))
+        self.assertContains(respuesta, 'Nick histórico conservado')
+        self.assertContains(respuesta, '1/2 participantes')
+        self.assertContains(respuesta, 'Zona de riesgo')
+        self.assertContains(respuesta, f'action="{reverse("revocar-acceso-privado", args=[self.torneo.pk, acceso.pk])}"', count=1)
+        for sin_accion in (protegido, historico):
+            self.assertNotContains(respuesta, f'action="{reverse("revocar-acceso-privado", args=[self.torneo.pk, sin_accion.pk])}"')
+        self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
+        self.assertContains(respuesta, 'role="status" aria-live="polite"')
+        self.assertNotContains(respuesta, invitado.email)
+        self.assertLess(respuesta.content.index(b'Usuarios con acceso'), respuesta.content.index(b'Zona de riesgo'))
+
+    def test_presentacion_invitacion_borrador_y_terminal_sin_cambiar_estados(self):
+        self.client.force_login(self.organizador)
+        for estado in (Torneo.Estado.BORRADOR, Torneo.Estado.INSCRIPCIONES_ABIERTAS, Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO):
+            with self.subTest(estado=estado):
+                Torneo.objects.filter(pk=self.torneo.pk).update(estado=estado)
+                respuesta = self.client.get(reverse('gestionar-privado', args=[self.torneo.pk]))
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertContains(respuesta, f'href="{reverse("gestionar-privado", args=[self.torneo.pk])}" aria-current="page"')
+                if estado in (Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO):
+                    self.assertNotContains(respuesta, 'id="invite-link-input"')
+                    self.assertNotContains(respuesta, self.torneo.codigo_acceso)
+                    self.assertNotContains(respuesta, 'Zona de riesgo')
+                    self.assertContains(respuesta, 'la invitación ya no está activa')
+                else:
+                    self.assertContains(respuesta, 'id="invite-link-input"')
+                    self.assertContains(respuesta, self.torneo.codigo_acceso)
+                    self.assertContains(respuesta, 'Al regenerarlo, el enlace anterior deja de dar accesos nuevos.')
+                if estado == Torneo.Estado.BORRADOR:
+                    self.assertContains(respuesta, 'El enlace no concederá acceso hasta que abras las inscripciones desde Mis torneos.')
+                    self.assertContains(respuesta, reverse('editar-borrador-torneo', args=[self.torneo.pk]))
+                else:
+                    self.assertNotContains(respuesta, reverse('editar-borrador-torneo', args=[self.torneo.pk]))
+                self.torneo.refresh_from_db()
+                self.assertEqual(self.torneo.estado, estado)
+
     def test_organizador_no_operativo_no_publica_ni_gestiona_accesos(self):
         borrador = self.crear(estado=Torneo.Estado.BORRADOR)
         acceso = AccesoTorneoPrivado.objects.create(torneo=self.torneo, usuario=self.jugador('invitado_inactivo'))

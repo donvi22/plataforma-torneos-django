@@ -1,0 +1,14 @@
+{% load static %}
+<header class="rk-management-header">
+    <a class="rk-section-link" href="{% url 'ficha-torneo' torneo.pk %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-left"></use></svg>Volver al detalle del torneo</a>
+    <div class="rk-management-heading">
+        <div class="rk-card-media rk-management-thumbnail{% if not torneo.imagen_banner %} rk-card-media--fallback{% endif %}" aria-hidden="true">{% include 'components/torneo_media.html' %}</div>
+        <div class="rk-management-heading-copy"><p class="rk-kicker">Gestión del torneo</p><h1>{{ torneo.nombre }}</h1><p class="rk-metadata">{{ torneo.videojuego.nombre }} · {{ torneo.participantes_confirmados }}/{{ torneo.max_participantes }} participantes{% if torneo.fecha_inicio_prevista %} · Inicio {{ torneo.fecha_inicio_prevista|date:'j M Y · H:i' }}{% elif torneo.fecha_apertura_inscripciones %} · Apertura {{ torneo.fecha_apertura_inscripciones|date:'j M Y · H:i' }}{% endif %}</p></div>
+        <div class="rk-management-badges"><span class="rk-badge{% if torneo.tipo == 'OFICIAL' %} rk-badge--official{% endif %}">{{ torneo.get_tipo_display }}</span><span class="rk-badge">{{ torneo.get_estado_display }}</span></div>
+    </div>
+</header>
+<nav class="rk-management-nav" aria-label="Gestión del torneo">
+    {% if torneo.estado == 'BORRADOR' %}<a href="{% url 'editar-borrador-torneo' torneo.pk %}"{% if active_section == 'configuracion' %} aria-current="page"{% endif %}>Configuración</a>{% endif %}
+    {% if torneo.tipo == 'PRIVADO' and torneo.organizador_id == user.pk %}<a href="{% url 'gestionar-privado' torneo.pk %}"{% if active_section == 'acceso' %} aria-current="page"{% endif %}>Invitación y accesos</a>{% endif %}
+    {% if torneo.tipo == 'PUBLICO' or torneo.tipo == 'OFICIAL' %}<a href="{% url 'gestionar-arbitros-torneo' torneo.pk %}">Árbitros y asignaciones</a>{% if torneo.tipo == 'OFICIAL' %}<a href="{% url 'calendario-partidas' torneo.pk %}">Calendario de partidas</a>{% endif %}{% endif %}
+</nav>

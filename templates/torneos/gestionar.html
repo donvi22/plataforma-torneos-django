@@ -1,24 +1,45 @@
 {% extends 'base.html' %}
-{% block title %}{% if modo == 'crear' %}Crear torneo{% else %}Editar borrador{% endif %} · Arena provisional{% endblock %}
+{% load static %}
+{% block title %}Configuración · {{ torneo.nombre }}{% endblock %}
+{% block page_styles %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-create.css' %}">
+<link rel="stylesheet" href="{% static 'css/tournament-management.css' %}">
+{% endblock %}
 {% block content %}
-<section class="form-panel tournament-form-panel">
-    <p class="eyebrow">Gestión de torneos</p>
-    <h1>{% if modo == 'crear' %}Prepara tu torneo.{% else %}Edita tu borrador.{% endif %}</h1>
-    <p class="muted">Los datos de organización y publicación se controlan en el servidor.</p>
-        <form method="post" enctype="multipart/form-data" class="stack-form tournament-form" novalidate
-            data-rangos-url="{% url 'rangos-por-videojuego' 0 %}">
+<article class="rk-dashboard rk-create-tournament rk-tournament-management">
+    {% include 'components/tournament_management_header.html' with active_section='configuracion' %}
+    <div class="rk-management-layout">
+        <form method="post" enctype="multipart/form-data" class="rk-guided-form tournament-form" novalidate data-bound="{{ form.is_bound|yesno:'true,false' }}" data-rangos-url="{% url 'rangos-por-videojuego' 0 %}">
         {% csrf_token %}
-        {{ form.non_field_errors }}
-        {% for field in form %}
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.help_text %}<p class="help-text">{{ field.help_text }}</p>{% endif %}
-            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-        {% endfor %}
-        <button class="button" type="submit">Guardar borrador</button>
-    </form>
+        {% if form.errors %}<div class="rk-form-error-summary" role="alert"><h2>Revisa los datos del borrador</h2>{% if form.non_field_errors %}<ul>{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}{% for field in form %}{% if field.errors %}<a href="#{{ field.id_for_label }}">{{ field.label }}: {{ field.errors|join:' ' }}</a>{% endif %}{% endfor %}</div>{% endif %}
+        <p id="rangos-status" class="rk-form-help rk-form-status" role="status" aria-live="polite"></p>
+        <fieldset class="rk-form-section"><legend>Información básica</legend><div class="rk-form-grid">
+            <div class="rk-field-wide">{% include 'components/form_field.html' with field=form.nombre only %}</div>
+            {% include 'components/form_field.html' with field=form.videojuego only %}
+            {% include 'components/form_field.html' with field=form.tipo only %}
+            <div class="rk-field-wide">{% include 'components/form_field.html' with field=form.imagen_banner only %}</div>
+        </div></fieldset>
+        <fieldset class="rk-form-section"><legend>Competición y requisitos</legend><div class="rk-form-grid">
+            {% include 'components/form_field.html' with field=form.formato_competitivo only %}
+            {% include 'components/form_field.html' with field=form.max_participantes only %}
+            {% include 'components/form_field.html' with field=form.nivel_minimo only %}
+            {% include 'components/form_field.html' with field=form.rango_minimo only %}
+            {% include 'components/form_field.html' with field=form.rango_maximo only %}
+            <div class="rk-field-wide">{% include 'components/form_field.html' with field=form.reglas only %}</div>
+        </div></fieldset>
+        <fieldset class="rk-form-section"><legend>Fechas y calendario</legend><p class="rk-form-section-description">Europe/Madrid</p><div class="rk-form-grid">
+            {% include 'components/form_field.html' with field=form.fecha_apertura_inscripciones only %}
+            {% include 'components/form_field.html' with field=form.fecha_cierre_inscripciones only %}
+            {% include 'components/form_field.html' with field=form.duracion_prorroga_min only %}
+            {% include 'components/form_field.html' with field=form.descanso_entre_partidas_min only %}
+            <div class="rk-field-wide">{% include 'components/form_field.html' with field=form.fecha_inicio_prevista only %}</div>
+        </div></fieldset>
+        <div class="rk-actions"><button class="rk-btn rk-btn--primary" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#save"></use></svg>Guardar borrador</button><a class="rk-btn rk-btn--secondary" href="{% url 'mis-torneos' %}">Volver a Mis torneos</a></div>
+        </form>
+        <aside class="rk-management-context" aria-labelledby="management-status-title"><p class="rk-kicker">Publicación</p><h2 id="management-status-title">Borrador sin publicar</h2><p class="rk-description">Guarda los cambios antes de publicar o abrir inscripciones desde Mis torneos.</p><a class="rk-section-link" href="{% url 'mis-torneos' %}">Ir a Mis torneos<svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#arrow-right"></use></svg></a></aside>
+    </div>
     {{ formato_tamanos|json_script:'formato-tamanos-data' }}
-    <p id="rangos-status" class="help-text" role="status" aria-live="polite"></p>
-</section>
-{% load static %}<script src="{% static 'js/torneo-form.js' %}"></script>
+</article>
+<script src="{% static 'js/torneo-form.js' %}" defer></script>
 {% endblock %}

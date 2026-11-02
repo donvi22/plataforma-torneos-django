@@ -57,7 +57,7 @@ class GestionTorneosViewsTests(TestCase):
         datos.update(extra)
         return datos
 
-    def test_crear_formulario_seccionado_con_campos_unicos_y_edicion_sin_cambios(self):
+    def test_crear_formulario_seccionado_con_campos_unicos_y_edicion_separada(self):
         self.client.force_login(self.usuario)
         respuesta = self.client.get(reverse('crear-torneo'))
         self.assertTemplateUsed(respuesta, 'torneos/crear.html')
@@ -74,7 +74,8 @@ class GestionTorneosViewsTests(TestCase):
         )
         edicion = self.client.get(reverse('editar-borrador-torneo', args=[torneo.pk]))
         self.assertTemplateUsed(edicion, 'torneos/gestionar.html')
-        self.assertNotContains(edicion, 'css/tournament-create.css')
+        self.assertNotContains(edicion, 'data-create-tournament')
+        self.assertNotContains(edicion, 'js/tournament-create.js')
         self.assertContains(edicion, 'Guardar borrador')
 
     def test_crear_tipos_visibles_son_los_del_formulario_y_oficial_solo_admin(self):
@@ -189,6 +190,55 @@ class GestionTorneosViewsTests(TestCase):
         torneo.fecha_publicacion = timezone.now()
         torneo.save(update_fields=('estado', 'fecha_publicacion'))
         self.assertEqual(self.client.get(reverse('editar-borrador-torneo', args=[torneo.pk])).status_code, 404)
+        self.client.force_login(self.otro)
+        self.assertEqual(self.client.get(reverse('editar-borrador-torneo', args=[torneo.pk])).status_code, 404)
+
+    def test_edicion_seccionada_conserva_campos_y_script_existentes(self):
+        torneo = self.crear_torneo_organizado('Configurable', Torneo.Estado.BORRADOR, Torneo.Tipo.PRIVADO)
+        self.client.force_login(self.usuario)
+        respuesta = self.client.get(reverse('editar-borrador-torneo', args=[torneo.pk]))
+        for campo in TorneoForm.Meta.fields:
+            self.assertContains(respuesta, f'name="{campo}"', count=1)
+        for titulo in ('Gestión del torneo', 'Información básica', 'Competición y requisitos', 'Fechas y calendario'):
+            self.assertContains(respuesta, titulo)
+        self.assertContains(respuesta, 'enctype="multipart/form-data"')
+        self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
+        self.assertContains(respuesta, 'js/torneo-form.js', count=1)
+        self.assertContains(respuesta, f'href="{reverse("editar-borrador-torneo", args=[torneo.pk])}" aria-current="page"')
+        self.assertContains(respuesta, f'href="{reverse("gestionar-privado", args=[torneo.pk])}"')
+        self.assertNotContains(respuesta, f'action="{reverse("publicar-torneo", args=[torneo.pk])}"')
+
+    def test_edicion_con_errores_conserva_valores_y_borrador(self):
+        torneo = self.crear_torneo_organizado('Original', Torneo.Estado.BORRADOR)
+        self.client.force_login(self.usuario)
+        apertura = timezone.localtime(timezone.now()).replace(second=0, microsecond=0) + timedelta(hours=2)
+        datos = self.datos_publico(
+            nombre='Corrección pendiente',
+            fecha_apertura_inscripciones=apertura.strftime('%Y-%m-%dT%H:%M'),
+            fecha_cierre_inscripciones=(apertura - timedelta(minutes=5)).strftime('%Y-%m-%dT%H:%M'),
+        )
+        respuesta = self.client.post(reverse('editar-borrador-torneo', args=[torneo.pk]), datos)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertTrue(respuesta.context['form'].errors)
+        self.assertContains(respuesta, 'Revisa los datos del borrador')
+        self.assertContains(respuesta, 'data-bound="true"')
+        self.assertContains(respuesta, 'value="Corrección pendiente"')
+        self.assertContains(respuesta, f'value="{datos["fecha_cierre_inscripciones"]}"')
+        self.assertContains(respuesta, 'id="id_fecha_cierre_inscripciones_error"')
+        torneo.refresh_from_db()
+        self.assertEqual(torneo.nombre, 'Original')
+        self.assertEqual(torneo.estado, Torneo.Estado.BORRADOR)
+
+    def test_navegacion_edicion_admin_respeta_acceso_privado_del_organizador(self):
+        torneo = self.crear_torneo_organizado('Privado ajeno al admin', Torneo.Estado.BORRADOR, Torneo.Tipo.PRIVADO)
+        self.client.force_login(self.admin)
+        respuesta = self.client.get(reverse('editar-borrador-torneo', args=[torneo.pk]))
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertNotContains(respuesta, reverse('gestionar-privado', args=[torneo.pk]))
+        Torneo.objects.filter(pk=torneo.pk).update(tipo=Torneo.Tipo.OFICIAL)
+        respuesta = self.client.get(reverse('editar-borrador-torneo', args=[torneo.pk]))
+        self.assertContains(respuesta, reverse('gestionar-arbitros-torneo', args=[torneo.pk]))
+        self.assertContains(respuesta, reverse('calendario-partidas', args=[torneo.pk]))
         self.client.force_login(self.otro)
         self.assertEqual(self.client.get(reverse('editar-borrador-torneo', args=[torneo.pk])).status_code, 404)
 

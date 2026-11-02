@@ -1,0 +1,68 @@
+.rk-tournament-management { overflow-wrap: anywhere; }
+body:has(.rk-tournament-management) .messages { font: 13px/1.6 'Segoe UI', sans-serif; max-width: 1280px; }
+body:has(.rk-tournament-management) .message { background: #1B1B22; border: 1px solid #2A2A34; border-left: 3px solid #8B5CF6; border-radius: 4px; color: #F2F2F5; }
+.rk-management-header { padding-bottom: 22px; }
+.rk-management-heading { align-items: center; display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
+.rk-management-heading-copy { flex: 1 1 300px; min-width: 0; }
+.rk-management-heading-copy h1 { font-size: 28px; margin: 4px 0 10px; }
+.rk-management-thumbnail { border: 1px solid var(--rk-border); border-radius: 6px; flex: 0 0 64px; height: 64px; width: 64px; }
+.rk-management-thumbnail .rk-card-media-fallback { padding: 8px; }
+.rk-management-thumbnail .rk-card-media-fallback span { display: none; }
+.rk-management-badges { display: flex; flex-wrap: wrap; gap: 8px; }
+.rk-management-badges .rk-badge { font-size: 11px; }
+.rk-management-nav { border-bottom: 1px solid var(--rk-border); display: flex; gap: 24px; max-width: 100%; overflow-x: auto; scrollbar-color: #494454 var(--rk-surface); scrollbar-width: thin; }
+.rk-management-nav a { align-items: center; border-bottom: 2px solid transparent; color: var(--rk-muted); display: inline-flex; flex: 0 0 auto; font-size: 13px; min-height: 46px; padding: 10px 0; text-decoration: none; white-space: nowrap; }
+.rk-management-nav [aria-current='page'] { border-bottom-color: var(--rk-purple-hover); color: var(--rk-text); font-weight: 600; }
+.rk-management-nav a:hover { color: var(--rk-text); }
+.rk-management-nav a:focus-visible { outline-offset: -3px; }
+.rk-management-layout { align-items: start; display: grid; gap: 36px; grid-template-columns: minmax(0, 1fr) 260px; margin-top: 26px; }
+.rk-management-context { border-left: 1px solid var(--rk-border); min-width: 0; padding-left: 24px; }
+.rk-management-context h2 { font-size: 18px; margin-top: 8px; }
+.rk-management-context .rk-section-link { margin-top: 16px; }
+.rk-tournament-management .rk-field-group:has(input[type='file']) { display: block; }
+.rk-tournament-management .rk-field-group:has(input[type='file']) > label:first-child { margin-bottom: 8px; }
+.rk-tournament-management .rk-field-group input[type='checkbox'] { display: inline-block; height: 16px; min-height: 16px; padding: 0; vertical-align: middle; width: 16px; }
+.rk-tournament-management .rk-field-group input[type='checkbox'] + label { display: inline; margin-left: 6px; }
+.rk-tournament-management .rk-field-group input[type='file'] { margin-top: 8px; }
+.rk-management-section { border-bottom: 1px solid var(--rk-border); min-width: 0; padding: 26px 0; }
+.rk-management-section > .rk-kicker { margin-bottom: 6px; }
+.rk-management-note { background: var(--rk-surface); border-left: 2px solid var(--rk-purple-hover); color: var(--rk-muted); font-size: 13px; line-height: 1.7; margin-top: 18px !important; padding: 12px 16px; }
+.rk-management-invite { display: flex; gap: 10px; margin-top: 18px; min-width: 0; }
+.rk-management-invite input { background: var(--rk-surface); border: 1px solid var(--rk-border); border-radius: 5px; color: var(--rk-text); flex: 1; font: 13px/1.5 'Segoe UI', sans-serif; min-height: 44px; min-width: 0; padding: 10px 12px; }
+.rk-management-invite input:focus-visible { outline: 2px solid var(--rk-purple-hover); outline-offset: 2px; }
+.rk-management-invite .rk-btn { flex: 0 0 44px; padding: 10px; }
+.rk-management-feedback { color: #DBC9FF; font-size: 12px; margin-top: 10px !important; }
+.rk-management-list { list-style: none; margin: 18px 0 0; max-height: 420px; overflow: auto; padding: 0 8px 0 0; scrollbar-color: #494454 var(--rk-surface); scrollbar-gutter: stable; scrollbar-width: thin; }
+.rk-management-list:focus-visible { outline: 2px solid #A78BFA; outline-offset: 3px; }
+.rk-management-row { align-items: center; border-bottom: 1px solid var(--rk-border); display: flex; flex-wrap: wrap; gap: 12px 20px; justify-content: space-between; min-width: 0; padding: 14px 0; }
+.rk-management-identity { align-items: center; display: flex; gap: 10px; min-width: 0; }
+.rk-management-avatar { border-radius: 50%; flex: 0 0 32px; height: 32px; object-fit: cover; width: 32px; }
+.rk-management-row .player-identity { align-items: flex-start; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.rk-management-row .player-nick { font-size: 14px; }
+.rk-management-row .player-account { color: var(--rk-muted); font-size: 12px; }
+.rk-management-row-meta { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.rk-management-row-meta .rk-metadata { font-size: 11px; }
+.rk-management-row-copy { display: grid; gap: 6px; min-width: 0; }
+.rk-management-row-copy > p { font-size: 14px; }
+.rk-management-list form { margin: 0; }
+.rk-tournament-management .rk-btn--danger { background: transparent; border-color: #80505B; color: #F0BAC2; }
+.rk-tournament-management .rk-btn--danger:hover { background: #382326; border-color: #BE6476; }
+.rk-management-risk { border-left: 2px solid #80505B; margin-top: 30px; padding: 4px 0 4px 20px; }
+.rk-management-risk h2 { font-size: 18px; }
+.rk-management-risk .rk-description { max-width: 740px; }
+.rk-management-risk form { margin-top: 16px; }
+.rk-tournament-management [hidden] { display: none; }
+@media (max-width: 1100px) {
+    .rk-management-layout { gap: 24px; grid-template-columns: minmax(0, 1fr); }
+    .rk-management-context { border-left: 0; border-top: 1px solid var(--rk-border); padding: 20px 0 0; }
+}
+@media (max-width: 650px) {
+    .rk-management-heading { align-items: flex-start; gap: 12px; }
+    .rk-management-heading-copy { flex-basis: calc(100% - 76px); }
+    .rk-management-heading-copy h1 { font-size: 24px; }
+    .rk-management-thumbnail { flex-basis: 52px; height: 52px; width: 52px; }
+    .rk-management-nav { gap: 20px; }
+    .rk-management-row { align-items: flex-start; flex-direction: column; }
+    .rk-management-row form, .rk-management-risk form, .rk-tournament-management .rk-actions > * { width: 100%; }
+    .rk-management-row .rk-btn, .rk-management-risk .rk-btn { width: 100%; }
+}
