@@ -1,0 +1,75 @@
+body.rk-public {
+    --ink: #F2F2F5;
+    --muted: #A7A7B3;
+    --paper: #0D0D0F;
+    --panel: #1B1B22;
+    --line: #2A2A34;
+    --accent: #7C3AED;
+    --accent-dark: #8B5CF6;
+    --teal: var(--accent-dark);
+    --rk-secondary: #15151A;
+    --rk-surface: var(--rk-secondary);
+    --rk-card: var(--panel);
+    --rk-border: var(--line);
+    --rk-text: var(--ink);
+    --rk-muted: var(--muted);
+    --rk-purple: var(--accent);
+    --rk-purple-hover: var(--accent-dark);
+    background: var(--paper);
+    color: var(--ink);
+    color-scheme: dark;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Segoe UI', sans-serif;
+    letter-spacing: 0;
+    min-height: 100vh;
+}
+.rk-public :is(a, button, input, select, textarea):focus-visible { outline: 2px solid #A78BFA; outline-offset: 3px; }
+.rk-public-header { background: var(--rk-secondary); border-bottom: 1px solid var(--line); }
+.rk-public-header-inner { align-items: center; display: flex; gap: 24px; margin: 0 auto; max-width: 1344px; padding: 18px 32px; }
+.rk-public-header .rk-brand { flex: 0 0 auto; gap: 10px; margin: 0; }
+.rk-public-header .rk-brand-mark { height: 40px; width: 40px; }
+.rk-public-header .rk-brand-mark svg { fill: none; height: 23px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.75; width: 23px; }
+.rk-public-nav { flex: 1; flex-wrap: wrap; font: 500 13px/1.5 'Segoe UI', sans-serif; gap: 12px 24px; justify-content: center; min-width: 0; }
+.rk-public-nav a { align-items: center; color: var(--muted); display: inline-flex; gap: 6px; min-height: 36px; }
+.rk-public-nav a:hover { color: var(--ink); }
+.rk-public-nav svg { fill: none; height: 16px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; width: 16px; }
+.rk-public-actions { align-items: center; display: flex; flex: 0 0 auto; gap: 10px; }
+.rk-public .page-shell { flex: 1 0 auto; margin: 0 auto; max-width: 1344px; min-width: 0; padding: 32px; width: 100%; }
+.rk-public .messages { font: 13px/1.7 'Segoe UI', sans-serif; max-width: 1280px; }
+.rk-public .message { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent-dark); border-radius: 4px; color: var(--ink); }
+.rk-public-footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.rk-public-footer > div { align-items: center; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; margin: 0 auto; max-width: 1344px; padding: 22px 32px; }
+.rk-public-footer-brand { color: var(--ink); font-weight: 600; text-decoration: none; }
+.rk-public-footer nav { flex-wrap: wrap; font: inherit; gap: 8px 20px; }
+.rk-public-footer a:hover { color: #C4B5FD; }
+.rk-auth { margin: 0 auto; max-width: 480px; padding: 20px 0 32px; }
+.rk-auth-heading { display: grid; gap: 12px; margin-bottom: 26px; }
+.rk-auth-heading h1 { font-size: 28px; }
+.rk-auth-heading .rk-description { margin: 0; }
+.rk-auth-form { display: grid; gap: 20px; }
+.rk-auth-form > .rk-btn { width: 100%; }
+.rk-auth-form .rk-form-error-summary { margin: 0; }
+.rk-auth .rk-field-group ul:not(.rk-form-error) { color: var(--rk-muted); font-size: 11px; line-height: 1.7; margin: 0; padding-left: 18px; }
+.rk-auth-switch { border-top: 1px solid var(--rk-border); font-size: 13px; line-height: 1.8; margin-top: 24px !important; padding-top: 18px; }
+.rk-auth-switch a { color: #C4B5FD; }
+@media (max-width: 1050px) {
+    .rk-public-header-inner { flex-wrap: wrap; gap: 12px 20px; }
+    .rk-public-nav { flex: 1 0 100%; justify-content: flex-start; order: 3; }
+    .rk-public-actions { margin-left: auto; }
+}
+@media (max-width: 650px) {
+    .rk-public-header-inner { gap: 10px; padding: 14px 16px; }
+    .rk-public-header .rk-brand { gap: 8px; }
+    .rk-public-header .rk-brand-mark { height: 34px; width: 34px; }
+    .rk-public-header .rk-brand-name { font-size: 16px; }
+    .rk-public-header .rk-brand-name > span { font-size: 12px; }
+    .rk-public-actions { gap: 6px; }
+    .rk-public-actions .rk-btn { font-size: 11px; min-height: 38px; padding: 8px; }
+    .rk-public-nav { font-size: 12px; gap: 6px 12px; justify-content: space-between; }
+    .rk-public-nav a { min-height: 36px; }
+    .rk-public .page-shell { padding: 24px 16px; }
+    .rk-public-footer > div { align-items: flex-start; flex-direction: column; padding: 20px 16px; }
+    .rk-auth { padding-top: 8px; }
+    .rk-auth-heading h1 { font-size: 26px; }
+}

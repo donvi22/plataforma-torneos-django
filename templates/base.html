@@ -7,9 +7,11 @@
     <title>{% filter cut:' · Arena provisional' %}{% block title %}Inicio{% endblock %}{% endfilter %} | Ranked Kingdom</title>
     <link rel="stylesheet" href="{% static 'css/site.css' %}">
     <link rel="stylesheet" href="{% static 'css/shell.css' %}">
+    {% if not user.is_authenticated %}<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">{% endif %}
     {% block page_styles %}{% endblock %}
+    <link rel="stylesheet" href="{% static 'css/public.css' %}">
 </head>
-<body{% if user.is_authenticated %} class="rk-app"{% endif %}>
+<body class="{% if user.is_authenticated %}rk-app{% else %}rk-public{% endif %}">
     <a class="rk-skip-link" href="#main-content">Saltar al contenido</a>
     {% if user.is_authenticated %}
     <aside class="rk-sidebar" id="rk-sidebar" aria-label="Menú lateral">
@@ -80,17 +82,11 @@
         </div>
     </header>
     {% else %}
-    <header class="site-header">
-        <a class="brand" href="{% url 'inicio' %}">Ranked Kingdom</a>
-        <nav aria-label="Navegación principal">
-            <form class="user-search" method="get" action="{% url 'buscar-usuarios' %}" role="search">
-                <input type="search" name="q" placeholder="Buscar usuarios" aria-label="Buscar usuarios por nickname" maxlength="150">
-            </form>
-                <a href="{% url 'catalogo-videojuegos' %}">Videojuegos</a>
-                <a href="{% url 'catalogo-torneos' %}">Torneos</a>
-                <a href="{% url 'login' %}">Iniciar sesión</a>
-                <a class="button button-small" href="{% url 'registro' %}">Crear cuenta</a>
-        </nav>
+    <header class="rk-public-header"><div class="rk-public-header-inner">
+        <a class="rk-brand" href="{% url 'inicio' %}" aria-label="Ranked Kingdom, inicio"><span class="rk-brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="{% static 'img/lucide.svg' %}#crown"></use></svg></span><span class="rk-brand-name">Ranked<span>Kingdom</span></span></a>
+        <nav class="rk-public-nav" aria-label="Navegación pública"><a href="{% url 'catalogo-torneos' %}">Explorar torneos</a><a href="{% url 'catalogo-videojuegos' %}">Videojuegos</a><a href="{% url 'buscar-usuarios' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#search"></use></svg>Buscar usuarios</a></nav>
+        <div class="rk-public-actions"><a class="rk-btn rk-btn--secondary" href="{% url 'login' %}">Iniciar sesión</a><a class="rk-btn rk-btn--primary" href="{% url 'registro' %}">Crear cuenta</a></div>
+        </div>
     </header>
     {% endif %}
     <main class="page-shell" id="main-content" tabindex="-1">
@@ -101,7 +97,7 @@
         {% endif %}
         {% block content %}{% endblock %}
     </main>
-    {% if not user.is_authenticated %}<footer class="site-footer">Ranked Kingdom</footer>{% endif %}
+    {% if not user.is_authenticated %}<footer class="rk-public-footer"><div><a href="{% url 'inicio' %}" class="rk-public-footer-brand">Ranked Kingdom</a><nav aria-label="Enlaces públicos"><a href="{% url 'catalogo-torneos' %}">Explorar torneos</a><a href="{% url 'catalogo-videojuegos' %}">Videojuegos</a></nav></div></footer>{% endif %}
     <script src="{% static 'js/notifications.js' %}" defer></script>
     <script src="{% static 'js/shell.js' %}" defer></script>
 </body>

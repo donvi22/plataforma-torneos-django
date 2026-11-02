@@ -1,20 +1,19 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}Crear cuenta · Arena provisional{% endblock %}
+{% block page_styles %}
+{% if user.is_authenticated %}<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">{% endif %}
+<link rel="stylesheet" href="{% static 'css/tournament-create.css' %}">
+{% endblock %}
 {% block content %}
-<section class="form-panel">
-    <p class="eyebrow">Nueva cuenta</p>
-    <h1>Entra a la arena.</h1>
-    <p class="muted">Usa un nickname público y un correo privado.</p>
-    <form method="post" class="stack-form" novalidate>
+<section class="rk-dashboard rk-create-tournament rk-auth">
+    <header class="rk-auth-heading"><p class="rk-kicker">Ranked Kingdom</p><h1>Crear cuenta</h1><p class="rk-description">Usa un nickname público y un correo privado.</p></header>
+    <form method="post" class="rk-guided-form rk-auth-form" novalidate>
         {% csrf_token %}
-        {{ form.non_field_errors }}
-        {% for field in form %}
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-            {% if field.help_text %}<p class="help-text">{{ field.help_text }}</p>{% endif %}
-        {% endfor %}
-        <button class="button" type="submit">Crear cuenta</button>
+        {% include 'components/profile_form_errors.html' %}
+        {% for field in form %}{% include 'components/form_field.html' with field=field only %}{% endfor %}
+        <button class="rk-btn rk-btn--primary" type="submit">Crear cuenta</button>
     </form>
+    <p class="rk-auth-switch">¿Ya tienes cuenta? <a href="{% url 'login' %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}">Iniciar sesión</a>.</p>
 </section>
 {% endblock %}
