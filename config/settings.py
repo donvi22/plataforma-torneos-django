@@ -26,6 +26,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-local-developm
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 DEV_LOCAL = os.environ.get('TORNEO_DEV_LOCAL') == '1'
+DEMO_MODE = os.environ.get('TORNEO_DEMO') == '1'
 
 ALLOWED_HOSTS = []
 
@@ -85,7 +86,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': BASE_DIR / ('db_demo.sqlite3' if DEMO_MODE else 'db.sqlite3'),
     }
 }
 
