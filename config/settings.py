@@ -13,6 +13,24 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
+
+def env_bool(name, default):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if normalized in ('true', '1', 'yes', 'on'):
+        return True
+    if normalized in ('false', '0', 'no', 'off'):
+        return False
+    raise ImproperlyConfigured(f'{name} debe ser true/false o 1/0.')
+
+
+def env_list(name):
+    return [value.strip() for value in os.environ.get(name, '').split(',') if value.strip()]
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -20,15 +38,23 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
-# Set DJANGO_SECRET_KEY outside local development; this fallback is public and local-only.
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-local-development-only')
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool('DJANGO_DEBUG', True)
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '').strip()
+if not DEBUG and (
+    len(SECRET_KEY) < 50 or len(set(SECRET_KEY)) < 5 or SECRET_KEY.startswith('django-insecure-')
+):
+    raise ImproperlyConfigured('Produccion requiere DJANGO_SECRET_KEY privada, aleatoria y de al menos 50 caracteres.')
+# This public fallback is deliberately restricted to local development.
+SECRET_KEY = SECRET_KEY or 'django-insecure-local-development-only'
 DEV_LOCAL = os.environ.get('TORNEO_DEV_LOCAL') == '1'
 DEMO_MODE = os.environ.get('TORNEO_DEMO') == '1'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS')
+CSRF_TRUSTED_ORIGINS = env_list('DJANGO_CSRF_TRUSTED_ORIGINS')
+if any('*' in host for host in ALLOWED_HOSTS):
+    raise ImproperlyConfigured('DJANGO_ALLOWED_HOSTS requiere hosts explicitos, sin asteriscos.')
+if not DEBUG and not ALLOWED_HOSTS:
+    raise ImproperlyConfigured('Produccion requiere DJANGO_ALLOWED_HOSTS.')
 
 
 # Application definition
@@ -51,6 +77,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -83,12 +110,52 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / ('db_demo.sqlite3' if DEMO_MODE else 'db.sqlite3'),
+postgres_variables = ('PGHOST', 'PGDATABASE', 'PGUSER', 'PGPASSWORD')
+postgres_requested = any(os.environ.get(name) for name in postgres_variables)
+if DEMO_MODE and (not DEBUG or postgres_requested):
+    raise ImproperlyConfigured('TORNEO_DEMO solo admite desarrollo local con SQLite, sin variables PostgreSQL.')
+if postgres_requested:
+    missing = [name for name in postgres_variables if not os.environ.get(name, '').strip()]
+    if missing:
+        raise ImproperlyConfigured(f'Configuracion PostgreSQL incompleta: faltan {", ".join(missing)}.')
+    try:
+        postgres_port = int(os.environ.get('PGPORT') or '5432')
+    except ValueError as error:
+        raise ImproperlyConfigured('PGPORT debe ser un puerto numerico valido.') from error
+    if not 1 <= postgres_port <= 65535:
+        raise ImproperlyConfigured('PGPORT debe estar entre 1 y 65535.')
+    postgres_sslmode = os.environ.get('PGSSLMODE') or 'require'
+    if postgres_sslmode not in ('disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'):
+        raise ImproperlyConfigured('PGSSLMODE no es un modo de libpq valido.')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ['PGDATABASE'],
+            'USER': os.environ['PGUSER'],
+            'PASSWORD': os.environ['PGPASSWORD'],
+            'HOST': os.environ['PGHOST'],
+            'PORT': postgres_port,
+            'CONN_MAX_AGE': 60,
+            'CONN_HEALTH_CHECKS': True,
+            'OPTIONS': {'sslmode': postgres_sslmode},
+        },
     }
-}
+else:
+    if not DEBUG:
+        raise ImproperlyConfigured('Produccion requiere PGHOST, PGDATABASE, PGUSER y PGPASSWORD; no se usara SQLite.')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / ('db_demo.sqlite3' if DEMO_MODE else 'db.sqlite3'),
+        },
+    }
+
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_SSL_REDIRECT = not DEBUG
+# Trust this header only behind Railway's HTTPS proxy, not a directly exposed server.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https') if not DEBUG else None
+SECURE_HSTS_SECONDS = 0
 
 
 # Password validation
@@ -127,8 +194,19 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {
+        'BACKEND': (
+            'django.contrib.staticfiles.storage.StaticFilesStorage'
+            if DEBUG else 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+        ),
+    },
+}
 
 MEDIA_URL = 'media/'
+# Railway's service filesystem is ephemeral; uploads need persistent storage before public use.
 MEDIA_ROOT = BASE_DIR / 'media'
 
 AUTH_USER_MODEL = 'usuarios.Usuario'
@@ -145,3 +223,18 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+if not DEBUG:
+    MAILERS = {
+        'default': {
+            'BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+            'OPTIONS': {
+                'host': os.environ.get('DJANGO_EMAIL_HOST') or 'localhost',
+                'port': int(os.environ.get('DJANGO_EMAIL_PORT') or '587'),
+                'username': os.environ.get('DJANGO_EMAIL_HOST_USER', ''),
+                'password': os.environ.get('DJANGO_EMAIL_HOST_PASSWORD', ''),
+                'use_tls': env_bool('DJANGO_EMAIL_USE_TLS', True),
+                'timeout': 10,
+            },
+        },
+    }
+DEFAULT_FROM_EMAIL = os.environ.get('DJANGO_DEFAULT_FROM_EMAIL') or 'webmaster@localhost'
