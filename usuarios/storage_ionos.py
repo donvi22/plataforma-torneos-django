@@ -95,7 +95,7 @@ class IonosAvatarStorage(Storage):
 
         with self._connection() as sftp:
             # Crear sin sobrescribir un archivo existente.
-            with sftp.open(remote, "xb") as destination:
+            with sftp.open(remote, "wx") as destination:
                 for chunk in content.chunks():
                     destination.write(chunk)
 
