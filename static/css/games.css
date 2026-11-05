@@ -3,8 +3,8 @@ body:has(.rk-games) .messages { font: 13px/1.6 'Segoe UI', sans-serif; max-width
 body:has(.rk-games) .message { background: #1B1B22; border: 1px solid #2A2A34; border-left: 3px solid #8B5CF6; border-radius: 4px; color: #F2F2F5; }
 .rk-games .rk-game-filters { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) auto; }
 .rk-game-cards { margin-top: 24px; }
-.rk-games .rk-game-media { height: 150px; }
-.rk-games .rk-game-media > .rk-card-game-image { object-fit: contain; padding: 18px; }
+.rk-games .rk-game-media { height: 200px; overflow: hidden; }
+.rk-games .rk-game-media > .rk-card-game-image { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center; padding: 0; }
 .rk-game-media .rk-card-media-fallback svg { height: 40px; width: 40px; }
 .rk-game-card .rk-card-body { gap: 12px; padding: 16px; }
 .rk-game-card h2 { font-size: 19px; line-height: 1.4; }
@@ -43,7 +43,7 @@ body:has(.rk-games) .message { background: #1B1B22; border: 1px solid #2A2A34; b
 }
 @media (max-width: 650px) {
     .rk-games .rk-game-filters { grid-template-columns: minmax(0, 1fr); }
-    .rk-games .rk-game-media { height: 140px; }
+    .rk-games .rk-game-media { height: 180px; }
     .rk-game-identity { align-items: flex-start; gap: 18px; }
     .rk-games .rk-game-detail-media { flex-basis: 80px; height: 80px; width: 80px; }
     .rk-game-detail-copy { flex-basis: calc(100% - 98px); }
