@@ -11,8 +11,9 @@ from pathlib import PurePosixPath
 import paramiko
 from django.core.files.base import File
 from django.core.files.storage import Storage
+from django.utils.deconstruct import deconstructible
 
-
+@deconstructible
 class IonosAvatarStorage(Storage):
     HOST = "access-5021649008.webspace-host.com"
     FINGERPRINT = "1gx2w8Rtv3wCgi7Jh8myf/KVd72cRQbow03UP8P095Q"
