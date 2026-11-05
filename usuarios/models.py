@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser, UserManager
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
+from .storage_ionos import IonosAvatarStorage
 
 
 class UsuarioManager(UserManager):
@@ -33,7 +34,7 @@ class Usuario(AbstractUser):
 	email = models.EmailField(unique=True)
 	first_name = None
 	last_name = None
-	avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
+	avatar = models.ImageField(upload_to='avatars/', storage=IonosAvatarStorage(), blank=True, null=True)
 	xp_total = models.PositiveIntegerField(default=0)
 	nivel = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
 	karma_total = models.PositiveIntegerField(default=100)
