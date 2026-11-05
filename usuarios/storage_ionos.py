@@ -7,6 +7,8 @@ import socket
 import stat
 from contextlib import contextmanager
 from pathlib import PurePosixPath
+import logging
+from uuid import uuid4
 
 import paramiko
 from django.core.files.base import File
@@ -91,16 +93,57 @@ class IonosAvatarStorage(Storage):
             elif sock is not None:
                 sock.close()
 
+    
     def _save(self, name, content):
         remote = self._remote_path(name)
+        temporal = f".upload_{uuid4().hex}.tmp"
+        logger = logging.getLogger(__name__)
 
         with self._connection() as sftp:
-            # Crear sin sobrescribir un archivo existente.
-            with sftp.open(remote, "wx") as destination:
-                for chunk in content.chunks():
-                    destination.write(chunk)
+            try:
+                total_bytes = 0
+
+                # Subir utilizando un nombre temporal único.
+                with sftp.open(temporal, "wx") as destination:
+                    for chunk in content.chunks():
+                        destination.write(chunk)
+                        total_bytes += len(chunk)
+
+                # Comprobar que llegó el archivo completo.
+                remote_size = sftp.stat(temporal).st_size
+
+                if remote_size != total_bytes:
+                    raise OSError(
+                        "La subida del avatar esta incompleta"
+                    )
+
+                # Evitar sobrescribir archivos existentes.
+                try:
+                    sftp.stat(remote)
+                except FileNotFoundError:
+                    pass
+                else:
+                    raise FileExistsError(
+                        "El avatar de destino ya existe"
+                    )
+
+                # Publicar únicamente después de la subida.
+                sftp.rename(temporal, remote)
+
+            except Exception:
+                # Intentar limpiar una subida incompleta.
+                try:
+                    sftp.remove(temporal)
+                except FileNotFoundError:
+                    pass
+                except Exception:
+                    logger.exception(
+                        "No se pudo limpiar el temporal SFTP"
+                    )
+                raise
 
         return name
+
 
     def _open(self, name, mode="rb"):
         if mode not in ("rb", "r"):
