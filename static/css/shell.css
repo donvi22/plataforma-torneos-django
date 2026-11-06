@@ -108,7 +108,8 @@
 .rk-profile-popover a:hover, .rk-profile-popover button:hover { background: var(--rk-secondary); }
 .rk-profile-popover form { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
 .rk-app .page-shell { margin: 0 0 0 var(--rk-sidebar-width); max-width: none; min-height: calc(100vh - var(--rk-topbar-height)); padding: 32px; }
-.rk-app .page-shell { background-image: linear-gradient(#0D0D0FE0, #0D0D0FE0), url('../img/branding/rk-fondo.png'); background-position: center -40px; background-repeat: no-repeat; background-size: auto, min(115vw, 1550px) auto; background-attachment: fixed; }.rk-app .page-shell :is(input, textarea, select) { background: var(--rk-secondary); color: var(--ink); color-scheme: dark; }
+.rk-app .page-shell { background-image: linear-gradient(#0D0D0FE0, #0D0D0FE0), url('../img/branding/rk-fondo.png'); background-position: center -40px; background-repeat: no-repeat; background-size: auto, min(115vw, 1550px) auto; background-attachment: fixed; }
+.rk-app .page-shell :is(input, textarea, select) { background: var(--rk-secondary); color: var(--ink); color-scheme: dark; }
 .rk-app .page-shell .player-account { color: var(--muted); }
 .rk-app .page-shell .profile-panel, .rk-app .page-shell .form-panel, .rk-app .page-shell .empty-panel { box-shadow: none; }
 .rk-app :is(a, button, summary):focus-visible { outline: 2px solid var(--accent-dark); outline-offset: 3px; }
