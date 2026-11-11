@@ -3,8 +3,8 @@
 {% block title %}Inicio{% endblock %}
 {% block page_styles %}<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">{% endblock %}
 {% block content %}
-<div class="rk-dashboard">
-    <header class="rk-dashboard-intro">
+<div class="rk-dashboard"> 
+    <header class="rk-dashboard-intro rk-dashboard-intro--banner" style="--rk-banner-image: url('{% static 'img/branding/rk-home-banner.png' %}');">
         <div class="rk-intro-copy">
             <p class="rk-kicker">Tu espacio competitivo</p>
             <h1>{% if user.is_authenticated %}Hola, {{ user.username }}.{% else %}Tu próxima competición.{% endif %}</h1>

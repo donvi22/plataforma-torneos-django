@@ -27,6 +27,36 @@
 .rk-brand-mark svg { height: 25px; width: 25px; }
 .rk-brand-name { font-size: 19px; font-weight: 700; line-height: 1.15; }
 .rk-brand-name > span { color: var(--muted); display: block; font-size: 14px; font-weight: 500; margin-top: 4px; }
+
+/* Logotipo oficial de Ranked Kingdom */
+.rk-brand-logo {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+/* Logotipo del menú lateral */
+.rk-sidebar .rk-brand {
+    width: 216px;
+    max-width: calc(100% - 16px);
+    margin: 0 8px 32px;
+}
+
+/* Logotipo de la cabecera pública */
+.rk-public-header .rk-brand {
+    width: 200px;
+    max-width: 100%;
+    margin: 0;
+}
+
+/* Ajuste para pantallas pequeñas */
+@media (max-width: 650px) {
+    .rk-public-header .rk-brand {
+        width: 145px;
+    }
+}
+
 .rk-navigation { align-items: stretch; display: flex; flex: 0 0 auto; flex-direction: column; gap: 6px; font: inherit; min-width: 0; }
 .rk-navigation svg, .rk-sidebar-bottom svg, .rk-topbar svg { fill: none; flex: 0 0 auto; height: 20px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.75; width: 20px; }
 .rk-nav-link, .rk-tournaments summary { align-items: center; border-radius: 6px; color: var(--muted); display: flex; gap: 12px; min-height: 46px; padding: 10px 12px; text-decoration: none; }
@@ -78,6 +108,7 @@
 .rk-profile-popover a:hover, .rk-profile-popover button:hover { background: var(--rk-secondary); }
 .rk-profile-popover form { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
 .rk-app .page-shell { margin: 0 0 0 var(--rk-sidebar-width); max-width: none; min-height: calc(100vh - var(--rk-topbar-height)); padding: 32px; }
+.rk-app .page-shell { background-color: #0D0D0F; background-image: linear-gradient(#0D0D0FE0, #0D0D0FE0), url('../img/branding/rk-fondo.png'); background-position: center center, center -40px; background-repeat: no-repeat, no-repeat; background-size: 100% 100%, min(115vw, 1550px) auto; background-attachment: fixed, fixed; }
 .rk-app .page-shell :is(input, textarea, select) { background: var(--rk-secondary); color: var(--ink); color-scheme: dark; }
 .rk-app .page-shell .player-account { color: var(--muted); }
 .rk-app .page-shell .profile-panel, .rk-app .page-shell .form-panel, .rk-app .page-shell .empty-panel { box-shadow: none; }

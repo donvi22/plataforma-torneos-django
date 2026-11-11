@@ -1,2 +1,24 @@
+
 {% load static %}
-{% if videojuego.imagen %}<img class="rk-card-game-image" src="{{ videojuego.imagen.url }}" alt="Imagen de {{ videojuego.nombre }}" loading="lazy">{% else %}<div class="rk-card-media-fallback" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="{% static 'img/lucide.svg' %}#gamepad-2"></use></svg></div>{% endif %}
+
+{% if videojuego.imagen_url %}
+    <img
+        class="rk-card-game-image"
+        src="{{ videojuego.imagen_url }}"
+        alt="Imagen de {{ videojuego.nombre }}"
+        loading="lazy"
+    >
+{% elif videojuego.imagen %}
+    <img
+        class="rk-card-game-image"
+        src="{{ videojuego.imagen.url }}"
+        alt="Imagen de {{ videojuego.nombre }}"
+        loading="lazy"
+    >
+{% else %}
+    <div class="rk-card-media-fallback" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+            <use href="{% static 'img/lucide.svg' %}#gamepad-2"></use>
+        </svg>
+    </div>
+{% endif %}

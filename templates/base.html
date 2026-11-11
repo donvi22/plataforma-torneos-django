@@ -3,7 +3,8 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1"> 
+    <link rel="icon" type="image/x-icon" href="{% static 'img/ranked-kingdom-favicon.ico' %}">
     <title>{% filter cut:' · Arena provisional' %}{% block title %}Inicio{% endblock %}{% endfilter %} | Ranked Kingdom</title>
     <link rel="stylesheet" href="{% static 'css/site.css' %}">
     <link rel="stylesheet" href="{% static 'css/shell.css' %}">
@@ -15,7 +16,7 @@
     <a class="rk-skip-link" href="#main-content">Saltar al contenido</a>
     {% if user.is_authenticated %}
     <aside class="rk-sidebar" id="rk-sidebar" aria-label="Menú lateral">
-        <a class="rk-brand" href="{% url 'inicio' %}"><span class="rk-brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="{% static 'img/lucide.svg' %}#crown"></use></svg></span><span class="rk-brand-name">Ranked<span>Kingdom</span></span></a>
+    <a class="rk-brand" href="{% url 'inicio' %}" aria-label="Ranked Kingdom, inicio"><img class="rk-brand-logo" src="{% static 'img/ranked-kingdom-logo.png' %}" alt="Ranked Kingdom"></a>
         <nav class="rk-navigation" aria-label="Navegación principal">
             <a class="rk-nav-link" href="{% url 'inicio' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#house"></use></svg><span>Inicio</span></a>
             <details class="rk-tournaments"{% if '/torneos/' in request.path or '/partidas/' in request.path %} open{% endif %}>
@@ -83,7 +84,7 @@
     </header>
     {% else %}
     <header class="rk-public-header"><div class="rk-public-header-inner">
-        <a class="rk-brand" href="{% url 'inicio' %}" aria-label="Ranked Kingdom, inicio"><span class="rk-brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="{% static 'img/lucide.svg' %}#crown"></use></svg></span><span class="rk-brand-name">Ranked<span>Kingdom</span></span></a>
+        <a class="rk-brand" href="{% url 'inicio' %}" aria-label="Ranked Kingdom, inicio"><img class="rk-brand-logo" src="{% static 'img/ranked-kingdom-logo.png' %}" alt="Ranked Kingdom"></a>
         <nav class="rk-public-nav" aria-label="Navegación pública"><a href="{% url 'catalogo-torneos' %}">Explorar torneos</a><a href="{% url 'catalogo-videojuegos' %}">Videojuegos</a><a href="{% url 'buscar-usuarios' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="{% static 'img/lucide.svg' %}#search"></use></svg>Buscar usuarios</a></nav>
         <div class="rk-public-actions"><a class="rk-btn rk-btn--secondary" href="{% url 'login' %}">Iniciar sesión</a><a class="rk-btn rk-btn--primary" href="{% url 'registro' %}">Crear cuenta</a></div>
         </div>

@@ -19,6 +19,7 @@ class Videojuego(models.Model):
 	nombre = models.CharField(max_length=150, unique=True)
 	genero = models.CharField(max_length=100)
 	imagen = models.ImageField(upload_to='videojuegos/', blank=True, null=True)
+	imagen_url = models.URLField(max_length=500, blank=True, default='', verbose_name='URL de imagen (IONOS)')
 	activo = models.BooleanField(default=True)
 	fecha_alta = models.DateTimeField(auto_now_add=True)
 	instrucciones_competicion = models.TextField(blank=True)

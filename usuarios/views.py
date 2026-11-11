@@ -1,3 +1,4 @@
+import logging
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -9,6 +10,7 @@ from django.db.models.functions import Coalesce
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.core.exceptions import SuspiciousOperation
 
 from .account_services import AccountLifecycleError, cambiar_nickname as cambiar_nickname_service, eliminar_cuenta
 from .forms import (
@@ -149,14 +151,61 @@ def perfil_propio(request):
     return redirect('perfil', pk=request.user.pk)
 
 
+logger = logging.getLogger(__name__)
+
+
 @login_required
 def editar_perfil(request):
-    form = EditarPerfilForm(request.POST or None, request.FILES or None, instance=request.user)
+    form = EditarPerfilForm(
+        request.POST or None,
+        request.FILES or None,
+        instance=request.user,
+    )
+
     if request.method == 'POST' and form.is_valid():
-        form.save()
-        messages.success(request, 'Tu perfil se ha actualizado.')
-        return redirect('perfil', pk=request.user.pk)
-    return render(request, 'usuarios/editar_perfil.html', {'form': form})
+        # Consultamos la foto anterior directamente en PostgreSQL.
+        avatar_anterior = (
+            Usuario.objects.only('avatar')
+            .get(pk=request.user.pk)
+            .avatar.name
+        )
+
+        try:
+            usuario = form.save()
+
+        except (OSError, EOFError, TimeoutError):
+            form.add_error(
+                'avatar',
+                'No hemos podido guardar la fotografía. '
+                'Inténtalo de nuevo más tarde.',
+            )
+
+        else:
+            avatar_nuevo = usuario.avatar.name
+
+            # Eliminar la foto anterior solo cuando hay una nueva.
+            if avatar_anterior and avatar_anterior != avatar_nuevo:
+                try:
+                    usuario.avatar.storage.delete(avatar_anterior)
+                except Exception:
+                    logger.exception(
+                        'No se pudo eliminar el avatar anterior '
+                        'del usuario %s',
+                        usuario.pk,
+                    )
+
+            messages.success(
+                request,
+                'Tu perfil se ha actualizado.',
+            )
+            return redirect('perfil', pk=usuario.pk)
+
+    return render(
+        request,
+        'usuarios/editar_perfil.html',
+        {'form': form},
+    )
+
 
 
 @login_required

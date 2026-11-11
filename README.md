@@ -300,6 +300,8 @@ La interfaz se revisó en:
 - Python 3.14
 - Django 6.1.1
 - SQLite en desarrollo
+- PostgreSQL configurable en producción
+- Gunicorn y WhiteNoise para producción
 
 ### Frontend
 
@@ -539,25 +541,17 @@ El **MVP de Ranked Kingdom está funcionalmente terminado y validado**.
 - datos de demostración;
 - tests automatizados.
 
-La configuración actual sigue siendo de desarrollo.
+La configuración predeterminada sigue siendo de desarrollo; producción se activa explícitamente mediante variables de entorno.
 
 ---
 
 ## Preparación para producción
 
-Antes del despliegue público será necesario configurar, entre otros:
+El proyecto está preparado para seleccionar PostgreSQL mediante variables `PG*`, exigir una clave privada y hosts explícitos con `DEBUG=False`, servir estáticos con WhiteNoise y arrancar con Gunicorn detrás del proxy HTTPS de Railway. SQLite local y la base demo permanecen separadas y conservan su funcionamiento.
 
-- `DEBUG=False`;
-- `SECRET_KEY` mediante variable de entorno;
-- `ALLOWED_HOSTS`;
-- HTTPS;
-- cookies seguras;
-- `STATIC_ROOT`;
-- servicio adecuado para archivos estáticos;
-- almacenamiento persistente para archivos multimedia;
-- correo real;
-- base de datos apropiada para producción;
-- estrategia de copias de seguridad.
+La [guía de Railway](docs/railway.md) detalla las variables y los comandos separados de build, pre-deploy y start. El [archivo de ejemplo](.env.example) no contiene credenciales ni se carga automáticamente.
+
+No se ha realizado ningún despliegue ni cambio de DNS. Antes de publicar quedan por validar PostgreSQL y Gunicorn en Linux, el dominio HTTPS real, el almacenamiento y servicio persistente de media, el correo si se utiliza y las copias de seguridad. HSTS permanece desactivado durante esa primera validación.
 
 ---
 

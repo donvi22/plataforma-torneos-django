@@ -23,6 +23,7 @@ body:has(.rk-dashboard) { background: #0D0D0F; color: #F2F2F5; }
 .rk-dashboard h3 a:hover { color: #C4B5FD; }
 .rk-dashboard :is(a, button):focus-visible { outline: 2px solid #A78BFA; outline-offset: 4px; }
 .rk-dashboard-intro { --rk-hero-image: none; align-items: flex-start; background-color: var(--rk-surface); background-image: linear-gradient(90deg, #15151AF5 0%, #15151ACC 55%, #15151A66 100%), var(--rk-hero-image); background-position: center; background-size: cover; border-bottom: 1px solid var(--rk-border); display: flex; flex-direction: column; gap: 20px; justify-content: center; min-height: 246px; padding: 30px 32px; }
+.rk-dashboard-intro--banner { --rk-hero-image: var(--rk-banner-image); min-height: 320px; border: 1px solid var(--rk-border); border-radius: 12px; background-image: linear-gradient(90deg, #15151AE0 0%, #15151A80 35%, #15151A15 70%, transparent 100%), var(--rk-hero-image); background-position: center center; background-repeat: no-repeat; background-size: cover; }
 .rk-intro-copy { max-width: 620px; min-width: 0; width: 100%; }
 .rk-kicker { color: var(--rk-muted); font-size: 11px; font-weight: 600; line-height: 1.5; text-transform: uppercase; }
 .rk-dashboard-intro .rk-kicker { margin-bottom: 8px; }
