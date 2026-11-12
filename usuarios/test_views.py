@@ -1,8 +1,10 @@
 from io import BytesIO
 from datetime import timedelta
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from PIL import Image
+from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -10,9 +12,44 @@ from django.utils import timezone
 from django.utils.html import strip_tags
 
 from .models import Usuario
+from .storage_ionos import IonosAvatarStorage
 
 
-class UsuarioViewsTests(TestCase):
+class LocalAvatarStorage(FileSystemStorage):
+    """Keep IONOS URL semantics without using its remote file operations."""
+
+    def url(self, name):
+        return IonosAvatarStorage().url(name)
+
+
+class AvatarStorageTestMixin:
+    """Exercise real file lifecycle locally while retaining public IONOS URLs."""
+
+    def setUp(self):
+        super().setUp()
+        directory = TemporaryDirectory(prefix='ranked-kingdom-avatar-tests-')
+        self.addCleanup(directory.cleanup)
+        media = override_settings(MEDIA_ROOT=directory.name)
+        media.enable()
+        self.addCleanup(media.disable)
+        # The model field has an explicit storage: STORAGES/MEDIA_ROOT alone
+        # cannot replace it. Restore the original instance after each test.
+        storage = patch.object(
+            Usuario._meta.get_field('avatar'), 'storage',
+            LocalAvatarStorage(),
+        )
+        storage.start()
+        self.addCleanup(storage.stop)
+        connection = patch.object(
+            IonosAvatarStorage, '_connection',
+            side_effect=AssertionError('View tests must never connect to IONOS'),
+        )
+        remote_connection = connection.start()
+        self.addCleanup(connection.stop)
+        self.addCleanup(remote_connection.assert_not_called)
+
+
+class UsuarioViewsTests(AvatarStorageTestMixin, TestCase):
     def test_shell_autenticado_preserva_rutas_y_acciones_seguras(self):
         usuario = self.crear_usuario()
         self.client.force_login(usuario)
@@ -43,7 +80,7 @@ class UsuarioViewsTests(TestCase):
     def test_shell_avatar_actual_y_fallback(self):
         usuario = self.crear_usuario(avatar='avatars/shell-avatar.png')
         self.client.force_login(usuario)
-        self.assertContains(self.client.get(reverse('inicio')), '<img src="/media/avatars/shell-avatar.png" alt="">')
+        self.assertContains(self.client.get(reverse('inicio')), '<img src="https://media.rankedkingdom.com/avatars/shell-avatar.png" alt="">')
         usuario.avatar = ''
         usuario.save(update_fields=('avatar',))
         self.assertContains(self.client.get(reverse('inicio')), '<span aria-hidden="true">J</span>')
@@ -184,7 +221,7 @@ class UsuarioViewsTests(TestCase):
         self.assertNotContains(publico, 'id="activity-title"')
         self.assertContains(publico, 'Última conexión')
         self.assertContains(publico, 'Estado online no disponible todavía')
-        self.assertContains(publico, '/media/avatars/perfil-visual.png')
+        self.assertContains(publico, 'https://media.rankedkingdom.com/avatars/perfil-visual.png')
         Usuario.objects.filter(pk=usuario.pk).update(avatar='', mostrar_ultima_conexion=False, mostrar_estado_online=False, disponible_para_arbitrar=False, karma_total=10, nivel=1, xp_total=0)
         fallback = self.client.get(reverse('perfil', args=[usuario.pk]))
         self.assertContains(fallback, 'rk-profile-avatar-large rk-profile-avatar"><span aria-hidden="true">J</span>')
@@ -231,7 +268,7 @@ class UsuarioViewsTests(TestCase):
         self.assertNotIn('Currently', visible)
         self.assertNotIn('archivo-interno-actual.png', visible)
         self.assertNotIn('avatars/', visible)
-        self.assertContains(respuesta, 'src="/media/avatars/archivo-interno-actual.png"')
+        self.assertContains(respuesta, 'src="https://media.rankedkingdom.com/avatars/archivo-interno-actual.png"')
         self.assertContains(respuesta, 'name="avatar"', count=1)
         self.assertContains(respuesta, 'name="avatar-clear"', count=1)
         self.assertContains(respuesta, 'id="avatar-clear_id"')
@@ -333,6 +370,38 @@ class UsuarioViewsTests(TestCase):
         self.assertEqual(otro.nivel, 1)
         self.assertEqual(otro.karma_total, 100)
 
+    def test_reemplazar_avatar_elimina_solo_el_archivo_anterior(self):
+        from pathlib import Path
+
+        usuario = self.crear_usuario()
+        usuario.avatar.save('anterior.png', self.crear_imagen(), save=True)
+        anterior = Path(usuario.avatar.path)
+        self.assertTrue(anterior.exists())
+        self.client.force_login(usuario)
+        respuesta = self.client.post(reverse('editar-perfil'), {'avatar': self.crear_imagen()})
+        self.assertRedirects(respuesta, reverse('perfil', args=[usuario.pk]))
+        usuario.refresh_from_db()
+        self.assertFalse(anterior.exists())
+        self.assertTrue(Path(usuario.avatar.path).exists())
+        self.assertNotEqual(Path(usuario.avatar.path), anterior)
+
+    def test_imagen_invalida_preserva_avatar_y_archivo_actuales(self):
+        from pathlib import Path
+
+        usuario = self.crear_usuario()
+        usuario.avatar.save('actual.png', self.crear_imagen(), save=True)
+        nombre = usuario.avatar.name
+        archivo = Path(usuario.avatar.path)
+        contenido = archivo.read_bytes()
+        self.client.force_login(usuario)
+        respuesta = self.client.post(reverse('editar-perfil'), {
+            'avatar': SimpleUploadedFile('incorrecto.png', b'not an image'),
+        })
+        self.assertContains(respuesta, 'imagen válida')
+        usuario.refresh_from_db()
+        self.assertEqual(usuario.avatar.name, nombre)
+        self.assertEqual(archivo.read_bytes(), contenido)
+
     def test_rechaza_archivo_no_imagen(self):
         usuario = self.crear_usuario()
         self.client.force_login(usuario)
@@ -343,7 +412,7 @@ class UsuarioViewsTests(TestCase):
 
 
 @override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'])
-class AccountLifecycleViewsTests(TestCase):
+class AccountLifecycleViewsTests(AvatarStorageTestMixin, TestCase):
     PASSWORD = 'ClaveSegura123!'
 
     def crear_usuario(self, username, **extra):
