@@ -1,5 +1,6 @@
 from datetime import timedelta
 from io import BytesIO
+from unittest.mock import patch
 
 from PIL import Image
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -143,6 +144,32 @@ class GestionTorneosViewsTests(TestCase):
         self.assertEqual(publico.estado, Torneo.Estado.BORRADOR)
         self.assertIsNone(publico.fecha_publicacion)
         self.assertTrue(publico.imagen_banner.name)
+
+    def test_fallo_storage_no_crea_torneo_y_muestra_error_de_banner(self):
+        self.client.force_login(self.usuario)
+        with patch('usuarios.storage_ionos.PersistentMediaStorage.save', side_effect=OSError('SFTP unavailable')):
+            with self.assertLogs('torneos.manage_views', level='ERROR'):
+                respuesta = self.client.post(reverse('crear-torneo'), self.datos_publico(imagen_banner=self.imagen()))
+        self.assertContains(respuesta, 'No se pudo guardar la imagen')
+        self.assertFalse(Torneo.objects.filter(nombre='Publico web').exists())
+
+    def test_fallo_storage_al_sustituir_preserva_referencia_anterior(self):
+        from torneos.services import crear_torneo
+
+        torneo = crear_torneo(self.usuario, **dict(
+            nombre='Original', tipo=Torneo.Tipo.PRIVADO, videojuego=self.videojuego,
+            formato_competitivo=self.formato, max_participantes=2,
+        ))
+        torneo.imagen_banner = 'torneos/anterior.png'
+        torneo.save(update_fields=['imagen_banner'])
+        self.client.force_login(self.usuario)
+        with patch('usuarios.storage_ionos.PersistentMediaStorage.save', side_effect=OSError('SFTP unavailable')):
+            with self.assertLogs('torneos.manage_views', level='ERROR'):
+                respuesta = self.client.post(reverse('editar-borrador-torneo', args=[torneo.pk]), self.datos_privado(nombre='Editado', imagen_banner=self.imagen()))
+        self.assertContains(respuesta, 'No se pudo guardar la imagen')
+        torneo.refresh_from_db()
+        self.assertEqual(torneo.nombre, 'Original')
+        self.assertEqual(torneo.imagen_banner.name, 'torneos/anterior.png')
 
     def test_rechaza_publico_por_nivel_karma_y_oficial_normal(self):
         self.usuario.nivel = 4

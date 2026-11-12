@@ -1,6 +1,9 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Case, Count, DateTimeField, F, IntegerField, Q, When
 from django.db.models.functions import Coalesce
 from django.http import Http404, JsonResponse
@@ -13,6 +16,9 @@ from .services import CierreTorneoError, InscripcionError, cerrar_torneo, crear_
 from .services import cancelar_inscripcion, inscribir_usuario
 from .models import InscripcionTorneo
 from partidas.services import PreparacionBracketError, preparar_bracket
+
+
+logger = logging.getLogger(__name__)
 
 
 def _puede_gestionar(torneo, usuario):
@@ -30,6 +36,9 @@ def crear(request):
             torneo = crear_torneo(request.user, **datos)
         except (InscripcionError, ValidationError) as error:
             form.add_error(None, str(error))
+        except OSError:
+            logger.exception('No se pudo guardar el banner del nuevo torneo')
+            form.add_error('imagen_banner', 'No se pudo guardar la imagen. Inténtalo de nuevo más tarde.')
         else:
             messages.success(request, 'El torneo se ha guardado como borrador.')
             return redirect('mis-torneos')
@@ -43,16 +52,23 @@ def editar_borrador(request, pk):
     torneo = get_object_or_404(Torneo, pk=pk)
     if torneo.estado != Torneo.Estado.BORRADOR or not _puede_gestionar(torneo, request.user):
         raise Http404
+    original_banner = torneo.imagen_banner.name
     form = TorneoForm(request.POST or None, request.FILES or None, instance=torneo, usuario=request.user)
     if request.method == 'POST' and form.is_valid():
         for field in form.Meta.fields:
             setattr(torneo, field, form.cleaned_data.get(field))
         torneo.organizador_id = torneo.organizador_id
         try:
-            torneo.full_clean()
-            torneo.save()
+            with transaction.atomic():
+                torneo.full_clean()
+                torneo.save()
         except ValidationError as error:
+            torneo.imagen_banner = original_banner
             form.add_error(None, str(error))
+        except OSError:
+            torneo.imagen_banner = original_banner
+            logger.exception('No se pudo actualizar el banner del torneo %s', torneo.pk)
+            form.add_error('imagen_banner', 'No se pudo guardar la imagen. Inténtalo de nuevo más tarde.')
         else:
             messages.success(request, 'El borrador se ha actualizado.')
             return redirect('mis-torneos')
