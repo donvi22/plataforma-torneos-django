@@ -92,7 +92,7 @@ def _bloqueo_de_inscripcion():
 def _torneo_bloqueado(torneo_id):
 	if connection.vendor == 'sqlite':
 		return Torneo.objects.get(pk=torneo_id)
-	return Torneo.objects.select_for_update().get(pk=torneo_id)
+	return Torneo.objects.select_for_update(no_key=True).get(pk=torneo_id)
 
 
 def _inscripciones_abiertas(torneo, ahora):
@@ -138,7 +138,7 @@ def _generar_bracket_si_completo(torneo):
 def registrar_inicio_partida(torneo):
 	"""Marca el torneo en curso al iniciar realmente su primera partida."""
 	with transaction.atomic():
-		torneo = Torneo.objects.get(pk=torneo.pk)
+		torneo = _torneo_bloqueado(torneo.pk)
 		if torneo.estado != Torneo.Estado.PREPARADO:
 			return False
 		return _registrar_transicion(
@@ -214,7 +214,7 @@ def _clasificacion_calculada(torneo):
 def generar_clasificacion_final(torneo):
 	"""Genera una clasificación inmutable o verifica la existente."""
 	with transaction.atomic():
-		torneo = Torneo.objects.get(pk=torneo.pk)
+		torneo = _torneo_bloqueado(torneo.pk)
 		esperada = _clasificacion_calculada(torneo)
 		existentes = list(torneo.clasificaciones.values(
 			'inscripcion_id', 'posicion', 'ronda_eliminado', 'es_campeon',
@@ -240,7 +240,7 @@ def generar_clasificacion_final(torneo):
 def cerrar_torneo(torneo, actor=None, automatico=False):
 	"""Genera clasificación definitiva y registra el cierre una sola vez."""
 	with transaction.atomic():
-		torneo = Torneo.objects.get(pk=torneo.pk)
+		torneo = _torneo_bloqueado(torneo.pk)
 		if automatico:
 			if torneo.tipo != Torneo.Tipo.PUBLICO:
 				raise CierreTorneoError('Solo los torneos públicos se cierran automáticamente.')
