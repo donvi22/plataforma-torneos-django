@@ -1,22 +1,21 @@
-"""Generacion transaccional del bracket de eliminacion directa.
+"""Resultados y bracket: torneo primero, partida despues, en una transaccion.
 
-SQLite no ofrece bloqueos de fila efectivos. El servicio usa un RLock por
-proceso y una transaccion atomica; la restriccion unica del modelo protege
-contra duplicados y, para despliegues con varios procesos, se recomienda un
-motor con select_for_update para aislar completamente la generacion.
+PostgreSQL serializa cada bracket mediante bloqueos de filas entre procesos.
+El RLock se conserva solo como ayuda local para SQLite, sin prometer bloqueos
+de filas ni seguridad concurrente multiproceso en ese motor.
 """
 
 import random
 import re
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from threading import RLock
 
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.utils import timezone
 
 from torneos.models import InscripcionTorneo, Torneo
-from torneos.services import _es_administrador_autorizado, _registrar_transicion
+from torneos.services import _es_administrador_autorizado, _registrar_transicion, _torneo_bloqueado
 
 from .models import (
     DeclaracionResultado,
@@ -51,7 +50,7 @@ def _validar_marcador_normal(resultado):
 
 @contextmanager
 def _bloqueo_de_bracket():
-    with _bracket_lock:
+    with (_bracket_lock if connection.vendor == 'sqlite' else nullcontext()):
         with transaction.atomic():
             yield
 
@@ -86,7 +85,7 @@ def _validar_bracket_existente(torneo, partidas):
 def generar_bracket(torneo):
     """Genera y devuelve todas las partidas de un bracket completo."""
     with _bloqueo_de_bracket():
-        torneo = Torneo.objects.get(pk=torneo.pk)
+        torneo = _torneo_bloqueado(torneo.pk)
         if torneo.formato_competitivo.tipo_regla_participantes != torneo.formato_competitivo.TipoReglaParticipantes.ELIMINACION_DIRECTA:
             raise BracketError('El torneo no utiliza eliminación directa.')
         existentes = Partida.objects.filter(torneo=torneo).order_by('numero_ronda', 'numero_orden')
@@ -149,10 +148,10 @@ def generar_bracket(torneo):
 
 def preparar_bracket(torneo, actor):
     """Prepara manualmente brackets privados u oficiales autorizados."""
-    from torneos.services import _es_administrador_autorizado, _registrar_transicion
+    from torneos.services import _es_administrador_autorizado, _registrar_transicion, _torneo_bloqueado
 
     with transaction.atomic():
-        torneo = Torneo.objects.get(pk=torneo.pk)
+        torneo = _torneo_bloqueado(torneo.pk)
         if not actor or not actor.puede_operar:
             raise PreparacionBracketError('La cuenta debe estar activa para preparar el torneo.')
         if torneo.tipo == Torneo.Tipo.PUBLICO:
@@ -175,15 +174,27 @@ def preparar_bracket(torneo, actor):
 
 
 def _partida_bloqueada(partida_id):
-    return Partida.objects.select_related('torneo').get(pk=partida_id)
+    # Call inside atomic(). The tournament is the serialization boundary for
+    # recursive progression, sibling matches, scheduling and tournament closure.
+    torneo_id = Partida.objects.values_list('torneo_id', flat=True).get(pk=partida_id)
+    torneo = _torneo_bloqueado(torneo_id)
+    partida = Partida.objects.select_for_update(no_key=True).get(pk=partida_id)
+    partida.torneo = torneo
+    return partida
+
+
+def _usuario_actual(usuario):
+    from usuarios.models import Usuario
+    return Usuario.objects.filter(pk=usuario.pk).first() if usuario else None
 
 
 @transaction.atomic
 def declarar_resultado(partida, usuario, resultado_declarado, ganador_declarado=None):
     """Registra una declaración sin tocar el resultado oficial ni el bracket."""
+    partida = _partida_bloqueada(partida.pk)
+    usuario = _usuario_actual(usuario)
     if not usuario or not usuario.puede_operar:
         raise ResultadoError('La cuenta no está activa para declarar resultados.')
-    partida = Partida.objects.get(pk=partida.pk)
     if partida.torneo.estado in (Torneo.Estado.BORRADOR, Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO):
         raise ResultadoError('El torneo ya no admite declaraciones de resultado.')
     if not partida.participantes.filter(
@@ -206,10 +217,13 @@ def declarar_resultado(partida, usuario, resultado_declarado, ganador_declarado=
         ganador_declarado=ganador_declarado,
     )
     try:
-        declaracion.full_clean()
-        declaracion.save()
+        with transaction.atomic():
+            declaracion.full_clean()
+            declaracion.save()
     except ValidationError as error:
         raise ResultadoError('; '.join(error.messages)) from error
+    except IntegrityError as error:
+        raise ResultadoError('No se pudo registrar una declaración única para esta partida y usuario.') from error
     if partida.estado == Partida.Estado.EN_CURSO:
         partida.estado = Partida.Estado.PENDIENTE_VALIDACION
         partida.save(update_fields=('estado',))
@@ -307,9 +321,10 @@ def validar_resultado(
     _resolucion_automatica=False,
 ):
     """Valida un resultado una sola vez y propaga su consecuencia."""
-    with _bracket_lock:
+    with (_bracket_lock if connection.vendor == 'sqlite' else nullcontext()):
         with transaction.atomic():
             partida = _partida_bloqueada(partida.pk)
+            actor = _usuario_actual(actor)
             if partida.torneo.estado in (Torneo.Estado.BORRADOR, Torneo.Estado.FINALIZADO, Torneo.Estado.CANCELADO):
                 raise ResultadoError('El torneo ya no admite resultados competitivos.')
             if partida.estado in (Partida.Estado.FINALIZADA, Partida.Estado.CANCELADA):
@@ -348,10 +363,13 @@ def validar_resultado(
                 motivo=motivo,
             )
             try:
-                resultado_oficial.full_clean()
-                resultado_oficial.save()
+                with transaction.atomic():
+                    resultado_oficial.full_clean()
+                    resultado_oficial.save()
             except ValidationError as error:
                 raise ResultadoError('; '.join(error.messages)) from error
+            except IntegrityError as error:
+                raise ResultadoError('No se pudo registrar un resultado oficial único.') from error
             partida.estado = Partida.Estado.FINALIZADA
             partida.fecha_hora_fin_real = timezone.now()
             partida.save(update_fields=('estado', 'fecha_hora_fin_real'))
@@ -365,13 +383,12 @@ def validar_resultado(
                 lambda resultado_id=resultado_oficial.pk: premiar_resultado_validado(resultado_id),
                 robust=True,
             )
-            try:
-                from notificaciones.models import Notificacion
-                from notificaciones.services import crear_notificacion
-                for participante in participantes:
-                    crear_notificacion(participante.inscripcion.usuario, Notificacion.Tipo.RESULTADO_OFICIAL, 'Resultado oficial', f'Se ha validado el resultado de {partida}.', es_critica=True, clave_evento=f'resultado:{partida.pk}', torneo=partida.torneo, partida=partida)
-            except Exception:
-                pass
+            # Result, progression, history and critical notifications commit
+            # together. A failure must not silently leave half the recipients.
+            from notificaciones.models import Notificacion
+            from notificaciones.services import crear_notificacion
+            for participante in participantes:
+                crear_notificacion(participante.inscripcion.usuario, Notificacion.Tipo.RESULTADO_OFICIAL, 'Resultado oficial', f'Se ha validado el resultado de {partida}.', es_critica=True, clave_evento=f'resultado:{partida.pk}', torneo=partida.torneo, partida=partida)
             if partida.siguiente_partida_id is None and partida.torneo.tipo == Torneo.Tipo.PUBLICO:
                 from torneos.services import CierreTorneoError, cerrar_torneo
                 try:

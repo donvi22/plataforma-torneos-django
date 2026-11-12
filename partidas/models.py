@@ -209,6 +209,11 @@ class DeclaracionResultado(models.Model):
 	)
 	fecha = models.DateTimeField(auto_now_add=True)
 
+	class Meta:
+		constraints = [
+			models.UniqueConstraint(fields=('partida', 'usuario'), name='unique_declaracion_partida_usuario'),
+		]
+
 	def clean(self):
 		super().clean()
 		if self.partida_id and not self.partida.participantes.filter(inscripcion__usuario=self.usuario).exists():

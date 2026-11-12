@@ -4,16 +4,18 @@ El procesador temporal se invoca explicitamente. Para automatizarlo en un
 servidor real sera necesario conectarlo a cron, un scheduler o un worker.
 """
 
+from contextlib import nullcontext
 from datetime import timedelta
 from threading import RLock
 
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 
 from torneos.models import InscripcionTorneo, Torneo
 
 from .models import CheckInPartida, HistorialProgramacionPartida, Partida
+from .services import _partida_bloqueada
 
 
 class CheckInError(Exception):
@@ -68,8 +70,8 @@ def _validar_torneo_en_competicion(partida):
 def preparar_partida(partida, ahora=None):
     """Abre el check-in cuando la partida ya puede prepararse."""
     ahora = ahora or timezone.now()
-    with _scheduling_lock, transaction.atomic():
-        partida = Partida.objects.select_related('torneo', 'arbitro_asignado').get(pk=partida.pk)
+    with (_scheduling_lock if connection.vendor == 'sqlite' else nullcontext()), transaction.atomic():
+        partida = _partida_bloqueada(partida.pk)
         if not _requiere_checkin(partida):
             return partida
         _validar_torneo_en_competicion(partida)
@@ -116,8 +118,8 @@ def preparar_partida(partida, ahora=None):
 
 def confirmar_checkin(partida, usuario, tipo, ahora=None):
     ahora = ahora or timezone.now()
-    with _scheduling_lock, transaction.atomic():
-        partida = Partida.objects.select_related('torneo', 'arbitro_asignado').get(pk=partida.pk)
+    with (_scheduling_lock if connection.vendor == 'sqlite' else nullcontext()), transaction.atomic():
+        partida = _partida_bloqueada(partida.pk)
         if not usuario or not usuario.puede_operar:
             raise CheckInError('La cuenta no está activa para confirmar el check-in.')
         _validar_torneo_en_competicion(partida)
@@ -163,8 +165,8 @@ def confirmar_checkin(partida, usuario, tipo, ahora=None):
 
 def iniciar_partida(partida, ahora=None):
     ahora = ahora or timezone.now()
-    with _scheduling_lock, transaction.atomic():
-        partida = Partida.objects.select_related('torneo').get(pk=partida.pk)
+    with (_scheduling_lock if connection.vendor == 'sqlite' else nullcontext()), transaction.atomic():
+        partida = _partida_bloqueada(partida.pk)
         _validar_torneo_en_competicion(partida)
         if partida.estado != Partida.Estado.LISTA_PARA_COMENZAR:
             raise CheckInError('La partida no está lista para comenzar.')
@@ -261,8 +263,8 @@ def reprogramar_partida(partida, nueva_fecha, actor, motivo='', ahora=None):
     """Programa o reprograma una partida oficial; es el único punto de escritura de la hora."""
     ahora = ahora or timezone.now()
     motivo = (motivo or '').strip()
-    with _scheduling_lock, transaction.atomic():
-        partida = Partida.objects.select_related('torneo__organizador', 'arbitro_asignado__usuario').get(pk=partida.pk)
+    with (_scheduling_lock if connection.vendor == 'sqlite' else nullcontext()), transaction.atomic():
+        partida = _partida_bloqueada(partida.pk)
         torneo = partida.torneo
         if torneo.tipo != Torneo.Tipo.OFICIAL or not puede_programar_partidas(torneo, actor):
             raise CheckInError('Solo la administración o el organizador oficial pueden programar partidas.')
