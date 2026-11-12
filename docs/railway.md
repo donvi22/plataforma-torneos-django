@@ -104,12 +104,17 @@ CompressedManifestStaticFilesStorage para versiones con hash, compresion y
 cache. No suprimas los errores de manifiesto: corrige las referencias rotas
 antes de desplegar.
 
-MEDIA_ROOT sigue siendo `media/` y MEDIA_URL sigue siendo `/media/`.
-WhiteNoise no sirve archivos subidos por usuarios. Las rutas Django para media
-solo existen con DEBUG=True. El filesystem efimero del servicio no es una
-solucion persistente ni un servidor de media de produccion: antes de admitir
-subidas reales, configura almacenamiento persistente y una forma segura de
-servir esos archivos. No se ha anadido S3, Cloudinary ni otro proveedor.
+Los avatares conservan su almacenamiento IONOS. Las nuevas imágenes de torneos,
+videojuegos y premios usan PersistentMediaStorage: IONOS en producción y disco
+local en desarrollo. Las referencias locales antiguas conservan MEDIA_ROOT y
+MEDIA_URL; no se migran ni se supone que existan en el servidor remoto.
+WhiteNoise no sirve multimedia de usuarios. No se ha añadido otro proveedor.
+
+Antes de integrar este cambio, verificar y configurar la raíz SFTP absoluta y
+su correspondencia pública. Sin ese mapeo las subidas nuevas fallan de forma
+explícita, sin fallback al disco efímero. Ver el inventario, la política de
+compatibilidad y los pasos de integración NO ejecutados en
+[almacenamiento-multimedia.md](almacenamiento-multimedia.md).
 
 ## HTTPS y primera comprobacion
 
