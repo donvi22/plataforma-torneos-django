@@ -243,5 +243,7 @@ DEFAULT_FROM_EMAIL = os.environ.get('DJANGO_DEFAULT_FROM_EMAIL') or 'webmaster@l
 MEDIA_STORAGE_MODE = os.environ.get('DJANGO_MEDIA_STORAGE') or ('local' if DEBUG else 'ionos')
 if MEDIA_STORAGE_MODE not in ('local', 'ionos') or (not DEBUG and MEDIA_STORAGE_MODE != 'ionos'):
     raise ImproperlyConfigured('DJANGO_MEDIA_STORAGE debe ser ionos en produccion; local solo admite DEBUG=True.')
+# SFTP credentials are read by each storage directly from its own environment
+# variables: IONOS_SFTP_* for avatars, IONOS_MEDIA_SFTP_* for new media.
 IONOS_MEDIA_REMOTE_ROOT = os.environ.get('IONOS_MEDIA_REMOTE_ROOT', '')
 IONOS_MEDIA_PUBLIC_BASE_URL = os.environ.get('IONOS_MEDIA_PUBLIC_BASE_URL', '')
