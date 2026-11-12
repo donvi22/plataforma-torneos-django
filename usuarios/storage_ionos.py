@@ -27,6 +27,8 @@ class IonosAvatarStorage(Storage):
     HOST = "access-5021649008.webspace-host.com"
     FINGERPRINT = "1gx2w8Rtv3wCgi7Jh8myf/KVd72cRQbow03UP8P095Q"
     BASE_URL = "https://media.rankedkingdom.com/avatars/"
+    USERNAME_ENV = "IONOS_SFTP_USERNAME"
+    PASSWORD_ENV = "IONOS_SFTP_PASSWORD"
 
     def _remote_path(self, name):
         path = PurePosixPath(name)
@@ -82,8 +84,8 @@ class IonosAvatarStorage(Storage):
                 )
 
             transport.auth_password(
-                os.environ["IONOS_SFTP_USERNAME"],
-                os.environ["IONOS_SFTP_PASSWORD"],
+                os.environ[self.USERNAME_ENV],
+                os.environ[self.PASSWORD_ENV],
             )
 
             if not transport.is_authenticated():
@@ -217,8 +219,15 @@ def _media_name(name):
 class IonosMediaStorage(IonosAvatarStorage):
     """New media only: configured absolute root, never the avatar SFTP cwd."""
 
+    USERNAME_ENV = "IONOS_MEDIA_SFTP_USERNAME"
+    PASSWORD_ENV = "IONOS_MEDIA_SFTP_PASSWORD"
+
     @contextmanager
     def _connection(self):
+        # Never fall back to the avatar account or contact the host without
+        # both dedicated credentials. Do not include secret values in errors.
+        if any(not os.environ.get(name, '').strip() for name in (self.USERNAME_ENV, self.PASSWORD_ENV)):
+            raise OSError('Faltan credenciales SFTP multimedia dedicadas.')
         try:
             with super()._connection() as sftp:
                 yield sftp

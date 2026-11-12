@@ -285,6 +285,7 @@ class PersistentMediaRoutingTests(SimpleTestCase):
             self.assertEqual(check_persistent_media_configuration(None)[0].id, 'usuarios.E001')
         self.remote.assert_not_called()
 
+    @patch.dict('os.environ', {'IONOS_MEDIA_SFTP_USERNAME': 'media-test', 'IONOS_MEDIA_SFTP_PASSWORD': 'media-test-password'})
     def test_ssh_identity_and_authentication_failures_are_not_silenced(self):
         # The shared transport remains fingerprint-pinned by the avatar tests.
         for error in (RuntimeError('untrusted key'), KeyError('missing test credential')):

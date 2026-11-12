@@ -8,7 +8,7 @@ from unittest.mock import patch
 from django.core.files.base import ContentFile
 from django.test import SimpleTestCase
 
-from .storage_ionos import IonosAvatarStorage
+from .storage_ionos import IonosAvatarStorage, IonosMediaStorage
 
 
 class IonosConnectionTests(SimpleTestCase):
@@ -201,3 +201,86 @@ class IonosStorageTests(SimpleTestCase):
         self.sftp.stat.return_value.st_size = 123
         self.assertEqual(self.storage.size('avatars/photo.png'), 123)
         self.sftp.stat.assert_called_once_with('photo.png')
+
+
+class IonosDedicatedCredentialTests(SimpleTestCase):
+    def setUp(self):
+        # Reuse the fully mocked DNS/socket/SSH boundary, not its test cases.
+        IonosConnectionTests.setUp(self)
+        fingerprint = self.storage.FINGERPRINT
+        self.avatar = self.storage
+        self.media = IonosMediaStorage()
+        self.media.FINGERPRINT = fingerprint
+        self.credentials = {
+            'IONOS_SFTP_USERNAME': 'avatar-user',
+            'IONOS_SFTP_PASSWORD': 'avatar-password',
+            'IONOS_MEDIA_SFTP_USERNAME': 'media-user',
+            'IONOS_MEDIA_SFTP_PASSWORD': 'media-password',
+        }
+        self.enterContext(patch.dict('os.environ', self.credentials, clear=True))
+
+    def test_avatar_uses_original_credentials_when_both_accounts_exist(self):
+        with self.avatar._connection():
+            pass
+        self.transport.auth_password.assert_called_once_with('avatar-user', 'avatar-password')
+
+    def test_media_uses_only_dedicated_credentials(self):
+        with self.media._connection():
+            pass
+        self.transport.auth_password.assert_called_once_with('media-user', 'media-password')
+
+    def test_media_does_not_require_avatar_credentials(self):
+        with patch.dict('os.environ', {
+            'IONOS_MEDIA_SFTP_USERNAME': 'media-user',
+            'IONOS_MEDIA_SFTP_PASSWORD': 'media-password',
+        }, clear=True):
+            with self.media._connection():
+                pass
+        self.transport.auth_password.assert_called_once_with('media-user', 'media-password')
+
+    def test_missing_or_blank_media_credentials_fail_before_network_without_fallback(self):
+        for key in ('IONOS_MEDIA_SFTP_USERNAME', 'IONOS_MEDIA_SFTP_PASSWORD'):
+            for value in (None, '', '   '):
+                environment = dict(self.credentials)
+                if value is None:
+                    del environment[key]
+                else:
+                    environment[key] = value
+                with self.subTest(key=key, value=value), patch.dict('os.environ', environment, clear=True):
+                    with self.assertRaisesRegex(OSError, 'credenciales SFTP multimedia dedicadas'):
+                        with self.media._connection():
+                            self.fail('Missing credentials must not expose SFTP')
+        self.dns.assert_not_called()
+        self.socket_factory.assert_not_called()
+        self.transport.auth_password.assert_not_called()
+
+    def test_media_credentials_cannot_replace_missing_avatar_credentials(self):
+        with patch.dict('os.environ', {
+            'IONOS_MEDIA_SFTP_USERNAME': 'media-user',
+            'IONOS_MEDIA_SFTP_PASSWORD': 'media-password',
+        }, clear=True):
+            with self.assertRaises(KeyError):
+                with self.avatar._connection():
+                    pass
+        self.transport.auth_password.assert_not_called()
+        self.transport.close.assert_called_once_with()
+
+    def test_media_rejects_untrusted_identity_before_authentication(self):
+        self.media.FINGERPRINT = 'untrusted-test-key'
+        with self.assertRaises(OSError) as caught:
+            with self.media._connection():
+                pass
+        self.assertIsInstance(caught.exception.__cause__, RuntimeError)
+        self.transport.auth_password.assert_not_called()
+        self.sftp_factory.assert_not_called()
+        self.transport.close.assert_called_once_with()
+
+    def test_media_authentication_failure_is_controlled_and_closes_transport(self):
+        self.transport.is_authenticated.return_value = False
+        with self.assertRaises(OSError) as caught:
+            with self.media._connection():
+                pass
+        self.assertIsInstance(caught.exception.__cause__, RuntimeError)
+        self.transport.auth_password.assert_called_once_with('media-user', 'media-password')
+        self.sftp_factory.assert_not_called()
+        self.transport.close.assert_called_once_with()
