@@ -1,10 +1,11 @@
 """Progresion y concesion de XP por clasificaciones finales."""
 
 from decimal import Decimal, ROUND_HALF_UP
+from contextlib import nullcontext
 from math import isqrt
 from threading import RLock
 
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 
 from torneos.models import ClasificacionTorneo, Torneo
 
@@ -100,20 +101,32 @@ def _clasificacion_coherente(torneo):
 
 def conceder_xp_torneo(torneo):
     """Concede o completa de forma segura las recompensas de una clasificación final."""
-    with _xp_lock, transaction.atomic():
+    # SQLite has no row locks; the local lock is only a development aid.
+    # PostgreSQL correctness comes from database locks, across workers/processes.
+    with (_xp_lock if connection.vendor == 'sqlite' else nullcontext()), transaction.atomic():
         torneo = Torneo.objects.get(pk=torneo.pk)
         if torneo.estado != Torneo.Estado.FINALIZADO:
             raise XPError('Solo se concede XP a torneos finalizados.')
         clasificaciones = _clasificacion_coherente(torneo)
         if torneo.tipo == Torneo.Tipo.PRIVADO:
             raise XPError('Los torneos privados no conceden XP.')
+        # Acquire every participant before writing, always in PK order, even if
+        # tournaments list them differently. No joined rows are locked. On PG,
+        # NO KEY UPDATE also avoids conflicts with unrelated FK key-share locks.
+        usuarios = {
+            usuario.pk: usuario
+            for usuario in Usuario.objects.select_for_update(no_key=True).filter(
+                pk__in={fila.inscripcion.usuario_id for fila in clasificaciones},
+            ).order_by('pk')
+        }
         movimientos = []
         for clasificacion in clasificaciones:
             xp, dificultad, multiplicador = calcular_xp_clasificacion(clasificacion)
             existente = HistorialXP.objects.filter(inscripcion=clasificacion.inscripcion).first()
             if existente:
                 if (
-                    existente.torneo_id != torneo.pk
+                    existente.usuario_id != clasificacion.inscripcion.usuario_id
+                    or existente.torneo_id != torneo.pk
                     or existente.clasificacion_id != clasificacion.pk
                     or existente.xp_concedida != xp
                     or existente.posicion_final != clasificacion.posicion
@@ -124,7 +137,7 @@ def conceder_xp_torneo(torneo):
                     raise XPError('Existe un historial de XP incoherente que requiere revisión.')
                 movimientos.append(existente)
                 continue
-            usuario = Usuario.objects.get(pk=clasificacion.inscripcion.usuario_id)
+            usuario = usuarios[clasificacion.inscripcion.usuario_id]
             if not usuario.puede_operar:
                 continue
             xp_anterior = usuario.xp_total
