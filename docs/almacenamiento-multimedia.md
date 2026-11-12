@@ -49,9 +49,14 @@ panel web puede diferir de la ruta visible en el chroot SFTP.
   final, sin '..', sin directorios vacíos ni enlaces simbólicos.
 - IONOS_MEDIA_PUBLIC_BASE_URL: URL HTTPS en media.rankedkingdom.com, carpeta
   dedicada distinta de / y /avatars/, con barra final.
-- IONOS_SFTP_USERNAME / IONOS_SFTP_PASSWORD: las variables del transporte existente;
-  no se guardan en código. El servidor y la huella SSH siguen fijados por el
-  transporte de avatares. Su identidad se comprueba ANTES de enviar credenciales.
+- IONOS_SFTP_USERNAME / IONOS_SFTP_PASSWORD: exclusivamente para avatares,
+  sin cambios de cuenta, directorio inicial, rutas ni URLs.
+- IONOS_MEDIA_SFTP_USERNAME / IONOS_MEDIA_SFTP_PASSWORD: exclusivamente para
+  nuevos medios. No hay fallback a la cuenta de avatares. Si falta cualquiera
+  o solo contiene espacios, se lanza OSError antes de abrir la conexión.
+  No se guardan ni registran secretos. Las contraseñas se transmiten sin recortar.
+- Ambos accesos mantienen el servidor y la huella SSH fijados por el transporte
+  existente. La identidad se comprueba ANTES de enviar credenciales.
 
 Los valores reales de raíz y URL NO están determinados en el repositorio y no
 se suministra un valor por defecto inventado. Si faltan, las subidas nuevas en
@@ -152,3 +157,34 @@ subidas parciales, fallos de conexión y limpieza, lectura/tamaño/borrado,
 compatibilidad local, reemplazo sin borrado implícito y error recuperable en las
 vistas de torneos. Los tests de avatares conservan su cobertura de huella y
 credenciales, con mocks. No se ejecutan operaciones contra el servidor real.
+
+
+## Investigación del panel IONOS y separación de accesos (2026-11-12)
+
+Consulta de solo lectura: el subdominio media.rankedkingdom.com tiene destino
+Espacio web y objetivo /media. Explorer muestra /media como ruta relativa y
+/home/www/media como absoluta, con carpetas avatars y videojuegos. La única
+cuenta SFTP visible tiene directorio /media/avatars y nota de avatares.
+Esto acredita el destino configurado en el panel, no una comparación de bytes
+entre SFTP y HTTPS ni la ruta absoluta visible dentro del acceso SFTP.
+
+No cambiar el directorio de la cuenta existente: los avatares escriben nombres
+relativos al directorio inicial. Preparar posteriormente un acceso independiente
+para nuevos medios. No se han creado cuentas, carpetas ni credenciales.
+Una carpeta /home/www/media/uploads sería solo una propuesta: NO copiar esa
+ruta a IONOS_MEDIA_REMOTE_ROOT sin verificar el espacio visible por la nueva
+cuenta. El backend exige una raíz absoluta dedicada distinta de /; si el nuevo
+acceso presenta la carpeta dedicada como /, deberá elegirse y comprobarse una
+subcarpeta dentro de ella y ajustar conjuntamente la URL pública.
+
+Pendiente antes de activar: autorización para preparar cuenta/carpetas, verificar
+la raíz visible SFTP y sus padres (sin enlaces), huella, IPv6, permisos, TLS del
+origen y mapeo HTTPS. El panel indica que el subdominio no tiene certificado
+asignado; no se ha comprobado la terminación TLS pública o entre proxy y origen.
+Una subida real de comprobación y su limpieza necesitan autorización específica.
+No se han consultado variables de Railway ni realizado despliegues.
+
+Reversión: conservar archivos y referencias; mantener lector/configuración para
+ionos_v1 mientras existan esos identificadores. No restaurar código sin ese lector
+ni usar disco local en producción como alternativa. Los medios locales heredados
+siguen requiriendo inventario y copia no destructiva por separado.

@@ -110,6 +110,11 @@ local en desarrollo. Las referencias locales antiguas conservan MEDIA_ROOT y
 MEDIA_URL; no se migran ni se supone que existan en el servidor remoto.
 WhiteNoise no sirve multimedia de usuarios. No se ha añadido otro proveedor.
 
+Los avatares mantienen IONOS_SFTP_USERNAME / IONOS_SFTP_PASSWORD. Los nuevos
+medios requieren IONOS_MEDIA_SFTP_USERNAME / IONOS_MEDIA_SFTP_PASSWORD de un
+acceso independiente, sin fallback al de avatares. No cambiar el directorio de
+la cuenta existente.
+
 Antes de integrar este cambio, verificar y configurar la raíz SFTP absoluta y
 su correspondencia pública. Sin ese mapeo las subidas nuevas fallan de forma
 explícita, sin fallback al disco efímero. Ver el inventario, la política de
