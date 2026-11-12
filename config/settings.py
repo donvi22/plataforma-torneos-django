@@ -196,7 +196,7 @@ STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STORAGES = {
-    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'default': {'BACKEND': 'usuarios.storage_ionos.PersistentMediaStorage'},
     'staticfiles': {
         'BACKEND': (
             'django.contrib.staticfiles.storage.StaticFilesStorage'
@@ -238,3 +238,10 @@ if not DEBUG:
         },
     }
 DEFAULT_FROM_EMAIL = os.environ.get('DJANGO_DEFAULT_FROM_EMAIL') or 'webmaster@localhost'
+
+# New dynamic images use IONOS in production; legacy names retain MEDIA_URL.
+MEDIA_STORAGE_MODE = os.environ.get('DJANGO_MEDIA_STORAGE') or ('local' if DEBUG else 'ionos')
+if MEDIA_STORAGE_MODE not in ('local', 'ionos') or (not DEBUG and MEDIA_STORAGE_MODE != 'ionos'):
+    raise ImproperlyConfigured('DJANGO_MEDIA_STORAGE debe ser ionos en produccion; local solo admite DEBUG=True.')
+IONOS_MEDIA_REMOTE_ROOT = os.environ.get('IONOS_MEDIA_REMOTE_ROOT', '')
+IONOS_MEDIA_PUBLIC_BASE_URL = os.environ.get('IONOS_MEDIA_PUBLIC_BASE_URL', '')

@@ -87,7 +87,7 @@ class EnvironmentSettingsTests(SimpleTestCase):
         self.assertEqual(settings['SECURE_HSTS_SECONDS'], 0)
         self.assertEqual(settings['STATIC_URL'], 'static/')
         self.assertEqual(settings['STORAGES']['staticfiles']['BACKEND'], 'whitenoise.storage.CompressedManifestStaticFilesStorage')
-        self.assertEqual(settings['STORAGES']['default']['BACKEND'], 'django.core.files.storage.FileSystemStorage')
+        self.assertEqual(settings['STORAGES']['default']['BACKEND'], 'usuarios.storage_ionos.PersistentMediaStorage')
         self.assertEqual(settings['MIDDLEWARE'][1], 'whitenoise.middleware.WhiteNoiseMiddleware')
 
     def test_production_mail_uses_smtp_without_sending(self):
@@ -136,3 +136,11 @@ class EnvironmentSettingsTests(SimpleTestCase):
                 with self.assertRaises(SystemExit):
                     railway.main(['predeploy'])
                 command.assert_not_called()
+
+    def test_media_mode_defaults_and_production_rejects_local_storage(self):
+        self.assertEqual(self.load_settings()['MEDIA_STORAGE_MODE'], 'local')
+        self.assertEqual(self.load_settings(**self.production_environment())['MEDIA_STORAGE_MODE'], 'ionos')
+        with self.assertRaises(ImproperlyConfigured):
+            self.load_settings(**self.production_environment(DJANGO_MEDIA_STORAGE='local'))
+        with self.assertRaises(ImproperlyConfigured):
+            self.load_settings(DJANGO_MEDIA_STORAGE='unknown')
