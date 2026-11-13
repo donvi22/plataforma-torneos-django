@@ -15,7 +15,7 @@ from django.utils import timezone
 from torneos.models import InscripcionTorneo, Torneo
 
 from .models import CheckInPartida, HistorialProgramacionPartida, Partida
-from .services import _partida_bloqueada
+from .services import _partida_bloqueada, _usuario_actual
 
 
 class CheckInError(Exception):
@@ -79,7 +79,7 @@ def preparar_partida(partida, ahora=None):
             return partida
         if partida.estado in (Partida.Estado.CHECK_IN, Partida.Estado.LISTA_PARA_COMENZAR):
             return partida
-        if partida.estado in (Partida.Estado.FINALIZADA, Partida.Estado.CANCELADA, Partida.Estado.EN_CURSO):
+        if partida.estado not in (Partida.Estado.PENDIENTE, Partida.Estado.PROGRAMADA):
             raise CheckInError('La partida ya no puede abrir su check-in.')
         if partida.torneo.tipo == Torneo.Tipo.PUBLICO:
             if partida.numero_ronda > 1:
@@ -105,14 +105,11 @@ def preparar_partida(partida, ahora=None):
             if partida.torneo.tipo == Torneo.Tipo.OFICIAL else ahora
         )
         partida.save(update_fields=('estado', 'fecha_hora_apertura_checkin'))
-        try:
-            from notificaciones.models import Notificacion
-            from notificaciones.services import crear_notificacion
-            for usuario_id, tipo in _checkins_requeridos(partida):
-                usuario = partida.torneo.organizador.__class__.objects.get(pk=usuario_id)
-                crear_notificacion(usuario, Notificacion.Tipo.APERTURA_CHECKIN, 'Check-in abierto', f'Ya puedes confirmar tu disponibilidad para {partida}.', es_critica=True, clave_evento=f'checkin:{partida.pk}:{partida.fecha_hora_apertura_checkin}', torneo=partida.torneo, partida=partida)
-        except Exception:
-            pass
+        from notificaciones.models import Notificacion
+        from notificaciones.services import crear_notificacion
+        for usuario_id, tipo in _checkins_requeridos(partida):
+            usuario = partida.torneo.organizador.__class__.objects.get(pk=usuario_id)
+            crear_notificacion(usuario, Notificacion.Tipo.APERTURA_CHECKIN, 'Check-in abierto', f'Ya puedes confirmar tu disponibilidad para {partida}.', es_critica=True, clave_evento=f'checkin:{partida.pk}:{partida.fecha_hora_apertura_checkin}', torneo=partida.torneo, partida=partida)
         return partida
 
 
@@ -120,6 +117,7 @@ def confirmar_checkin(partida, usuario, tipo, ahora=None):
     ahora = ahora or timezone.now()
     with (_scheduling_lock if connection.vendor == 'sqlite' else nullcontext()), transaction.atomic():
         partida = _partida_bloqueada(partida.pk)
+        usuario = _usuario_actual(usuario)
         if not usuario or not usuario.puede_operar:
             raise CheckInError('La cuenta no está activa para confirmar el check-in.')
         _validar_torneo_en_competicion(partida)
@@ -189,22 +187,23 @@ def iniciar_partida(partida, ahora=None):
 
 def detectar_ausencias(partida, ahora=None):
     ahora = ahora or timezone.now()
-    partida = Partida.objects.select_related('torneo').get(pk=partida.pk)
-    if partida.estado != Partida.Estado.CHECK_IN or not partida.fecha_hora_apertura_checkin:
-        return {'participantes_ausentes': [], 'arbitro_ausente': False}
-    if ahora <= partida.fecha_hora_apertura_checkin + timedelta(minutes=partida.torneo.duracion_checkin_min):
-        return {'participantes_ausentes': [], 'arbitro_ausente': False}
-    confirmados = set(partida.checkins.filter(confirmado=True).values_list('usuario_id', 'tipo'))
-    participantes_ausentes = [
-        p.inscripcion.usuario_id
-        for p in partida.participantes.select_related('inscripcion')
-        if (p.inscripcion.usuario_id, CheckInPartida.Tipo.PARTICIPANTE) not in confirmados
-    ]
-    responsable = _responsable(partida)
-    return {
-        'participantes_ausentes': participantes_ausentes,
-        'arbitro_ausente': responsable is None or (responsable.pk, CheckInPartida.Tipo.ARBITRO) not in confirmados,
-    }
+    with (_scheduling_lock if connection.vendor == 'sqlite' else nullcontext()), transaction.atomic():
+        partida = _partida_bloqueada(partida.pk)
+        if partida.estado != Partida.Estado.CHECK_IN or not partida.fecha_hora_apertura_checkin:
+            return {'participantes_ausentes': [], 'arbitro_ausente': False}
+        if ahora <= partida.fecha_hora_apertura_checkin + timedelta(minutes=partida.torneo.duracion_checkin_min):
+            return {'participantes_ausentes': [], 'arbitro_ausente': False}
+        confirmados = set(partida.checkins.filter(confirmado=True).values_list('usuario_id', 'tipo'))
+        participantes_ausentes = [
+            p.inscripcion.usuario_id
+            for p in partida.participantes.select_related('inscripcion')
+            if (p.inscripcion.usuario_id, CheckInPartida.Tipo.PARTICIPANTE) not in confirmados
+        ]
+        responsable = _responsable(partida)
+        return {
+            'participantes_ausentes': participantes_ausentes,
+            'arbitro_ausente': responsable is None or (responsable.pk, CheckInPartida.Tipo.ARBITRO) not in confirmados,
+        }
 
 
 def procesar_checkins(ahora=None):
@@ -266,6 +265,7 @@ def reprogramar_partida(partida, nueva_fecha, actor, motivo='', ahora=None):
     with (_scheduling_lock if connection.vendor == 'sqlite' else nullcontext()), transaction.atomic():
         partida = _partida_bloqueada(partida.pk)
         torneo = partida.torneo
+        actor = _usuario_actual(actor)
         if torneo.tipo != Torneo.Tipo.OFICIAL or not puede_programar_partidas(torneo, actor):
             raise CheckInError('Solo la administración o el organizador oficial pueden programar partidas.')
         if partida.estado in ESTADOS_NO_REPROGRAMABLES or hasattr(partida, 'resultado_oficial'):
