@@ -1,21 +1,19 @@
-"""Servicios de arbitraje.
+"""Servicios arbitrales: torneo → partida → usuarios por PK ascendente.
 
-Las operaciones que consumen plazas usan un RLock y una transaccion atomica.
-En SQLite esto serializa llamadas del mismo proceso y aprovecha el bloqueo de
-escritura del motor, pero no equivale a bloqueos de fila entre varios procesos.
-Para produccion con concurrencia multiproceso se recomienda PostgreSQL con
-select_for_update.
+PostgreSQL coordina procesos con bloqueos de filas; el RLock es solo una
+ayuda para SQLite. Invitaciones, asignaciones, historiales y avisos críticos
+se confirman juntos. Ver docs/concurrencia-arbitraje-checkin.md.
 """
 
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from threading import RLock
 
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.utils import timezone
 
 from torneos.models import InscripcionTorneo, Torneo
-from torneos.services import _es_administrador_autorizado
+from torneos.services import _es_administrador_autorizado, _torneo_bloqueado
 from usuarios.models import Usuario
 
 from .models import ArbitroTorneo, HistorialAsignacionArbitro
@@ -30,7 +28,7 @@ _arbitraje_lock = RLock()
 
 @contextmanager
 def _bloqueo_arbitraje():
-    with _arbitraje_lock:
+    with (_arbitraje_lock if connection.vendor == 'sqlite' else nullcontext()):
         with transaction.atomic():
             yield
 
@@ -97,17 +95,39 @@ def _validar_limite_invitaciones_pendientes(torneo):
             raise ArbitrajeError('Se alcanzó el límite de invitaciones arbitrales pendientes.')
 
 
+def _usuario_actual(usuario):
+    return Usuario.objects.get(pk=usuario.pk) if usuario else None
+
+
 def cambiar_disponibilidad(usuario, disponible):
-    """Cambia la disponibilidad futura sin cancelar invitaciones ni asignaciones."""
-    if not usuario or not usuario.puede_operar:
-        raise ArbitrajeError('La cuenta debe estar activa para cambiar la disponibilidad arbitral.')
-    if not isinstance(disponible, bool):
-        raise ArbitrajeError('La disponibilidad debe ser un valor booleano.')
-    if disponible and usuario.karma_total < 150:
-        raise ArbitrajeError('Necesitas al menos 150 puntos de Karma para arbitrar torneos públicos.')
-    usuario.disponible_para_arbitrar = disponible
-    usuario.save(update_fields=('disponible_para_arbitrar',))
-    return usuario
+    """Solo bloquea al usuario; nunca adquiere después torneos o partidas."""
+    with transaction.atomic():
+        usuario = Usuario.objects.select_for_update(no_key=True).get(pk=usuario.pk) if usuario else None
+        if not usuario or not usuario.puede_operar:
+            raise ArbitrajeError('La cuenta debe estar activa para cambiar la disponibilidad arbitral.')
+        if not isinstance(disponible, bool):
+            raise ArbitrajeError('La disponibilidad debe ser un valor booleano.')
+        if disponible and usuario.karma_total < 150:
+            raise ArbitrajeError('Necesitas al menos 150 puntos de Karma para arbitrar torneos públicos.')
+        usuario.disponible_para_arbitrar = disponible
+        usuario.save(update_fields=('disponible_para_arbitrar',))
+        return usuario
+
+
+def _notificar_invitacion(invitacion, estado):
+    from notificaciones.models import Notificacion
+    from notificaciones.services import crear_notificacion
+    pendiente = estado == 'pendiente'
+    crear_notificacion(
+        invitacion.usuario if pendiente else invitacion.torneo.organizador,
+        Notificacion.Tipo.INVITACION_ARBITRAL if pendiente else Notificacion.Tipo.RESPUESTA_INVITACION,
+        'Invitación para arbitrar' if pendiente else 'Respuesta de árbitro',
+        f'Has sido invitado a arbitrar {invitacion.torneo.nombre}.' if pendiente else
+        f'{invitacion.usuario.username} ha {estado} la invitación arbitral.',
+        es_critica=True,
+        clave_evento=f'invitacion:{invitacion.pk}:{invitacion.fecha_invitacion.isoformat()}:{estado}',
+        torneo=invitacion.torneo, invitacion_arbitral=invitacion,
+    )
 
 
 def _invitacion_existente(torneo, usuario):
@@ -152,19 +172,20 @@ def arbitros_disponibles_para_invitar(torneo, actor):
 
 
 def invitar_arbitro(torneo, usuario, actor):
-    if torneo.tipo == Torneo.Tipo.PRIVADO:
-        raise ArbitrajeError('Los torneos privados no utilizan arbitraje formal.')
-    if not _torneo_admite_arbitraje(torneo):
-        raise ArbitrajeError('El torneo ya no admite invitaciones arbitrales.')
-    if torneo.tipo == Torneo.Tipo.OFICIAL and not _es_administrador_autorizado(actor):
-        raise ArbitrajeError('Solo un administrador puede invitar árbitros oficiales.')
-    if not _autorizado_torneo(torneo, actor):
-        raise ArbitrajeError('Solo el organizador o un administrador puede invitar árbitros.')
-    _requisitos_publicos(torneo, usuario)
-    if _participa_activamente(torneo, usuario):
-        raise ArbitrajeError('Un participante confirmado no puede ser invitado como árbitro.')
-
     with _bloqueo_arbitraje():
+        torneo = _torneo_bloqueado(torneo.pk)
+        usuario, actor = _usuario_actual(usuario), _usuario_actual(actor)
+        if torneo.tipo == Torneo.Tipo.PRIVADO:
+            raise ArbitrajeError('Los torneos privados no utilizan arbitraje formal.')
+        if not _torneo_admite_arbitraje(torneo):
+            raise ArbitrajeError('El torneo ya no admite invitaciones arbitrales.')
+        if torneo.tipo == Torneo.Tipo.OFICIAL and not _es_administrador_autorizado(actor):
+            raise ArbitrajeError('Solo un administrador puede invitar árbitros oficiales.')
+        if not _autorizado_torneo(torneo, actor):
+            raise ArbitrajeError('Solo el organizador o un administrador puede invitar árbitros.')
+        _requisitos_publicos(torneo, usuario)
+        if _participa_activamente(torneo, usuario):
+            raise ArbitrajeError('Un participante confirmado no puede ser invitado como árbitro.')
         existente = _invitacion_existente(torneo, usuario)
         if existente and existente.estado_invitacion in (
             ArbitroTorneo.EstadoInvitacion.PENDIENTE,
@@ -181,27 +202,22 @@ def invitar_arbitro(torneo, usuario, actor):
             existente.fecha_salida = None
             existente.motivo_salida = ''
             existente.save()
-            return existente
-        try:
-            invitacion = ArbitroTorneo.objects.create(
-                torneo=torneo,
-                usuario=usuario,
-                fecha_invitacion=ahora,
-            )
+            invitacion = existente
+        else:
             try:
-                from notificaciones.models import Notificacion
-                from notificaciones.services import crear_notificacion
-                crear_notificacion(usuario, Notificacion.Tipo.INVITACION_ARBITRAL, 'Invitación para arbitrar', f'Has sido invitado a arbitrar {torneo.nombre}.', es_critica=True, clave_evento=f'invitacion:{invitacion.pk}:pendiente', torneo=torneo, invitacion_arbitral=invitacion)
-            except Exception:
-                pass
-            return invitacion
-        except IntegrityError as error:
-            raise ArbitrajeError('Ya existe una invitación para este usuario y torneo.') from error
+                with transaction.atomic():
+                    invitacion = ArbitroTorneo.objects.create(torneo=torneo, usuario=usuario, fecha_invitacion=ahora)
+            except IntegrityError as error:
+                raise ArbitrajeError('Ya existe una invitación para este usuario y torneo.') from error
+        _notificar_invitacion(invitacion, 'pendiente')
+        return invitacion
 
 
 def aceptar_invitacion(invitacion, usuario):
     with _bloqueo_arbitraje():
+        _torneo_bloqueado(invitacion.torneo_id)
         invitacion = ArbitroTorneo.objects.select_related('torneo', 'usuario').get(pk=invitacion.pk)
+        usuario = _usuario_actual(usuario)
         if invitacion.usuario_id != usuario.pk:
             raise ArbitrajeError('Solo el usuario invitado puede aceptar la invitación.')
         if invitacion.estado_invitacion != ArbitroTorneo.EstadoInvitacion.PENDIENTE:
@@ -224,12 +240,7 @@ def aceptar_invitacion(invitacion, usuario):
         invitacion.fecha_respuesta = timezone.now()
         invitacion.activo_en_torneo = True
         invitacion.save()
-        try:
-            from notificaciones.models import Notificacion
-            from notificaciones.services import crear_notificacion
-            crear_notificacion(invitacion.torneo.organizador, Notificacion.Tipo.RESPUESTA_INVITACION, 'Respuesta de árbitro', f'{usuario.username} ha aceptado la invitación arbitral.', es_critica=True, clave_evento=f'invitacion:{invitacion.pk}:aceptada', torneo=invitacion.torneo, invitacion_arbitral=invitacion)
-        except Exception:
-            pass
+        _notificar_invitacion(invitacion, 'aceptado')
         if invitacion.torneo.tipo == Torneo.Tipo.PUBLICO:
             ArbitroTorneo.objects.filter(
                 torneo=invitacion.torneo,
@@ -247,7 +258,9 @@ def aceptar_invitacion(invitacion, usuario):
 
 def rechazar_invitacion(invitacion, usuario):
     with _bloqueo_arbitraje():
-        invitacion = ArbitroTorneo.objects.get(pk=invitacion.pk)
+        _torneo_bloqueado(invitacion.torneo_id)
+        invitacion = ArbitroTorneo.objects.select_related('torneo', 'usuario').get(pk=invitacion.pk)
+        usuario = _usuario_actual(usuario)
         if invitacion.usuario_id != usuario.pk:
             raise ArbitrajeError('Solo el usuario invitado puede rechazar la invitación.')
         if not usuario.puede_operar:
@@ -258,12 +271,7 @@ def rechazar_invitacion(invitacion, usuario):
         invitacion.fecha_respuesta = timezone.now()
         invitacion.activo_en_torneo = False
         invitacion.save()
-        try:
-            from notificaciones.models import Notificacion
-            from notificaciones.services import crear_notificacion
-            crear_notificacion(invitacion.torneo.organizador, Notificacion.Tipo.RESPUESTA_INVITACION, 'Respuesta de árbitro', f'{usuario.username} ha rechazado la invitación arbitral.', es_critica=True, clave_evento=f'invitacion:{invitacion.pk}:rechazada', torneo=invitacion.torneo, invitacion_arbitral=invitacion)
-        except Exception:
-            pass
+        _notificar_invitacion(invitacion, 'rechazado')
         return invitacion
 
 
@@ -281,9 +289,13 @@ def _arbitro_valido(partida, arbitro):
 
 def asignar_arbitro(partida, actor=None, arbitro=None):
     from partidas.models import Partida
+    from partidas.services import _partida_bloqueada
 
     with _bloqueo_arbitraje():
-        partida = Partida.objects.select_related('torneo', 'arbitro_asignado').get(pk=partida.pk)
+        partida = _partida_bloqueada(partida.pk)
+        actor = _usuario_actual(actor)
+        if actor is not None and not _autorizado_torneo(partida.torneo, actor):
+            raise ArbitrajeError('Solo el organizador o un administrador puede asignar partidas.')
         if not _torneo_admite_arbitraje(partida.torneo):
             raise ArbitrajeError('El torneo ya no admite nuevas asignaciones arbitrales.')
         if partida.arbitro_asignado and _arbitro_valido(partida, partida.arbitro_asignado):
@@ -308,7 +320,19 @@ def asignar_arbitro(partida, actor=None, arbitro=None):
                 usuario__disponible_para_arbitrar=True,
                 usuario__karma_total__gte=150,
             )
-        disponibles = list(consulta_disponibles)
+        # Availability has a user-only writer. Coordinate with it after the
+        # tournament and match, using the same ascending user order as XP.
+        usuarios = dict((u.pk, u) for u in Usuario.objects.select_for_update(no_key=True).filter(
+            pk__in=ArbitroTorneo.objects.filter(
+                torneo=partida.torneo, estado_invitacion=ArbitroTorneo.EstadoInvitacion.ACEPTADA,
+                activo_en_torneo=True,
+            ).values('usuario_id'),
+        ).order_by('pk'))
+        disponibles = list(consulta_disponibles.select_related('usuario'))
+        for candidato in disponibles:
+            candidato.usuario = usuarios[candidato.usuario_id]
+        if arbitro:
+            arbitro = next((c for c in disponibles if c.pk == arbitro.pk), arbitro)
         if arbitro:
             if arbitro not in disponibles:
                 raise ArbitrajeError('El árbitro seleccionado no está activo en este torneo.')
@@ -343,19 +367,15 @@ def asignar_arbitro(partida, actor=None, arbitro=None):
             partida.save(update_fields=('arbitro_asignado',))
         except ValidationError as error:
             raise ArbitrajeError('; '.join(error.messages)) from error
-        HistorialAsignacionArbitro.objects.create(
+        historial = HistorialAsignacionArbitro.objects.create(
             partida=partida,
             arbitro_anterior=anterior,
             arbitro_nuevo=arbitro,
             actor=actor,
             motivo='Asignación automática.' if actor is None else 'Asignación autorizada.',
         )
-        try:
-            from notificaciones.models import Notificacion
-            from notificaciones.services import crear_notificacion
-            crear_notificacion(arbitro.usuario, Notificacion.Tipo.ASIGNACION_PARTIDA, 'Partida asignada', f'Has sido asignado a {partida}.', es_critica=True, clave_evento=f'asignacion:{partida.pk}:{arbitro.pk}:{partida.fecha_actualizacion if hasattr(partida, "fecha_actualizacion") else partida.pk}', torneo=partida.torneo, partida=partida)
-        except Exception:
-            pass
+        _invalidar_checkins_arbitrales(partida)
+        _notificar_asignacion(partida, arbitro, historial)
         return arbitro
 
 
@@ -405,12 +425,13 @@ def solicitar_reasignacion(partida, arbitro, motivo):
 
 
 def reasignar_arbitro(partida, nuevo_arbitro, actor, motivo):
-    from partidas.models import Partida
+    from partidas.services import _partida_bloqueada
 
     if not motivo or not motivo.strip():
         raise ArbitrajeError('El motivo de reasignación es obligatorio.')
     with _bloqueo_arbitraje():
-        partida = Partida.objects.select_related('torneo', 'arbitro_asignado').get(pk=partida.pk)
+        partida = _partida_bloqueada(partida.pk)
+        actor = _usuario_actual(actor)
         if not _autorizado_torneo(partida.torneo, actor):
             raise ArbitrajeError('Solo el organizador o un administrador puede reasignar partidas.')
         nuevo_arbitro = ArbitroTorneo.objects.get(pk=nuevo_arbitro.pk)
@@ -421,21 +442,56 @@ def reasignar_arbitro(partida, nuevo_arbitro, actor, motivo):
             raise ArbitrajeError('La partida ya está asignada a ese árbitro.')
         partida.arbitro_asignado = nuevo_arbitro
         partida.save(update_fields=('arbitro_asignado',))
-        HistorialAsignacionArbitro.objects.create(
+        historial = HistorialAsignacionArbitro.objects.create(
             partida=partida,
             arbitro_anterior=anterior,
             arbitro_nuevo=nuevo_arbitro,
             actor=actor,
             motivo=motivo,
         )
+        _invalidar_checkins_arbitrales(partida)
+        _notificar_asignacion(partida, nuevo_arbitro, historial)
         return partida
 
 
 def solicitar_salida(arbitro, motivo):
     if not motivo or not motivo.strip():
         raise ArbitrajeError('El motivo de salida es obligatorio.')
-    arbitro.activo_en_torneo = False
-    arbitro.fecha_salida = timezone.now()
-    arbitro.motivo_salida = motivo
-    arbitro.save(update_fields=('activo_en_torneo', 'fecha_salida', 'motivo_salida'))
-    return arbitro
+    with _bloqueo_arbitraje():
+        _torneo_bloqueado(arbitro.torneo_id)
+        arbitro = ArbitroTorneo.objects.get(pk=arbitro.pk)
+        if not arbitro.activo_en_torneo:
+            return arbitro
+        arbitro.activo_en_torneo = False
+        arbitro.fecha_salida = timezone.now()
+        arbitro.motivo_salida = motivo
+        arbitro.save(update_fields=('activo_en_torneo', 'fecha_salida', 'motivo_salida'))
+        # Root lock also serializes with result validation and check-in.
+        from partidas.models import Partida
+        for partida in arbitro.partidas_asignadas.filter(
+            estado__in=(Partida.Estado.CHECK_IN, Partida.Estado.LISTA_PARA_COMENZAR),
+        ).order_by('pk'):
+            _invalidar_checkins_arbitrales(partida)
+        return arbitro
+
+
+def _invalidar_checkins_arbitrales(partida):
+    """A→B→A must not resurrect A's previous confirmation."""
+    from partidas.models import CheckInPartida, Partida
+    if partida.estado in (Partida.Estado.CHECK_IN, Partida.Estado.LISTA_PARA_COMENZAR):
+        partida.checkins.filter(tipo=CheckInPartida.Tipo.ARBITRO, confirmado=True).update(
+            confirmado=False, fecha_confirmacion=None,
+        )
+        if partida.estado == Partida.Estado.LISTA_PARA_COMENZAR:
+            partida.estado = Partida.Estado.CHECK_IN
+            partida.save(update_fields=('estado',))
+
+
+def _notificar_asignacion(partida, arbitro, historial):
+    from notificaciones.models import Notificacion
+    from notificaciones.services import crear_notificacion
+    crear_notificacion(
+        arbitro.usuario, Notificacion.Tipo.ASIGNACION_PARTIDA, 'Partida asignada',
+        f'Has sido asignado a {partida}.', es_critica=True,
+        clave_evento=f'asignacion:{historial.pk}', torneo=partida.torneo, partida=partida,
+    )
