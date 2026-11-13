@@ -381,10 +381,11 @@ def procesar_calendario(ahora=None):
 	"""Aplica transiciones temporales pendientes; es idempotente y manual."""
 	ahora = ahora or timezone.now()
 	transiciones = 0
-	with transaction.atomic():
-		for torneo in Torneo.objects.filter(
-			tipo__in=(Torneo.Tipo.PUBLICO, Torneo.Tipo.OFICIAL),
-		).order_by('pk'):
+	for torneo_id in Torneo.objects.filter(
+		tipo__in=(Torneo.Tipo.PUBLICO, Torneo.Tipo.OFICIAL),
+	).order_by('pk').values_list('pk', flat=True):
+		with transaction.atomic():
+			torneo = _torneo_bloqueado(torneo_id)
 			if (
 				torneo.tipo == Torneo.Tipo.PUBLICO
 				and torneo.estado == Torneo.Estado.INSCRIPCIONES_CERRADAS
@@ -438,29 +439,26 @@ def procesar_calendario(ahora=None):
 					cambio = _registrar_transicion(torneo, Torneo.Estado.CANCELADO, motivo='Prórroga finalizada sin completar las plazas.')
 					transiciones += cambio
 					if cambio:
-						try:
-							from notificaciones.models import Notificacion
-							from notificaciones.services import crear_notificacion
-							usuarios = set(torneo.inscripciones.filter(
-								estado=InscripcionTorneo.Estado.CONFIRMADA,
-							).values_list('usuario_id', flat=True))
-							usuarios.update(torneo.arbitros.filter(
-								estado_invitacion='ACEPTADA',
-								activo_en_torneo=True,
-							).values_list('usuario_id', flat=True))
-							for usuario_id in usuarios:
-								usuario = torneo.organizador.__class__.objects.get(pk=usuario_id)
-								crear_notificacion(
-									usuario,
-									Notificacion.Tipo.CANCELACION_TORNEO,
-									'Torneo cancelado',
-									f'El torneo {torneo.nombre} ha sido cancelado.',
-									es_critica=True,
-									clave_evento=f'cancelacion:{torneo.pk}',
-									torneo=torneo,
-								)
-						except Exception:
-							pass
+						from notificaciones.models import Notificacion
+						from notificaciones.services import crear_notificacion
+						usuarios = set(torneo.inscripciones.filter(
+							estado=InscripcionTorneo.Estado.CONFIRMADA,
+						).values_list('usuario_id', flat=True))
+						usuarios.update(torneo.arbitros.filter(
+							estado_invitacion='ACEPTADA',
+							activo_en_torneo=True,
+						).values_list('usuario_id', flat=True))
+						for usuario_id in usuarios:
+							usuario = torneo.organizador.__class__.objects.get(pk=usuario_id)
+							crear_notificacion(
+								usuario,
+								Notificacion.Tipo.CANCELACION_TORNEO,
+								'Torneo cancelado',
+								f'El torneo {torneo.nombre} ha sido cancelado.',
+								es_critica=True,
+								clave_evento=f'cancelacion:{torneo.pk}',
+								torneo=torneo,
+							)
 	from arbitraje.services import asignar_arbitros_pendientes
 	asignar_arbitros_pendientes()
 	from partidas.scheduling import procesar_checkins
