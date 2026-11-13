@@ -1,3 +1,7 @@
+> Integración pendiente: antes de publicar las fases de multimedia y concurrencia,
+> completar los requisitos obligatorios de [preparacion-produccion.md](preparacion-produccion.md).
+> Esta guía no autoriza despliegues ni sustituye la auditoría de datos y el ensayo de rollback.
+
 # Preparacion para Railway y PostgreSQL
 
 Este documento prepara un despliegue futuro. No se ha desplegado, asociado un
