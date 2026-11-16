@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)
 ![Django](https://img.shields.io/badge/Django-6.1.1-092E20?logo=django&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-445%20passed-2ea44f)
+[![Django PostgreSQL CI](https://github.com/donvi22/plataforma-torneos-django/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/donvi22/plataforma-torneos-django/actions/workflows/ci.yml?query=branch%3Adevelop)
 ![Status](https://img.shields.io/badge/status-MVP%20completo-7C3AED)
 
 **Ranked Kingdom** es una plataforma web para crear, organizar y disputar torneos de videojuegos de forma estructurada.
@@ -466,7 +466,7 @@ Las credenciales de demostración se documentan en [`docs/demo.md`](docs/demo.md
 
 ## Tests y validación
 
-La validación técnica final del MVP obtuvo:
+La validación técnica final del MVP obtuvo históricamente:
 
 ```text
 445 tests ejecutados
@@ -474,6 +474,8 @@ La validación técnica final del MVP obtuvo:
 0 fallos
 0 errores
 ```
+
+Esta cifra corresponde a la validación final histórica del MVP; no representa el número actual de pruebas. Para consultar las comprobaciones actuales, revisa el workflow [Django PostgreSQL CI en develop](https://github.com/donvi22/plataforma-torneos-django/actions/workflows/ci.yml?query=branch%3Adevelop).
 
 También se comprobó:
 
